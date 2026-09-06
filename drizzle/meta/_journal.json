@@ -8,6 +8,13 @@
       "when": 1788694957540,
       "tag": "0000_swift_jamie_braddock",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1788720000000,
+      "tag": "0001_email_auth",
+      "breakpoints": true
     }
   ]
 }
