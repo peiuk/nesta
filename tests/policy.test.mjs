@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {canReadReport,canReviewReport,canPublishReport,canManageCase,canUseDirectory,validateUpload,validDate,validMutation} from '../lib/policy.ts';
+import {canReadReport,canReviewReport,canPublishReport,canManageCase,canUseDirectory,hasDirectoryAccess,validateUpload,validDate,validMutation} from '../lib/policy.ts';
 const client={id:'alice',role:'client',status:'approved'};
 const reviewer={id:'reviewer',role:'reviewer',status:'approved'};
 const manager={id:'manager',role:'coordinator',status:'approved'};
@@ -18,3 +18,12 @@ test('directory grants require matching scope, approved account, valid expiry an
 test('uploads reject extension/MIME mismatches, empty and oversized files',()=>{assert.equal(validateUpload('report.pdf','application/pdf',new TextEncoder().encode('%PDF-1.7\n')),true);assert.equal(validateUpload('report.html','application/pdf',new TextEncoder().encode('%PDF-1.7')),false);assert.equal(validateUpload('report.pdf','application/pdf',new TextEncoder().encode('<html>bad')),false);assert.equal(validateUpload('report.pdf','application/pdf',new Uint8Array()),false);assert.equal(validateUpload('report.pdf','application/pdf',new Uint8Array(8*1024*1024+1)),false)});
 test('date validation rejects rollover dates',()=>{assert.equal(validDate('2026-02-28'),true);assert.equal(validDate('2026-02-30'),false)});
 test('writes reject cross-origin and missing application request headers',()=>{assert.equal(validMutation('https://a.test','https://a.test','firstleaf','same-origin'),true);assert.equal(validMutation('https://b.test','https://a.test','firstleaf','cross-site'),false);assert.equal(validMutation(null,'https://a.test',null,null),false)});
+test('directory navigation appears only with at least one live grant',()=>{
+ const live={scope:'egg',expires_at:'2026-10-01T00:00:00Z',revoked_at:null};
+ const now='2026-09-06T00:00:00Z';
+ assert.equal(hasDirectoryAccess(client,[],now),false);
+ assert.equal(hasDirectoryAccess(client,[live],now),true);
+ assert.equal(hasDirectoryAccess(client,[{...live,revoked_at:now}],now),false);
+ assert.equal(hasDirectoryAccess(client,[live],'2026-10-02T00:00:00Z'),false);
+ assert.equal(hasDirectoryAccess({...client,status:'pending'},[live],now),false);
+});
