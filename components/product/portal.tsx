@@ -1,6 +1,6 @@
 'use client';
 import {useState,type ReactNode} from 'react';
-import {ArrowLeft,LogOut} from 'lucide-react';
+import {ArrowLeft,Download,LogOut} from 'lucide-react';
 import {Button} from '@/components/ui/button';
 import {Brand} from './brand';
 import {LanguageButton,useLocale} from './locale';
@@ -174,4 +174,38 @@ function ReplyForm({questionId,refresh}:{questionId:string;refresh:()=>void}){
 
 function Directory(_:{profile:Data}){const {t}=useLocale();return <div className="notice">{t('资料库正在开发中。','Directory is under construction.')}</div>}
 function Admin(){const {t}=useLocale();return <div className="notice">{t('管理页正在开发中。','Administration is under construction.')}</div>}
-function ReportPanel(_:{data:Data;caseId:string;refresh:()=>void}){const {t}=useLocale();return <Panel title={t('报告与文件','Reports & documents')}><div className="notice">{t('报告面板正在开发中。','Report panel is under construction.')}</div></Panel>}
+function ReportPanel({data,caseId,refresh}:{data:Data;caseId:string;refresh:()=>void}){
+ const {t}=useLocale();const label=useLabels();const reports=(data.reports||[]) as Data[];const manage=data.can_manage===true;
+ return <Panel title={t('报告与文件','Reports & documents')} action={manage?<UploadForm caseId={caseId} members={(data.members||[]) as Data[]} reports={reports} refresh={refresh}/>:undefined}>
+  {reports.length?<div>{reports.map(r=><div key={String(r.id)} className="report-row"><div>
+   <h3>{String(r.title)}</h3>
+   <p className="metadata">{label(String(r.kind))} · {String(r.report_date)} · {String(r.source)} · v{String(r.version)} · {String(r.language).toUpperCase()}</p>
+   {r.review_note?<div className="report-review">{t('复核意见','Review note')}: {String(r.review_note)}</div>:null}
+   <div className="row-actions">
+    <a className="quiet-link" href={`/api/files/${String(r.id)}/original`} target="_blank" rel="noreferrer"><Download size={16}/>{t('原件','Original')}</a>
+    {r.has_translation?<a className="quiet-link" href={`/api/files/${String(r.id)}/translation`} target="_blank" rel="noreferrer"><Download size={16}/>{t('译稿','Translation')}</a>:null}
+    {r.can_review?<ReportAction report={r} action="review" refresh={refresh}/>:null}
+    {r.can_publish?<ReportAction report={r} action="publish" refresh={refresh}/>:null}
+    {manage&&['draft','reviewed','published'].includes(String(r.status))?<ReportAction report={r} action="withdraw" refresh={refresh}/>:null}
+   </div>
+  </div><Status value={String(r.status)}/></div>)}</div>
+   :<Empty title={t('还没有报告','No reports yet')}>{t('协调员上传并完成独立复核后，已发布报告会显示在这里。','Published reports appear here after upload and independent review.')}</Empty>}
+ </Panel>;
+}
+
+function ReportAction({report,action,refresh}:{report:Data;action:'review'|'publish'|'withdraw';refresh:()=>void}){
+ const {t}=useLocale();const [open,setOpen]=useState(false);
+ const titles={review:t('复核报告','Review report'),publish:t('发布报告','Publish report'),withdraw:t('撤回报告','Withdraw report')};
+ const notes={review:t('上传者不能自审；请给出通过或退回的理由。','Uploaders cannot self-review. Record why you accept or return it.'),publish:t('发布后，被指定的客户成员即可下载。','Once published, assigned client members can download it.'),withdraw:t('撤回后客户将无法再下载该报告。','After withdrawal, clients can no longer download the report.')};
+ return <>
+  <Button variant={action==='withdraw'?'ghost':'secondary'} size="sm" onClick={()=>setOpen(true)}>{titles[action]}</Button>
+  {open&&<Modal title={titles[action]} description={notes[action]} onClose={()=>setOpen(false)}>
+   <ActionForm submitLabel={titles[action]} onSubmit={f=>api(`reports/${String(report.id)}/${action}`,formObject(f))} onDone={()=>{setOpen(false);refresh()}}>
+    {action==='review'&&<Choice name="decision" label={t('复核结论','Decision')} options={[['reviewed',t('通过复核','Accept')],['rejected',t('退回上传者','Return to uploader')]]}/>}
+    <Field name="reason" type="textarea" label={t('说明（记入审计）','Note (recorded in audit)')} max={1000}/>
+   </ActionForm>
+  </Modal>}
+ </>;
+}
+
+function UploadForm(_:{caseId:string;members:Data[];reports:Data[];refresh:()=>void}){const {t}=useLocale();return <span className="metadata">{t('上传功能正在开发中。','Upload is under construction.')}</span>}
