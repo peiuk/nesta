@@ -4,7 +4,7 @@ Continue the approved Chinese/English website and customer/case workspace design
 
 ## Architecture and limits
 - Vinext/React Cloudflare Worker; D1 structured records; R2 private files.
-- Generated ChatGPT sign-in identifies users; registration creates a persistent app profile. No app-owned passwords.
+- ChatGPT or email one-time code identifies users; registration creates a persistent app profile. No app-owned passwords.
 - ADMIN_EMAIL bootstraps the business owner from verified identity, never from submitted profile fields. Client profiles start pending.
 - App roles: admin, coordinator, reviewer, client. Case membership separately limits access; staff status does not automatically grant medical record access.
 - Report flow: draft upload, independent review, coordinator publication. No self-review. Client access requires published state and explicit recipient membership.
