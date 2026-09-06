@@ -2,7 +2,9 @@ import {env} from 'cloudflare:workers';
 import {getChatGPTUser} from '@/app/chatgpt-auth';
 import {ensureSchema} from './ensure-schema';
 import {canReadReport,canManageCase,canReviewReport,canPublishReport,canUseDirectory,validMutation,validDate,validateUpload} from './policy';
+import {normalizeEmail,emailProfileId,generateOtpCode,hashSecret,verifySecret,parseSessionCookie,sessionCookieValue,clearSessionCookie,OTP_TTL_MS,SESSION_TTL_MS,OTP_MAX_ATTEMPTS,OTP_RESEND_MS} from './email-auth';
 export type Profile={id:string;email:string;name:string;role:string;status:string;language:string;jurisdiction:string;interest:string;registered_at:string|null;created_at:string};
+export type AuthContext={profile:Profile;sign_in:'chatgpt'|'email'};
 export type Row=Record<string,any>;
 export class AppError extends Error{constructor(public status:number,public code:string){super(code)}}
 export function fail(status:number,code:string):never{throw new AppError(status,code)}
@@ -13,7 +15,44 @@ export const now=()=>new Date().toISOString();
 export const id=()=>crypto.randomUUID();
 export const statement=(sql:string,...p:any[])=>db().prepare(sql).bind(...p);
 export function auditStatement(actor:Profile,action:string,target:string,reason:string){return statement('INSERT INTO audit (id,actor_id,action,target,reason,created_at) VALUES (?,?,?,?,?,?)',id(),actor.id,action,target,reason,now())}
-export async function actor(){const identity=await getChatGPTUser();if(!identity)fail(401,'SIGN_IN_REQUIRED');await ensureSchema();const isOwner=!!env.ADMIN_EMAIL&&identity.email.trim().toLowerCase()===env.ADMIN_EMAIL.trim().toLowerCase();await statement('INSERT OR IGNORE INTO profiles (id,email,name,role,status,created_at) VALUES (?,?,?,?,?,?)',identity.userId,identity.email,identity.displayName,isOwner?'admin':'client',isOwner?'approved':'pending',now()).run();if(isOwner)await statement("UPDATE profiles SET role='admin',status='approved' WHERE id=? AND role<>'admin'",identity.userId).run();const profile=await one<Profile>('SELECT * FROM profiles WHERE id=?',identity.userId);if(!profile)fail(503,'SERVICE_UNAVAILABLE');return profile}
+function isOwnerEmail(email:string){return !!env.ADMIN_EMAIL&&email===env.ADMIN_EMAIL.trim().toLowerCase()}
+function cookieSecure(request:Request){return new URL(request.url).protocol==='https:'}
+function pepper(){const s=env.SESSION_SECRET;if(!s)fail(503,'SERVICE_UNAVAILABLE');return s}
+async function ensureOwner(profile:Profile,email:string){
+ if(!isOwnerEmail(email))return profile;
+ if(profile.role==='admin'&&profile.status==='approved')return profile;
+ await statement("UPDATE profiles SET role='admin',status='approved',email=? WHERE id=?",email,profile.id).run();
+ return await one<Profile>('SELECT * FROM profiles WHERE id=?',profile.id)||profile;
+}
+export async function authenticate(request:Request):Promise<AuthContext>{
+ await ensureSchema();
+ const identity=await getChatGPTUser();
+ if(identity){
+  const email=normalizeEmail(identity.email)||identity.email.trim().toLowerCase();
+  let profile=await one<Profile>('SELECT * FROM profiles WHERE id=?',identity.userId);
+  if(!profile)profile=await one<Profile>('SELECT * FROM profiles WHERE email=?',email);
+  if(!profile){
+   const role=isOwnerEmail(email)?'admin':'client';const status=isOwnerEmail(email)?'approved':'pending';
+   await statement('INSERT INTO profiles (id,email,name,role,status,created_at) VALUES (?,?,?,?,?,?)',identity.userId,email,identity.displayName,role,status,now()).run();
+   profile=await one<Profile>('SELECT * FROM profiles WHERE id=?',identity.userId);
+  }else{
+   profile=await ensureOwner(profile,email);
+   if(profile.email!==email)await statement('UPDATE profiles SET email=? WHERE id=?',email,profile.id).run();
+  }
+  if(!profile)fail(503,'SERVICE_UNAVAILABLE');
+  return {profile,sign_in:'chatgpt'};
+ }
+ let secret:string;try{secret=pepper()}catch{fail(401,'SIGN_IN_REQUIRED')}
+ const parsed=parseSessionCookie(request.headers.get('cookie'));if(!parsed)fail(401,'SIGN_IN_REQUIRED');
+ const row=await one<{id:string;user_id:string;token_hash:string;salt:string;expires_at:string}>('SELECT * FROM auth_sessions WHERE id=?',parsed.sessionId);
+ if(!row||Date.parse(row.expires_at)<=Date.now()||!(await verifySecret(parsed.token,secret,row.salt,row.token_hash))){
+  if(row)await statement('DELETE FROM auth_sessions WHERE id=?',row.id).run();
+  fail(401,'SIGN_IN_REQUIRED');
+ }
+ const profile=await one<Profile>('SELECT * FROM profiles WHERE id=?',row.user_id);if(!profile)fail(401,'SIGN_IN_REQUIRED');
+ return {profile:await ensureOwner(profile,profile.email),sign_in:'email'};
+}
+export async function actor(request:Request){return(await authenticate(request)).profile}
 export function active(a:Profile){if(a.status!=='approved')fail(403,a.status==='suspended'?'ACCOUNT_SUSPENDED':'APPROVAL_REQUIRED')}
 export function admin(a:Profile){active(a);if(a.role!=='admin')fail(403,'FORBIDDEN')}
 export async function member(a:Profile,caseId:string){active(a);const m=await one('SELECT role FROM case_members WHERE case_id=? AND user_id=?',caseId,a.id);if(!m)fail(404,'NOT_FOUND');return m.role as string}
@@ -24,11 +63,77 @@ export function date(value:unknown){const s=text(value,10);if(!validDate(s))fail
 export function number(value:unknown,min:number,max:number){const n=Number(value);if(!Number.isInteger(n)||n<min||n>max)fail(400,'INVALID_INPUT');return n}
 export function mutateRequest(request:Request){const expected=env.SITE_ORIGIN||new URL(request.url).origin;if(!validMutation(request.headers.get('origin'),expected,request.headers.get('x-firstleaf'),request.headers.get('sec-fetch-site')))fail(403,'INVALID_ORIGIN')}
 export async function json(request:Request){const len=Number(request.headers.get('content-length')||0);if(len>32768)fail(413,'TOO_LARGE');const raw=await request.text();if(raw.length>32768)fail(413,'TOO_LARGE');try{const v=JSON.parse(raw);if(!v||typeof v!=='object'||Array.isArray(v))fail(400,'INVALID_INPUT');return v as Row}catch{fail(400,'INVALID_INPUT')}}
-export const response=(data:unknown,status=200)=>Response.json(data,{status,headers:{'Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer'}});
+export const response=(data:unknown,status=200,extra?:HeadersInit)=>{const headers=new Headers({'Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer'});if(extra)new Headers(extra).forEach((v,k)=>headers.append(k,v));return Response.json(data,{status,headers})};
 export const stages=['assessment','treatment','transfer','pregnancy','birth','paperwork','paused','loss','closed'];
 
-export async function read(path:string[],a:Profile,request:Request){
- if(path[0]==='me')return response({profile:a});
+async function sendOtpEmail(to:string,code:string){
+ if(env.RESEND_API_KEY&&env.EMAIL_FROM){
+  const res=await fetch('https://api.resend.com/emails',{method:'POST',headers:{Authorization:`Bearer ${env.RESEND_API_KEY}`,'Content-Type':'application/json'},body:JSON.stringify({from:env.EMAIL_FROM,to:[to],subject:'Firstleaf login code',text:`Your Firstleaf login code is ${code}. It expires in 10 minutes. Private pilot — test data only.`})});
+  if(!res.ok)fail(503,'SERVICE_UNAVAILABLE');
+  return;
+ }
+ const origin=env.SITE_ORIGIN||'';
+ if(origin&&!/localhost|127\.0\.0\.1/.test(origin))fail(503,'SERVICE_UNAVAILABLE');
+ console.info('[firstleaf-otp]',to,code);
+}
+
+export async function handleAuth(path:string[],request:Request){
+ await ensureSchema();
+ if(request.method!=='POST')fail(404,'NOT_FOUND');
+ mutateRequest(request);
+ const secure=cookieSecure(request);
+ if(path[0]==='logout'){
+  const parsed=parseSessionCookie(request.headers.get('cookie'));
+  if(parsed)await statement('DELETE FROM auth_sessions WHERE id=?',parsed.sessionId).run();
+  return response({ok:true},200,{'Set-Cookie':clearSessionCookie(secure)});
+ }
+ if(path[0]==='email'&&path[1]==='request'){
+  const body=await json(request);const email=normalizeEmail(String(body.email||''));if(!email)fail(400,'INVALID_EMAIL');
+  const existing=await one<{created_at:string}>('SELECT created_at FROM email_otps WHERE email=?',email);
+  if(existing&&Date.now()-Date.parse(existing.created_at)<OTP_RESEND_MS)fail(429,'TOO_MANY_REQUESTS');
+  const secret=pepper();const code=generateOtpCode();const {salt,hash}=await hashSecret(code,secret);
+  const ip=(request.headers.get('cf-connecting-ip')||request.headers.get('x-forwarded-for')||'').slice(0,80);
+  await statement('INSERT INTO email_otps (email,code_hash,salt,expires_at,attempts,created_at,request_ip) VALUES (?,?,?,?,0,?,?) ON CONFLICT(email) DO UPDATE SET code_hash=excluded.code_hash,salt=excluded.salt,expires_at=excluded.expires_at,attempts=0,created_at=excluded.created_at,request_ip=excluded.request_ip',email,hash,salt,new Date(Date.now()+OTP_TTL_MS).toISOString(),now(),ip).run();
+  await sendOtpEmail(email,code);
+  await statement('INSERT INTO audit (id,actor_id,action,target,reason,created_at) VALUES (?,?,?,?,?,?)',id(),'system','auth.email.request',email,'OTP issued').run();
+  return response({ok:true});
+ }
+ if(path[0]==='email'&&path[1]==='verify'){
+  const body=await json(request);const email=normalizeEmail(String(body.email||''));if(!email)fail(400,'INVALID_EMAIL');
+  const code=text(body.code,6);if(!/^\d{6}$/.test(code))fail(400,'OTP_INVALID');
+  const row=await one<{code_hash:string;salt:string;expires_at:string;attempts:number}>('SELECT * FROM email_otps WHERE email=?',email);
+  if(!row)fail(400,'OTP_INVALID');
+  if(Date.parse(row.expires_at)<=Date.now()||row.attempts>=OTP_MAX_ATTEMPTS){await statement('DELETE FROM email_otps WHERE email=?',email).run();fail(400,'OTP_EXPIRED')}
+  const secret=pepper();
+  if(!(await verifySecret(code,secret,row.salt,row.code_hash))){
+   await statement('UPDATE email_otps SET attempts=attempts+1 WHERE email=?',email).run();
+   fail(400,'OTP_INVALID');
+  }
+  await statement('DELETE FROM email_otps WHERE email=?',email).run();
+  let profile=await one<Profile>('SELECT * FROM profiles WHERE email=?',email);
+  if(!profile){
+   const profileId=await emailProfileId(email);const role=isOwnerEmail(email)?'admin':'client';const status=isOwnerEmail(email)?'approved':'pending';
+   const local=email.split('@')[0].slice(0,80)||'client';
+   await statement('INSERT INTO profiles (id,email,name,role,status,created_at) VALUES (?,?,?,?,?,?)',profileId,email,local,role,status,now()).run();
+   profile=await one<Profile>('SELECT * FROM profiles WHERE id=?',profileId);
+  }else profile=await ensureOwner(profile,email);
+  if(!profile)fail(503,'SERVICE_UNAVAILABLE');
+  const sessionId=id();const token=hexToken();const hashed=await hashSecret(token,secret);
+  await statement('INSERT INTO auth_sessions (id,user_id,token_hash,salt,expires_at,created_at) VALUES (?,?,?,?,?,?)',sessionId,profile.id,hashed.hash,hashed.salt,new Date(Date.now()+SESSION_TTL_MS).toISOString(),now()).run();
+  await statement('INSERT INTO audit (id,actor_id,action,target,reason,created_at) VALUES (?,?,?,?,?,?)',id(),profile.id,'auth.email.verify',profile.id,'Email OTP verified').run();
+  return response({ok:true},200,{'Set-Cookie':sessionCookieValue(sessionId,token,secure)});
+ }
+ fail(404,'NOT_FOUND');
+}
+
+function hexToken(){
+ const bytes=crypto.getRandomValues(new Uint8Array(32));
+ return [...bytes].map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+
+export async function read(path:string[],auth:AuthContext,request:Request){
+ const a=auth.profile;
+ if(path[0]==='me')return response({profile:a,sign_in:auth.sign_in});
  active(a);
  if(path[0]==='overview'){
   const cases=await all('SELECT c.*,m.role AS membership_role FROM cases c JOIN case_members m ON m.case_id=c.id WHERE m.user_id=? ORDER BY c.updated_at DESC LIMIT 200',a.id);

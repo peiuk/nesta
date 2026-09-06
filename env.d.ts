@@ -9,6 +9,9 @@ declare namespace Cloudflare {
     FILES: R2Bucket;
     ADMIN_EMAIL?: string;
     SITE_ORIGIN?: string;
+    SESSION_SECRET?: string;
+    RESEND_API_KEY?: string;
+    EMAIL_FROM?: string;
   }
 }
 
