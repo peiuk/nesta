@@ -4,7 +4,7 @@ import {canReadReport,canManageCase,canReviewReport,canPublishReport,canUseDirec
 export type Profile={id:string;email:string;name:string;role:string;status:string;language:string;jurisdiction:string;interest:string;registered_at:string|null;created_at:string};
 export type Row=Record<string,any>;
 export class AppError extends Error{constructor(public status:number,public code:string){super(code)}}
-export const fail=(status:number,code:string):never=>{throw new AppError(status,code)};
+export function fail(status:number,code:string):never{throw new AppError(status,code)}
 export const db=()=>env.DB;
 export const one=async<T=Row>(sql:string,...params:any[])=>db().prepare(sql).bind(...params).first<T>();
 export const all=async<T=Row>(sql:string,...params:any[])=>{const r=await db().prepare(sql).bind(...params).all<T>();return r.results};
@@ -118,7 +118,7 @@ export async function write(path:string[],a:Profile,request:Request){
 }
 
 async function uploadReport(caseId:string,a:Profile,request:Request){
- await manager(a,caseId);if(Number(request.headers.get('content-length')||0)>17*1024*1024)fail(413,'TOO_LARGE');const f=await request.formData();const original=f.get('original');if(!(original instanceof File))fail(400,'FILE_REQUIRED');const title=text(f.get('title'),150),kind=choice(f.get('kind'),['report','document']),source=text(f.get('source'),150),reportDate=date(f.get('report_date')),language=choice(f.get('language'),['ka','en','zh']),cycle=number(f.get('cycle'),1,99);let recipientIds:string[]=[];try{const value=JSON.parse(String(f.get('recipients')));if(!Array.isArray(value)||!value.length||value.length>10||value.some(x=>typeof x!=='string'))fail(400,'RECIPIENT_REQUIRED');recipientIds=[...new Set(value)]}catch{fail(400,'RECIPIENT_REQUIRED')}
+ await manager(a,caseId);if(Number(request.headers.get('content-length')||0)>17*1024*1024)fail(413,'TOO_LARGE');const f=await request.formData();const original=f.get('original');if(!(original instanceof File))fail(400,'FILE_REQUIRED');const title=text(f.get('title'),150),kind=choice(f.get('kind'),['report','document']),source=text(f.get('source'),150),reportDate=date(f.get('report_date')),language=choice(f.get('language'),['ka','en','zh']),cycle=number(f.get('cycle'),1,99);let recipientIds:string[]=[];try{const value=JSON.parse(String(f.get('recipients')));if(!Array.isArray(value)||!value.length||value.length>10||value.some(x=>typeof x!=='string'))fail(400,'RECIPIENT_REQUIRED');recipientIds=[...new Set(value as string[])]}catch{fail(400,'RECIPIENT_REQUIRED')}
  const members=await all("SELECT m.user_id FROM case_members m JOIN profiles p ON p.id=m.user_id WHERE m.case_id=? AND m.role='client' AND p.role='client' AND p.status='approved'",caseId);if(recipientIds.some(x=>!members.some(m=>m.user_id===x)))fail(400,'RECIPIENT_REQUIRED');
  const bytes=new Uint8Array(await original.arrayBuffer());if(!validateUpload(original.name,original.type,bytes))fail(400,'INVALID_FILE');const translation=f.get('translation');let translationBytes:Uint8Array|null=null;if(translation instanceof File&&translation.size){translationBytes=new Uint8Array(await translation.arrayBuffer());if(!validateUpload(translation.name,translation.type,translationBytes))fail(400,'INVALID_FILE')}
  let version=1;const supersedes=String(f.get('supersedes_id')||'').trim()||null;if(supersedes){const old=await one('SELECT * FROM reports WHERE id=? AND case_id=?',supersedes,caseId);if(!old||old.cycle!==cycle)fail(400,'INVALID_INPUT');version=old.version+1}
