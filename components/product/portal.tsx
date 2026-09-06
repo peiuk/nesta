@@ -12,6 +12,29 @@ import {canUseDirectory,hasDirectoryAccess} from '@/lib/policy';
 
 export const STAGES=['assessment','treatment','transfer','pregnancy','birth','paperwork','paused','loss','closed'];
 const SIGN_OUT='/signout-with-chatgpt?return_to=%2F';
+const PROFILE_KEYS=['id','name','email','role','status','language','jurisdiction'] as const;
+const CASE_KEYS=['id','code','title','stage','cycle','membership_role','updated_at'] as const;
+const GRANT_KEYS=['scope','expires_at','revoked_at'] as const;
+const pick=(row:Data,keys:readonly string[])=>Object.fromEntries(keys.map(k=>[k,row[k]]));
+
+async function registerFirstleafReadTools(signal:AbortSignal){
+ if(typeof document.modelContext?.registerTool!=='function')return;
+ const empty={type:'object' as const,properties:{} as Record<string,never>,additionalProperties:false as const};
+ await document.modelContext.registerTool({
+  name:'firstleaf_get_profile',
+  description:'Private pilot: return the signed-in Firstleaf profile summary for this session (id, name, email, role, status, language, jurisdiction). No long-form interest text. Test data only.',
+  inputSchema:empty,
+  annotations:{readOnlyHint:true},
+  execute:async()=>{try{const data=await api('me');return pick(data.profile as Data,PROFILE_KEYS)}catch(e){return {error:e instanceof Error?e.message:'SERVICE_UNAVAILABLE'}}}
+ },{signal});
+ await document.modelContext.registerTool({
+  name:'firstleaf_get_overview',
+  description:'Private pilot: return cases and directory grants visible to the signed-in user. Case fields: id, code, title, stage, cycle, membership_role, updated_at. Grant fields: scope, expires_at, revoked_at. No report bodies or files. Test data only.',
+  inputSchema:empty,
+  annotations:{readOnlyHint:true},
+  execute:async()=>{try{const data=await api('overview');return {cases:((data.cases||[]) as Data[]).map(c=>pick(c,CASE_KEYS)),grants:((data.grants||[]) as Data[]).map(g=>pick(g,GRANT_KEYS))}}catch(e){return {error:e instanceof Error?e.message:'SERVICE_UNAVAILABLE'}}}
+ },{signal});
+}
 
 function Shell({nav,children}:{nav?:ReactNode;children:ReactNode}){const {t}=useLocale();return <div className="workspace"><header className="workspace-header"><Brand/><nav>{nav}<LanguageButton/><a className="quiet-link" href={SIGN_OUT} target="_top"><LogOut size={16}/>{t('退出','Sign out')}</a></nav></header><main className="workspace-main">{children}</main></div>}
 
@@ -28,6 +51,7 @@ export function Portal(){
 function Workspace({profile}:{profile:Data}){
  const {t}=useLocale();const [view,setView]=useState<'overview'|'directory'|'admin'>('overview');const [caseId,setCaseId]=useState<string|null>(null);const [version,setVersion]=useState(0);
  const refresh=()=>setVersion(v=>v+1);
+ useEffect(()=>{const c=new AbortController();registerFirstleafReadTools(c.signal).catch(()=>{});return()=>c.abort()},[]);
  const overview=useResource('overview',version);
  const grants=(overview.data?.grants||[]) as Array<{scope:string;expires_at:string;revoked_at:string|null}>;
  const showDirectory=profile.role==='admin'||(profile.role==='client'&&hasDirectoryAccess({id:String(profile.id),role:String(profile.role),status:String(profile.status)},grants));

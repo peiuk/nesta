@@ -18,7 +18,7 @@ Continue the approved Chinese/English website and customer/case workspace design
 2. [ ] Failing authorization/workflow tests, then policy implementation.
 3. [ ] Database schema, migration, authenticated API and private file access.
 4. [x] Registration, client portal, directory, cases, report upload/review/publication, team and grants.
-5. [ ] Narrow authorized WebMCP read surface.
+5. [x] Narrow authorized WebMCP read surface.
 6. [ ] Policy and database workflow tests, typecheck/build, migration inspection.
 7. [ ] Exact source commit, private deployment, successful status and site handoff.
 
