@@ -1,6 +1,6 @@
 'use client';
 import {useState,type ReactNode} from 'react';
-import {ArrowLeft,Download,LogOut} from 'lucide-react';
+import {ArrowLeft,Download,LogOut,Upload} from 'lucide-react';
 import {Button} from '@/components/ui/button';
 import {Brand} from './brand';
 import {LanguageButton,useLocale} from './locale';
@@ -208,4 +208,42 @@ function ReportAction({report,action,refresh}:{report:Data;action:'review'|'publ
  </>;
 }
 
-function UploadForm(_:{caseId:string;members:Data[];reports:Data[];refresh:()=>void}){const {t}=useLocale();return <span className="metadata">{t('上传功能正在开发中。','Upload is under construction.')}</span>}
+const MAX_UPLOAD=8*1024*1024;
+const ACCEPT='application/pdf,image/jpeg,image/png';
+
+function UploadForm({caseId,members,reports,refresh}:{caseId:string;members:Data[];reports:Data[];refresh:()=>void}){
+ const {t}=useLocale();const label=useLabels();const [open,setOpen]=useState(false);const [recipients,setRecipients]=useState<string[]>([]);
+ const clients=members.filter(m=>m.role==='client');
+ async function submit(f:FormData){
+  if(!recipients.length)throw new Error('RECIPIENT_REQUIRED');
+  for(const key of ['original','translation']){const file=f.get(key);if(file instanceof File&&file.size>MAX_UPLOAD)throw new Error('INVALID_FILE')}
+  f.set('recipients',JSON.stringify(recipients));
+  const translation=f.get('translation');if(translation instanceof File&&!translation.size)f.delete('translation');
+  const supersedes=f.get('supersedes_id');if(typeof supersedes!=='string'||!supersedes.trim())f.delete('supersedes_id');
+  return api(`cases/${caseId}/reports`,f);
+ }
+ return <>
+  <Button size="sm" onClick={()=>setOpen(true)}><Upload size={16}/>{t('上传报告','Upload report')}</Button>
+  {open&&<Modal title={t('上传报告或文件','Upload report or document')} description={t('仅 PDF、JPEG、PNG，单文件不超过 8 MB。上传后需由独立审核员复核，再由协调员发布。','PDF, JPEG or PNG up to 8 MB per file. An independent reviewer must review it before a coordinator publishes it.')} onClose={()=>setOpen(false)}>
+   {clients.length===0?<Empty title={t('案件内没有已批准的客户成员','No approved client member in this case')}>{t('请先分配客户成员，报告必须至少有一位接收人。','Assign a client member first; every report needs at least one recipient.')}</Empty>
+    :<ActionForm submitLabel={t('上传','Upload')} onSubmit={submit} onDone={()=>{setOpen(false);setRecipients([]);refresh()}}>
+     <Field name="title" label={t('标题','Title')} max={150}/>
+     <div className="form-grid">
+      <Choice name="kind" label={t('类型','Type')} options={[['report',label('report')],['document',label('document')]]}/>
+      <Field name="source" label={t('来源机构','Source')} max={150}/>
+      <Field name="report_date" type="date" label={t('报告日期','Report date')}/>
+      <Choice name="language" label={t('原件语言','Original language')} options={[['ka','ქართული'],['en','English'],['zh','中文']]}/>
+     </div>
+     <Field name="cycle" type="number" label={t('周期','Cycle')} value={1}/>
+     <Field name="original" label={t('原始文件','Original file')}><input name="original" type="file" required accept={ACCEPT} className="min-h-11"/></Field>
+     <Field name="translation" label={t('译稿（可选）','Translation (optional)')} required={false}><input name="translation" type="file" accept={ACCEPT} className="min-h-11"/></Field>
+     <Field name="supersedes_id" label={t('替换旧版本（可选）','Replaces earlier version (optional)')} required={false}>
+      <select name="supersedes_id" className="min-h-11 border rounded-md px-3" defaultValue=""><option value="">{t('不替换','None')}</option>{reports.map(r=><option key={String(r.id)} value={String(r.id)}>{String(r.title)} · v{String(r.version)}</option>)}</select>
+     </Field>
+     <div className="field"><span>{t('接收客户（至少一位）','Client recipients (at least one)')}</span>
+      {clients.map(m=><label key={String(m.id)} className="checkbox-row"><input type="checkbox" checked={recipients.includes(String(m.id))} onChange={e=>setRecipients(list=>e.target.checked?[...list,String(m.id)]:list.filter(x=>x!==String(m.id)))}/><span>{String(m.name)}</span></label>)}
+     </div>
+    </ActionForm>}
+  </Modal>}
+ </>;
+}
