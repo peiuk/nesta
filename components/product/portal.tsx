@@ -67,7 +67,7 @@ function NewCase({refresh}:{refresh:()=>void}){
  return <>
   <Button onClick={()=>setOpen(true)}>{t('新建案件','New case')}</Button>
   {open&&<Modal title={t('新建案件','New case')} description={t('选择一位已批准的客户，系统会把你加为协调员。','Choose an approved client. You are added as coordinator.')} onClose={()=>setOpen(false)}>
-   {people.error?<ErrorNotice code={people.error}/>:clients.length===0?<Empty title={t('没有可选客户','No approved clients')}>{t('请先在管理页批准客户账户。','Approve a client account in Administration first.')}</Empty>
+   {people.loading?<div className="loading">{t('正在载入…','Loading…')}</div>:people.error?<ErrorNotice code={people.error}/>:clients.length===0?<Empty title={t('没有可选客户','No approved clients')}>{t('请先在管理页批准客户账户。','Approve a client account in Administration first.')}</Empty>
     :<ActionForm submitLabel={t('建立案件','Create case')} onSubmit={f=>api('cases',formObject(f))} onDone={()=>{setOpen(false);refresh()}}>
      <Field name="title" label={t('案件名称','Case title')} max={120}/>
      <Choice name="customer_id" label={t('客户','Client')} options={clients.map(p=>[String(p.id),`${String(p.name)} · ${String(p.email)}`] as [string,string])}/>
