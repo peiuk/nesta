@@ -26,4 +26,6 @@ test('directory navigation appears only with at least one live grant',()=>{
  assert.equal(hasDirectoryAccess(client,[{...live,revoked_at:now}],now),false);
  assert.equal(hasDirectoryAccess(client,[live],'2026-10-02T00:00:00Z'),false);
  assert.equal(hasDirectoryAccess({...client,status:'pending'},[live],now),false);
+ assert.equal(hasDirectoryAccess(client,[{...live,scope:'sperm'}],now),true);
+ assert.equal(hasDirectoryAccess(client,[{...live,revoked_at:now},live],now),true);
 });
