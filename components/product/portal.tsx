@@ -2,6 +2,8 @@
 import {useState,type ReactNode} from 'react';
 import {ArrowLeft,Download,Heart,LogOut,Upload} from 'lucide-react';
 import {Button} from '@/components/ui/button';
+import {Tabs,TabsList,TabsTrigger,TabsContent} from '@/components/ui/tabs';
+import {Table,TableHeader,TableBody,TableRow,TableHead,TableCell} from '@/components/ui/table';
 import {Brand} from './brand';
 import {LanguageButton,useLocale} from './locale';
 import {Registration} from './registration';
@@ -243,7 +245,125 @@ function NewDonor({refresh}:{refresh:()=>void}){
  </>;
 }
 
-function Admin(){const {t}=useLocale();return <div className="notice">{t('管理页正在开发中。','Administration is under construction.')}</div>}
+function Admin(){
+ const {t}=useLocale();
+ return <>
+  <div className="page-title"><div><h1>{t('管理','Administration')}</h1><p>{t('账户审批、资料库授权与审计记录。','Account approvals, directory grants and the audit log.')}</p></div></div>
+  <Tabs defaultValue="people" className="section-tabs">
+   <TabsList><TabsTrigger value="people">{t('人员','People')}</TabsTrigger><TabsTrigger value="grants">{t('授权','Grants')}</TabsTrigger><TabsTrigger value="cases">{t('案件','Cases')}</TabsTrigger><TabsTrigger value="audit">{t('审计','Audit')}</TabsTrigger></TabsList>
+   <TabsContent value="people"><PeopleTab/></TabsContent>
+   <TabsContent value="grants"><GrantsTab/></TabsContent>
+   <TabsContent value="cases"><CasesTab/></TabsContent>
+   <TabsContent value="audit"><AuditTab/></TabsContent>
+  </Tabs>
+ </>;
+}
+
+function PeopleTab(){
+ const {t}=useLocale();const label=useLabels();const [version,setVersion]=useState(0);const {data,error,loading}=useResource('people',version);
+ const people=(data?.people||[]) as Data[];
+ if(loading)return <div className="loading">{t('正在载入…','Loading…')}</div>;
+ if(error)return <ErrorNotice code={error}/>;
+ return <Panel title={t('账户','Accounts')}>
+  <div className="notice">{t('更改角色会清除该账户已有的案件成员身份与资料库授权，需要重新分配。','Changing a role clears existing case memberships and directory grants; reassign them afterwards.')}</div>
+  <div className="table-wrap"><Table>
+   <TableHeader><TableRow><TableHead>{t('姓名','Name')}</TableHead><TableHead>{t('邮箱','Email')}</TableHead><TableHead>{t('角色','Role')}</TableHead><TableHead>{t('状态','Status')}</TableHead><TableHead/></TableRow></TableHeader>
+   <TableBody>{people.map(p=><TableRow key={String(p.id)}>
+    <TableCell>{String(p.name)}</TableCell><TableCell>{String(p.email)}</TableCell><TableCell>{label(String(p.role))}</TableCell><TableCell><Status value={String(p.status)}/></TableCell>
+    <TableCell>{p.role==='admin'?<span className="metadata">{t('管理员账户','Owner account')}</span>:<PersonForm person={p} refresh={()=>setVersion(v=>v+1)}/>}</TableCell>
+   </TableRow>)}</TableBody>
+  </Table></div>
+ </Panel>;
+}
+
+function PersonForm({person,refresh}:{person:Data;refresh:()=>void}){
+ const {t}=useLocale();const label=useLabels();const [open,setOpen]=useState(false);
+ return <>
+  <Button variant="secondary" size="sm" onClick={()=>setOpen(true)}>{t('更改','Change')}</Button>
+  {open&&<Modal title={`${t('更改账户','Change account')} · ${String(person.name)}`} description={t('角色与状态变更会记入审计。','Role and status changes are recorded in the audit log.')} onClose={()=>setOpen(false)}>
+   <ActionForm submitLabel={t('保存','Save')} onSubmit={f=>api('people/'+String(person.id),formObject(f))} onDone={()=>{setOpen(false);refresh()}}>
+    <div className="form-grid">
+     <Choice name="role" label={t('角色','Role')} value={String(person.role)} options={['client','coordinator','reviewer'].map(r=>[r,label(r)] as [string,string])}/>
+     <Choice name="status" label={t('状态','Status')} value={String(person.status)} options={['pending','approved','suspended'].map(s=>[s,label(s)] as [string,string])}/>
+    </div>
+    <Field name="reason" type="textarea" label={t('理由（记入审计）','Reason (recorded in audit)')} max={500}/>
+   </ActionForm>
+  </Modal>}
+ </>;
+}
+
+function GrantsTab(){
+ const {t}=useLocale();const label=useLabels();const [version,setVersion]=useState(0);const [now]=useState(()=>Date.now());
+ const refresh=()=>setVersion(v=>v+1);
+ const {data,error,loading}=useResource('grants',version);
+ const grants=(data?.grants||[]) as Data[];
+ if(loading)return <div className="loading">{t('正在载入…','Loading…')}</div>;
+ if(error)return <ErrorNotice code={error}/>;
+ return <Panel title={t('资料库授权','Directory grants')} action={<GrantForm refresh={refresh}/>}>
+  {grants.length?<div className="table-wrap"><Table>
+   <TableHeader><TableRow><TableHead>{t('账户','Account')}</TableHead><TableHead>{t('范围','Scope')}</TableHead><TableHead>{t('到期','Expires')}</TableHead><TableHead>{t('状态','State')}</TableHead><TableHead>{t('理由','Reason')}</TableHead></TableRow></TableHeader>
+   <TableBody>{grants.map(g=><TableRow key={`${String(g.user_id)}-${String(g.scope)}`}>
+    <TableCell>{String(g.name)}</TableCell><TableCell>{label(String(g.scope))}</TableCell><TableCell>{String(g.expires_at).slice(0,10)}</TableCell>
+    <TableCell>{g.revoked_at?t('已撤销','Revoked'):Date.parse(String(g.expires_at))>now?t('有效','Active'):t('已过期','Expired')}</TableCell>
+    <TableCell className="whitespace-normal">{String(g.reason)}</TableCell>
+   </TableRow>)}</TableBody>
+  </Table></div>:<Empty title={t('还没有授权记录','No grants yet')}/>}
+ </Panel>;
+}
+
+function GrantForm({refresh}:{refresh:()=>void}){
+ const {t}=useLocale();const label=useLabels();const [open,setOpen]=useState(false);const people=useResource(open?'people':null);
+ const candidates=((people.data?.people||[]) as Data[]).filter(p=>p.status==='approved');
+ return <>
+  <Button size="sm" onClick={()=>setOpen(true)}>{t('发放或撤销','Grant or revoke')}</Button>
+  {open&&<Modal title={t('资料库授权','Directory access')} description={t('到期日须在未来一年内；撤销时到期日不生效。','Expiry must fall within one year. Expiry is ignored when revoking.')} onClose={()=>setOpen(false)}>
+   {people.loading?<div className="loading">{t('正在载入…','Loading…')}</div>:people.error?<ErrorNotice code={people.error}/>:candidates.length===0?<Empty title={t('没有可选账户','No approved accounts')}>{t('请先在管理页批准账户。','Approve an account in Administration first.')}</Empty>
+    :<ActionForm submitLabel={t('保存','Save')} onSubmit={f=>api('grants',{user_id:f.get('user_id'),scope:f.get('scope'),expires_at:f.get('expires_at'),reason:f.get('reason'),revoke:f.get('action')==='revoke'})} onDone={()=>{setOpen(false);refresh()}}>
+     <Choice name="user_id" label={t('账户','Account')} options={candidates.map(p=>[String(p.id),`${String(p.name)} · ${String(p.email)}`] as [string,string])}/>
+     <div className="form-grid">
+      <Choice name="scope" label={t('范围','Scope')} options={[['egg',label('egg')],['sperm',label('sperm')]]}/>
+      <Choice name="action" label={t('操作','Action')} options={[['grant',t('发放','Grant')],['revoke',t('撤销','Revoke')]]}/>
+     </div>
+     <Field name="expires_at" type="date" label={t('到期日','Expiry date')}/>
+     <Field name="reason" type="textarea" label={t('理由（记入审计）','Reason (recorded in audit)')} max={500}/>
+    </ActionForm>}
+  </Modal>}
+ </>;
+}
+
+function CasesTab(){
+ const {t}=useLocale();const label=useLabels();const {data,error,loading}=useResource('cases');
+ const cases=(data?.cases||[]) as Data[];
+ if(loading)return <div className="loading">{t('正在载入…','Loading…')}</div>;
+ if(error)return <ErrorNotice code={error}/>;
+ return <Panel title={t('全部案件','All cases')}>
+  <div className="notice">{t('查看案件详情需要先把自己分配为该案件成员。','Assign yourself to a case before opening its detail view.')}</div>
+  {cases.length?<div className="table-wrap"><Table>
+   <TableHeader><TableRow><TableHead>{t('编号','Code')}</TableHead><TableHead>{t('名称','Title')}</TableHead><TableHead>{t('阶段','Stage')}</TableHead><TableHead>{t('我的身份','My role')}</TableHead><TableHead>{t('更新','Updated')}</TableHead></TableRow></TableHeader>
+   <TableBody>{cases.map(c=><TableRow key={String(c.id)}>
+    <TableCell>{String(c.code)}</TableCell><TableCell className="whitespace-normal">{String(c.title)}</TableCell><TableCell><Status value={String(c.stage)}/></TableCell>
+    <TableCell>{c.membership_role?label(String(c.membership_role)):<span className="metadata">{t('未参与','Not a member')}</span>}</TableCell>
+    <TableCell>{String(c.updated_at).slice(0,10)}</TableCell>
+   </TableRow>)}</TableBody>
+  </Table></div>:<Empty title={t('还没有案件','No cases yet')}/>}
+ </Panel>;
+}
+
+function AuditTab(){
+ const {t}=useLocale();const {data,error,loading}=useResource('audit');
+ const rows=(data?.audit||[]) as Data[];
+ if(loading)return <div className="loading">{t('正在载入…','Loading…')}</div>;
+ if(error)return <ErrorNotice code={error}/>;
+ return <Panel title={t('审计记录（最近 100 条）','Audit log (latest 100)')}>
+  {rows.length?<div className="table-wrap"><Table>
+   <TableHeader><TableRow><TableHead>{t('时间','Time')}</TableHead><TableHead>{t('操作人','Actor')}</TableHead><TableHead>{t('动作','Action')}</TableHead><TableHead>{t('对象','Target')}</TableHead><TableHead>{t('理由','Reason')}</TableHead></TableRow></TableHeader>
+   <TableBody>{rows.map(r=><TableRow key={String(r.id)}>
+    <TableCell>{String(r.created_at).slice(0,19).replace('T',' ')}</TableCell><TableCell>{String(r.actor_name||r.actor_id)}</TableCell><TableCell>{String(r.action)}</TableCell>
+    <TableCell className="font-mono text-xs">{String(r.target)}</TableCell><TableCell className="whitespace-normal">{String(r.reason)}</TableCell>
+   </TableRow>)}</TableBody>
+  </Table></div>:<Empty title={t('还没有记录','No entries yet')}/>}
+ </Panel>;
+}
 function ReportPanel({data,caseId,refresh}:{data:Data;caseId:string;refresh:()=>void}){
  const {t}=useLocale();const label=useLabels();const reports=(data.reports||[]) as Data[];const manage=data.can_manage===true;
  return <Panel title={t('报告与文件','Reports & documents')} action={manage?<UploadForm caseId={caseId} members={(data.members||[]) as Data[]} reports={reports} refresh={refresh}/>:undefined}>
