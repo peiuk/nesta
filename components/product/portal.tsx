@@ -1,5 +1,5 @@
 'use client';
-import {useState,type ReactNode} from 'react';
+import {useEffect,useState,type ReactNode} from 'react';
 import {ArrowLeft,Download,Heart,LogOut,Upload} from 'lucide-react';
 import {Button} from '@/components/ui/button';
 import {Tabs,TabsList,TabsTrigger,TabsContent} from '@/components/ui/tabs';
@@ -31,7 +31,7 @@ function Workspace({profile}:{profile:Data}){
  const overview=useResource('overview',version);
  const grants=(overview.data?.grants||[]) as Array<{scope:string;expires_at:string;revoked_at:string|null}>;
  const showDirectory=profile.role==='admin'||(profile.role==='client'&&hasDirectoryAccess({id:String(profile.id),role:String(profile.role),status:String(profile.status)},grants));
- if(view==='directory'&&!showDirectory)setView('overview');
+ useEffect(()=>{if(view==='directory'&&!showDirectory)setView('overview')},[view,showDirectory]);
  const openCase=(id:string)=>{setView('overview');setCaseId(id)};
  const go=(next:'overview'|'directory'|'admin')=>{setCaseId(null);setView(next)};
  const item=(key:'overview'|'directory'|'admin',label:string)=><Button key={key} variant={view===key?'secondary':'ghost'} size="sm" onClick={()=>go(key)}>{label}</Button>;
