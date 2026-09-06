@@ -1,8 +1,12 @@
 'use client';
 import {useEffect,useRef} from 'react';
-import {ArrowUpRight,ArrowRight,ShieldCheck,FileHeart,MessagesSquare,Sprout} from 'lucide-react';
+import {ArrowUpRight,ArrowRight,ShieldCheck,FileHeart,MessagesSquare,Sprout,Phone,Mail} from 'lucide-react';
 import {Brand} from '@/components/product/brand';
 import {LanguageButton,useLocale} from '@/components/product/locale';
+
+const CONTACT_PHONE='+44 7778 888938';
+const CONTACT_PHONE_TEL='+447778889388';
+const CONTACT_EMAIL='rui@huarenmedia.com';
 
 export default function Home(){
  const {t}=useLocale();
@@ -17,7 +21,13 @@ export default function Home(){
  },[]);
  return <div className="home-shell">
   <div className="pilot-strip">{t('私密试用版 · 请使用测试资料','Private pilot · Please use test data')}</div>
-  <header className="site-header"><Brand/><nav><a href="#journey">{t('服务旅程','The journey')}</a><a href="#care">{t('我们的服务','Our care')}</a><LanguageButton/><a className="primary-link" href="/portal">{t('客户登录','Client sign-in')}<ArrowUpRight size={17}/></a></nav></header>
+  <header className="site-header"><Brand/><nav>
+   <a className="nav-desk" href="#journey">{t('服务旅程','The journey')}</a>
+   <a className="nav-desk" href="#care">{t('我们的服务','Our care')}</a>
+   <a href="#contact">{t('联系我们','Contact')}</a>
+   <LanguageButton/>
+   <a className="primary-link" href="/portal">{t('客户登录','Client sign-in')}<ArrowUpRight size={17}/></a>
+  </nav></header>
   <main>
    <section className="home-hero">
     <div className="hero-media" aria-hidden="true"/>
@@ -32,8 +42,18 @@ export default function Home(){
    </section>
    <section id="care" className="service-strip">{[[ShieldCheck,t('私密的服务空间','A private care space'),t('身份验证后建立档案；阶段与负责人按人、按案件可见。','Create your profile after sign-in. Stages and a named coordinator stay visible by person and case.')],[FileHeart,t('可追溯的报告','Traceable reports'),t('原件与复核译稿按权限交付；来源、日期、版本与复核状态完整记录。','Originals and reviewed translations shared privately — source, date, version and review status recorded together.')],[MessagesSquare,t('持续的双语沟通','Ongoing bilingual support'),t('专属协调员跟进问题，让下一步更明确。','A named coordinator follows your questions and next steps.')]].map(([Icon,title,description],i)=>{const I=Icon as typeof ShieldCheck;return <article key={i}><span className="service-index">0{i+1}</span><I size={22} strokeWidth={1.5}/><h3>{title as string}</h3><p>{description as string}</p></article>})}</section>
    <section className="journey-section" id="journey" ref={journeyRef}><div className="section-intro"><div><div className="eyebrow">YOUR JOURNEY</div><h2>{t('先了解，再从容决定。','Understand first. Decide with confidence.')}</h2></div><p>{t('每个家庭的路径不同，流程会根据实际评估与医院安排调整。','Every family’s path is different. Your plan follows individual assessment and clinical arrangements.')}</p></div><div className="journey-grid">{[[t('沟通与评估','Consultation & assessment'),t('了解需求，确认所需资料及服务适用范围。','Discuss your needs, documents and applicable service scope.')],[t('计划与协调','Planning & coordination'),t('明确医院安排、费用范围和各方责任。','Clarify clinic arrangements, fee scope and responsibilities.')],[t('记录与随访','Records & follow-up'),t('逐次记录治疗、检查和沟通，及时交付报告。','Record treatment, checks and conversations; share reviewed reports.')],[t('出生后支持','Post-birth support'),t('分别跟进出生登记、亲权和旅行文件。','Track birth registration, parentage and travel documentation.')]].map((x,i)=><article key={i} className="reveal" style={{transitionDelay:`${i*90}ms`}}><span>0{i+1}</span><h3>{x[0]}</h3><p>{x[1]}</p></article>)}</div></section>
-   <section className="cta-band"><div><h2>{t('从一次坦诚的沟通开始。','Begin with an honest conversation.')}</h2><p>{t('登录后填写基本意向，医疗资料将在需要时另行收集。','Sign in to share your initial interests. Medical records are requested separately when needed.')}</p></div><a href="/portal" className="primary-link on-dark">{t('建立我的档案','Create my profile')}<ArrowUpRight size={18}/></a></section>
+   <section id="contact" className="cta-band">
+    <div>
+     <h2>{t('从一次坦诚的沟通开始。','Begin with an honest conversation.')}</h2>
+     <p>{t('登录后填写基本意向；也可以先电话或邮件联系我们。','Sign in to share your initial interests, or reach us by phone or email first.')}</p>
+     <div className="cta-contact">
+      <a href={`tel:${CONTACT_PHONE_TEL}`}><Phone size={16} strokeWidth={1.5}/><span>{CONTACT_PHONE}</span></a>
+      <a href={`mailto:${CONTACT_EMAIL}`}><Mail size={16} strokeWidth={1.5}/><span>{CONTACT_EMAIL}</span></a>
+     </div>
+    </div>
+    <a href="/portal" className="primary-link on-dark">{t('建立我的档案','Create my profile')}<ArrowUpRight size={18}/></a>
+   </section>
   </main>
-  <footer className="site-footer"><Brand/><span>{t('暂定品牌 · 格鲁吉亚生育服务协调','Working brand · Georgia family care coordination')}</span><a href="/privacy">{t('隐私与试用说明','Privacy & pilot information')}</a></footer>
+  <footer className="site-footer"><Brand/><a href="/privacy">{t('隐私与试用说明','Privacy & pilot information')}</a></footer>
  </div>;
 }
