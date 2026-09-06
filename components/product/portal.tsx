@@ -1,6 +1,6 @@
 'use client';
 import {useState,type ReactNode} from 'react';
-import {ArrowLeft,Download,LogOut,Upload} from 'lucide-react';
+import {ArrowLeft,Download,Heart,LogOut,Upload} from 'lucide-react';
 import {Button} from '@/components/ui/button';
 import {Brand} from './brand';
 import {LanguageButton,useLocale} from './locale';
@@ -172,7 +172,77 @@ function ReplyForm({questionId,refresh}:{questionId:string;refresh:()=>void}){
  </ActionForm>;
 }
 
-function Directory(_:{profile:Data}){const {t}=useLocale();return <div className="notice">{t('资料库正在开发中。','Directory is under construction.')}</div>}
+function Directory({profile}:{profile:Data}){
+ const {t,lang}=useLocale();const label=useLabels();const [kind,setKind]=useState<'egg'|'sperm'>('egg');const [version,setVersion]=useState(0);
+ const refresh=()=>setVersion(v=>v+1);
+ const {data,error,loading}=useResource(`directory?kind=${kind}`,version);
+ const donors=(data?.donors||[]) as Data[];
+ return <>
+  <div className="page-title"><div><h1>{t('供者资料库','Donor directory')}</h1><p>{t('授权范围与有效期由管理员设定，资料仅供本次服务评估使用。','Scope and expiry are set by an administrator. Records are for this service assessment only.')}</p></div>{profile.role==='admin'&&<NewDonor refresh={refresh}/>}</div>
+  <div className="row-actions section-tabs">{(['egg','sperm'] as const).map(k=><Button key={k} variant={kind===k?'secondary':'ghost'} size="sm" onClick={()=>setKind(k)}>{label(k)}</Button>)}</div>
+  {loading?<div className="loading">{t('正在载入…','Loading…')}</div>
+   :error?<ErrorNotice code={error}/>
+   :donors.length?<div className="directory-grid">{donors.map(d=><DonorCard key={String(d.id)} donor={d} admin={profile.role==='admin'} summary={String(lang==='zh'?d.summary_zh:d.summary_en)} refresh={refresh}/>)}</div>
+   :<Empty title={t('暂无可查看的档案','No records available')}/>}
+ </>;
+}
+
+function DonorCard({donor,admin,summary,refresh}:{donor:Data;admin:boolean;summary:string;refresh:()=>void}){
+ const {t}=useLocale();const [busy,setBusy]=useState(false);const favorite=Number(donor.favorite)===1;
+ async function toggle(){if(busy)return;setBusy(true);try{await api('favorites',{donor_id:String(donor.id),favorite:!favorite});refresh()}finally{setBusy(false)}}
+ return <article className="donor-card">
+  <div className="donor-top"><span className="donor-code">{String(donor.code)}</span><Status value={String(donor.status)}/></div>
+  <dl>
+   <div><dt>{t('年龄','Age')}</dt><dd>{String(donor.age)}</dd></div>
+   <div><dt>{t('身高','Height')}</dt><dd>{donor.height?`${String(donor.height)} cm`:'—'}</dd></div>
+   <div><dt>{t('血型','Blood group')}</dt><dd>{String(donor.blood_group||'—')}</dd></div>
+   <div><dt>{t('核实日期','Verified')}</dt><dd>{String(donor.verified_at)}</dd></div>
+  </dl>
+  <p>{summary}</p>
+  <div className="metadata">{t('来源','Source')}: {String(donor.source)}</div>
+  <div className="row-actions mt-4">
+   <Button variant={favorite?'secondary':'ghost'} size="sm" disabled={busy} onClick={toggle}><Heart size={16}/>{favorite?t('已收藏','Saved'):t('收藏','Save')}</Button>
+   {admin&&<DonorStatus donor={donor} refresh={refresh}/>}
+  </div>
+ </article>;
+}
+
+function DonorStatus({donor,refresh}:{donor:Data;refresh:()=>void}){
+ const {t}=useLocale();const label=useLabels();const [open,setOpen]=useState(false);
+ return <>
+  <Button variant="ghost" size="sm" onClick={()=>setOpen(true)}>{t('更改状态','Change status')}</Button>
+  {open&&<Modal title={t('更改档案状态','Change record status')} description={t('状态变更会记入审计。','Status changes are recorded in the audit log.')} onClose={()=>setOpen(false)}>
+   <ActionForm submitLabel={t('保存','Save')} onSubmit={f=>api('donors/'+String(donor.id),formObject(f))} onDone={()=>{setOpen(false);refresh()}}>
+    <Choice name="status" label={t('状态','Status')} value={String(donor.status)} options={['available','matching','unavailable','archived'].map(s=>[s,label(s)] as [string,string])}/>
+    <Field name="reason" type="textarea" label={t('理由','Reason')} max={500}/>
+   </ActionForm>
+  </Modal>}
+ </>;
+}
+
+function NewDonor({refresh}:{refresh:()=>void}){
+ const {t}=useLocale();const label=useLabels();const [open,setOpen]=useState(false);
+ return <>
+  <Button onClick={()=>setOpen(true)}>{t('新增档案','Add record')}</Button>
+  {open&&<Modal title={t('新增供者档案','Add donor record')} description={t('仅录入已核实、已取得同意的匿名摘要，不含身份信息。','Record only verified, consented anonymous summaries. No identifying details.')} onClose={()=>setOpen(false)}>
+   <ActionForm submitLabel={t('保存档案','Save record')} onSubmit={f=>api('donors',{...formObject(f),age:Number(f.get('age')),height:f.get('height')?Number(f.get('height')):null})} onDone={()=>{setOpen(false);refresh()}}>
+    <div className="form-grid">
+     <Field name="code" label={t('档案编号','Record code')} max={40}/>
+     <Choice name="kind" label={t('类别','Type')} options={[['egg',label('egg')],['sperm',label('sperm')]]}/>
+     <Field name="age" type="number" label={t('年龄 (18-65)','Age (18-65)')}/>
+     <Field name="height" type="number" label={t('身高 cm（可选）','Height cm (optional)')} required={false}/>
+     <Field name="blood_group" label={t('血型（可选）','Blood group (optional)')} required={false} max={20}/>
+     <Field name="verified_at" type="date" label={t('核实日期','Verified date')}/>
+    </div>
+    <Field name="source" label={t('来源机构','Source')} max={150}/>
+    <Field name="summary_zh" type="textarea" label={t('中文摘要','Chinese summary')} max={1500}/>
+    <Field name="summary_en" type="textarea" label={t('英文摘要','English summary')} max={1500}/>
+    <Field name="consent_ref" label={t('同意书编号','Consent reference')} max={250}/>
+   </ActionForm>
+  </Modal>}
+ </>;
+}
+
 function Admin(){const {t}=useLocale();return <div className="notice">{t('管理页正在开发中。','Administration is under construction.')}</div>}
 function ReportPanel({data,caseId,refresh}:{data:Data;caseId:string;refresh:()=>void}){
  const {t}=useLocale();const label=useLabels();const reports=(data.reports||[]) as Data[];const manage=data.can_manage===true;
