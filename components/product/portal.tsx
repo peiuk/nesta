@@ -148,7 +148,7 @@ function MemberForm({caseId,refresh}:{caseId:string;refresh:()=>void}){
  return <>
   <Button variant="secondary" size="sm" onClick={()=>setOpen(true)}>{t('管理成员','Manage members')}</Button>
   {open&&<Modal title={t('分配或移除成员','Assign or remove member')} description={t('成员角色取自账户角色；移除会同时收回该成员的报告接收资格。','Case role follows the account role. Removing a member also revokes their report recipients entries.')} onClose={()=>setOpen(false)}>
-   {people.error?<ErrorNotice code={people.error}/>
+   {people.loading?<div className="loading">{t('正在载入…','Loading…')}</div>:people.error?<ErrorNotice code={people.error}/>:candidates.length===0?<Empty title={t('没有可选账户','No approved accounts')}>{t('请先在管理页批准账户。','Approve an account in Administration first.')}</Empty>
     :<ActionForm submitLabel={t('保存成员','Save member')} onSubmit={f=>api(`cases/${caseId}/members`,{user_id:f.get('user_id'),reason:f.get('reason'),remove:f.get('action')==='remove'})} onDone={()=>{setOpen(false);refresh()}}>
      <Choice name="user_id" label={t('账户','Account')} options={candidates.map(p=>[String(p.id),`${String(p.name)} · ${String(p.role)}`] as [string,string])}/>
      <Choice name="action" label={t('操作','Action')} options={[['assign',t('分配到案件','Assign to case')],['remove',t('从案件移除','Remove from case')]]}/>
