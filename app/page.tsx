@@ -23,6 +23,8 @@ export default function Home(){
   <div className="pilot-strip">{t('私密试用版 · 请使用测试资料','Private pilot · Please use test data')}</div>
   <header className="site-header"><Brand/><nav>
    <a className="nav-desk" href="#journey">{t('服务旅程','The journey')}</a>
+   <a className="nav-desk" href="#options">{t('方案','Options')}</a>
+   <a className="nav-desk" href="#network">{t('协作网络','Partners')}</a>
    <a className="nav-desk" href="#care">{t('我们的服务','Our care')}</a>
    <a className="nav-desk" href="#boundaries">{t('服务边界','Boundaries')}</a>
    <a href="#contact">{t('联系我们','Contact')}</a>
@@ -36,17 +38,36 @@ export default function Home(){
     <div className="hero-copy">
      <div className="hero-brand hero-rise" aria-label="初禾 FIRSTLEAF"><span className="hero-mark"><Sprout size={28}/></span><div><strong>初禾 <span>FIRSTLEAF</span></strong><small>FAMILY CARE COORDINATION · GEORGIA</small></div></div>
      <h1 className="hero-rise delay-1">{t('迈向家庭的每一步，','Each step toward family,')}<br/><em>{t('都有清晰的陪伴。','with care and clarity.')}</em></h1>
-     <p className="hero-rise delay-2">{t('初禾提供格鲁吉亚代孕相关协调：从初步沟通与评估，到诊所与行程对接、进度与报告记录，以及出生后手续跟进——每一次沟通都有清楚留存。','Firstleaf coordinates Georgia surrogacy-related care: from early consultation and assessment, through clinic and travel coordination, progress and report records, to post-birth paperwork follow-up — every conversation stays clearly recorded.')}</p>
+     <p className="hero-rise delay-2">{t('初禾提供格鲁吉亚代孕相关协调，并备有独立卵子库与精子库供选择；方案可按需单独使用或组合。从沟通评估、合作 IVF 诊所与行程对接、月子衔接，到进度报告以及公证、海牙认证与出生后手续——每一次沟通都有清楚留存。','Firstleaf coordinates Georgia surrogacy-related care and offers independent egg and sperm donor banks to choose from — programmes can be used alone or combined. From consultation and partner IVF clinics and travel, through postpartum handoff, progress reports, notarisation, Apostille and post-birth paperwork — every conversation stays clearly recorded.')}</p>
      <div className="hero-actions hero-rise delay-3"><a href="/portal" className="primary-link">{t('开始保密咨询','Start a private consultation')}<ArrowRight size={17}/></a><a href="#journey" className="quiet-link">{t('了解服务流程','Explore the journey')}<ArrowUpRight size={17}/></a></div>
      <small className="hero-rise delay-3">{t('私密试用版 · 具体服务须经个别法律与医疗评估，不承诺结果。','Private pilot · Services require individual legal and clinical assessment. Outcomes are not guaranteed.')}</small>
     </div>
    </section>
    <section id="care" className="service-strip">{[[ShieldCheck,t('私密的服务空间','A private care space'),t('身份验证后建立代孕协调档案；阶段与负责人按人、按案件可见。','Create your surrogacy-coordination profile after sign-in. Stages and a named coordinator stay visible by person and case.')],[FileHeart,t('可追溯的报告','Traceable reports'),t('原件与复核译稿按权限交付；来源、日期、版本与复核状态完整记录。','Originals and reviewed translations shared privately — source, date, version and review status recorded together.')],[MessagesSquare,t('持续的双语沟通','Ongoing bilingual support'),t('专属协调员跟进代孕行程中的问题，让下一步更明确。','A named coordinator follows questions through your surrogacy journey so next steps stay clear.')]].map(([Icon,title,description],i)=>{const I=Icon as typeof ShieldCheck;return <article key={i}><span className="service-index">0{i+1}</span><I size={22} strokeWidth={1.5}/><h3>{title as string}</h3><p>{description as string}</p></article>})}</section>
+   <section id="options" className="options-section">
+    <div className="section-intro">
+     <div><div className="eyebrow">OPTIONS</div><h2>{t('多元方案，按需组合。','Flexible programmes — combine as you need.')}</h2></div>
+     <p>{t('代孕协调、独立卵子库与独立精子库并列可选；登录并获批后，资料库按授权开放。','Surrogacy coordination, an independent egg bank and an independent sperm bank sit side by side. After sign-in and approval, directories open by grant.')}</p>
+    </div>
+    <div className="options-grid">
+     {[[t('代孕协调','Surrogacy coordination'),t('沟通与评估、诊所与行程对接、进度与报告、出生后手续跟进。','Consultation, clinic and travel coordination, progress and reports, post-birth paperwork follow-up.')],[t('独立卵子库','Independent egg bank'),t('经授权后查看与选择；用于知情选择与协调，不构成医疗建议。','View and choose after authorisation — for informed choice and coordination, not medical advice.')],[t('独立精子库','Independent sperm bank'),t('经授权后查看与选择；可与代孕或供卵方案按需组合。','View and choose after authorisation — combinable with surrogacy or egg-donor programmes as needed.')]].map((x,i)=><article key={i}><span>0{i+1}</span><h3>{x[0]}</h3><p>{x[1]}</p></article>)}
+    </div>
+    <p className="options-note">{t('具体组合经个案评估后确认；首页不展示可供识别的供者样本。','Specific combinations are confirmed after individual assessment. Identifiable donor samples are not shown on this page.')}</p>
+   </section>
+   <section id="network" className="network-section">
+    <div className="section-intro">
+     <div><div className="eyebrow">PARTNER NETWORK</div><h2>{t('与诊所、月子与证件服务协作。','Coordinated with clinics, postpartum care and documents.')}</h2></div>
+     <p>{t('我们协调合作方安排与进度记录；诊疗由医疗机构负责，具体休养与认证以合作方及当地要求为准。','We coordinate partner arrangements and progress records. Clinical care stays with medical providers; postpartum and certification details follow partners and local requirements.')}</p>
+    </div>
+    <div className="network-grid">
+     {[[t('合作 IVF 诊所','Partner IVF clinics'),t('与合作诊所协调评估与治疗安排，报告与阶段按权限同步到你的案件空间。','Coordinate assessment and treatment arrangements with partner clinics. Reports and stages sync to your case space by permission.')],[t('月子中心协作','Postpartum care partners'),t('衔接产后休养与行程安排，重要节点记入服务进度，便于双语跟进。','Handoff postpartum rest and travel plans. Key milestones stay on your care timeline for bilingual follow-up.')],[t('公证与海牙认证','Notarisation & Apostille'),t('跟进出生、亲权等相关证件的公证与海牙认证进度，材料与状态可追溯。','Track notarisation and Apostille progress for birth and parentage documents, with a clear record of materials and status.')]].map((x,i)=><article key={i}><span>0{i+1}</span><h3>{x[0]}</h3><p>{x[1]}</p></article>)}
+    </div>
+   </section>
    <section className="journey-section" id="journey" ref={journeyRef}><div className="section-intro"><div><div className="eyebrow">YOUR JOURNEY</div><h2>{t('先了解，再从容决定。','Understand first. Decide with confidence.')}</h2></div><p>{t('每条代孕路径不同，流程会根据个案评估与诊所安排调整。','Every surrogacy path is different. Your plan follows individual assessment and clinical arrangements.')}</p></div><div className="journey-grid">{[[t('沟通与评估','Consultation & assessment'),t('了解需求与资料，初步确认服务是否适用——这不是法律结论。','Discuss needs and documents, and whether the service may apply — this is not a legal determination.')],[t('计划与协调','Planning & coordination'),t('说明诊所安排、费用范围归属与各方职责。','Clarify clinic arrangements, what fees cover, and each party’s responsibilities.')],[t('记录与随访','Records & follow-up'),t('记录周期、检查与沟通，交付经复核的报告。','Record cycles, checks and conversations; share independently reviewed reports.')],[t('出生后支持','Post-birth support'),t('跟进出生登记、亲权与旅行文件等手续（不提供法律意见）。','Follow birth registration, parentage and travel paperwork (we do not give legal opinions).')]].map((x,i)=><article key={i} className="reveal" style={{transitionDelay:`${i*90}ms`}}><span>0{i+1}</span><h3>{x[0]}</h3><p>{x[1]}</p></article>)}</div></section>
    <section id="boundaries" className="boundaries-section">
     <div className="section-intro">
      <div><div className="eyebrow">BOUNDARIES</div><h2>{t('我们做什么，不做什么。','What we do — and do not do.')}</h2></div>
-     <p>{t('初禾提供格鲁吉亚代孕相关协调与进度记录，不是医疗机构，也不是律师事务所。我们不提供医疗诊断、法律资格判断、紧急医疗联络或付款结算。诊疗由接诊医疗机构负责；法律事务由持牌专业人士确认。能否开展服务须个案评估，且不承诺结果。','Firstleaf provides Georgia surrogacy-related coordination and progress records. We are not a medical provider or a law firm. We do not offer diagnosis, legal eligibility decisions, emergency medical contact, or payment processing. Clinics handle clinical care; licensed professionals handle legal matters. Whether a service proceeds requires individual assessment, and outcomes are not guaranteed.')}</p>
+     <p>{t('初禾提供格鲁吉亚代孕相关协调与进度记录，并协调独立精卵资料库的授权查阅，不是医疗机构，也不是律师事务所。资料库服务于知情选择与协调，不构成医疗或法律意见。我们不提供医疗诊断、法律资格判断、紧急医疗联络或付款结算。诊疗由接诊医疗机构负责；法律事务由持牌专业人士确认。能否开展服务须个案评估，且不承诺结果。','Firstleaf provides Georgia surrogacy-related coordination and progress records, and coordinates authorised access to independent egg and sperm directories. We are not a medical provider or a law firm. Directories support informed choice and coordination — they are not medical or legal advice. We do not offer diagnosis, legal eligibility decisions, emergency medical contact, or payment processing. Clinics handle clinical care; licensed professionals handle legal matters. Whether a service proceeds requires individual assessment, and outcomes are not guaranteed.')}</p>
     </div>
    </section>
    <section id="contact" className="cta-band">
