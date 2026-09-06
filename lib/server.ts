@@ -1,5 +1,6 @@
 import {env} from 'cloudflare:workers';
 import {getChatGPTUser} from '@/app/chatgpt-auth';
+import {ensureSchema} from './ensure-schema';
 import {canReadReport,canManageCase,canReviewReport,canPublishReport,canUseDirectory,validMutation,validDate,validateUpload} from './policy';
 export type Profile={id:string;email:string;name:string;role:string;status:string;language:string;jurisdiction:string;interest:string;registered_at:string|null;created_at:string};
 export type Row=Record<string,any>;
@@ -12,7 +13,7 @@ export const now=()=>new Date().toISOString();
 export const id=()=>crypto.randomUUID();
 export const statement=(sql:string,...p:any[])=>db().prepare(sql).bind(...p);
 export function auditStatement(actor:Profile,action:string,target:string,reason:string){return statement('INSERT INTO audit (id,actor_id,action,target,reason,created_at) VALUES (?,?,?,?,?,?)',id(),actor.id,action,target,reason,now())}
-export async function actor(){const identity=await getChatGPTUser();if(!identity)fail(401,'SIGN_IN_REQUIRED');const isOwner=!!env.ADMIN_EMAIL&&identity.email.trim().toLowerCase()===env.ADMIN_EMAIL.trim().toLowerCase();await statement('INSERT OR IGNORE INTO profiles (id,email,name,role,status,created_at) VALUES (?,?,?,?,?,?)',identity.userId,identity.email,identity.displayName,isOwner?'admin':'client',isOwner?'approved':'pending',now()).run();if(isOwner)await statement("UPDATE profiles SET role='admin',status='approved' WHERE id=? AND role<>'admin'",identity.userId).run();const profile=await one<Profile>('SELECT * FROM profiles WHERE id=?',identity.userId);if(!profile)fail(503,'SERVICE_UNAVAILABLE');return profile}
+export async function actor(){const identity=await getChatGPTUser();if(!identity)fail(401,'SIGN_IN_REQUIRED');await ensureSchema();const isOwner=!!env.ADMIN_EMAIL&&identity.email.trim().toLowerCase()===env.ADMIN_EMAIL.trim().toLowerCase();await statement('INSERT OR IGNORE INTO profiles (id,email,name,role,status,created_at) VALUES (?,?,?,?,?,?)',identity.userId,identity.email,identity.displayName,isOwner?'admin':'client',isOwner?'approved':'pending',now()).run();if(isOwner)await statement("UPDATE profiles SET role='admin',status='approved' WHERE id=? AND role<>'admin'",identity.userId).run();const profile=await one<Profile>('SELECT * FROM profiles WHERE id=?',identity.userId);if(!profile)fail(503,'SERVICE_UNAVAILABLE');return profile}
 export function active(a:Profile){if(a.status!=='approved')fail(403,a.status==='suspended'?'ACCOUNT_SUSPENDED':'APPROVAL_REQUIRED')}
 export function admin(a:Profile){active(a);if(a.role!=='admin')fail(403,'FORBIDDEN')}
 export async function member(a:Profile,caseId:string){active(a);const m=await one('SELECT role FROM case_members WHERE case_id=? AND user_id=?',caseId,a.id);if(!m)fail(404,'NOT_FOUND');return m.role as string}

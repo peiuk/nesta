@@ -52,3 +52,10 @@ test('profiles bootstrap pending clients until approval',()=>{
  assert.match(sql,/`status` text DEFAULT 'pending' NOT NULL/);
  assert.match(sql,/`registered_at` text/);
 });
+
+test('migration splits into executable statements for ensureSchema',()=>{
+ const statements=sql.split(/-->\s*statement-breakpoint/).map(s=>s.trim()).filter(Boolean);
+ assert.ok(statements.length>=11);
+ assert.ok(statements.some(s=>s.includes('CREATE TABLE `profiles`')));
+ assert.ok(statements.every(s=>!s.includes('statement-breakpoint')));
+});
