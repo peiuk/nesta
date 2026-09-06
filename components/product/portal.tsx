@@ -77,6 +77,101 @@ function NewCase({refresh}:{refresh:()=>void}){
  </>;
 }
 
-function CaseDetail({back}:{caseId:string;profile:Data;back:()=>void}){const {t}=useLocale();return <><Button variant="ghost" size="sm" onClick={back}><ArrowLeft size={16}/>{t('返回概览','Back to overview')}</Button><div className="notice">{t('案件详情正在开发中。','Case detail is under construction.')}</div></>}
+function CaseDetail({caseId,profile,back}:{caseId:string;profile:Data;back:()=>void}){
+ const {t}=useLocale();const label=useLabels();const [version,setVersion]=useState(0);
+ const refresh=()=>setVersion(v=>v+1);
+ const {data,error,loading}=useResource('cases/'+caseId,version);
+ if(loading)return <div className="loading">{t('正在载入…','Loading…')}</div>;
+ if(error||!data)return <><Button variant="ghost" size="sm" onClick={back}><ArrowLeft size={16}/>{t('返回概览','Back to overview')}</Button><ErrorNotice code={error||'SERVICE_UNAVAILABLE'}/></>;
+ const record=data.case as Data;const manage=data.can_manage===true;const membership=String(data.membership||'');
+ const members=(data.members||[]) as Data[];const events=(data.events||[]) as Data[];const questions=(data.questions||[]) as Data[];
+ return <>
+  <Button variant="ghost" size="sm" onClick={back}><ArrowLeft size={16}/>{t('返回概览','Back to overview')}</Button>
+  <div className="stage-banner"><div><small>{String(record.code)}</small><h2>{String(record.title)}</h2><p>{label(String(record.stage))} · {t('周期','Cycle')} {String(record.cycle)} · {t('我的身份','My role')}: {label(membership)}</p></div>{manage&&<StageForm caseId={caseId} record={record} refresh={refresh}/>}</div>
+  <div className="split">
+   <div>
+    <ReportPanel data={data} caseId={caseId} refresh={refresh}/>
+    <Panel title={t('服务进度','Care timeline')} action={manage?<EventForm caseId={caseId} cycle={Number(record.cycle)} refresh={refresh}/>:undefined}>
+     {events.length?<ul className="timeline">{events.map(e=><li key={String(e.id)}><strong>{String(e.title)}</strong><div className="metadata">{String(e.event_date)} · {label(String(e.kind))} · {t('周期','Cycle')} {String(e.cycle)} · {String(e.author_name)}</div>{e.note?<p>{String(e.note)}</p>:null}</li>)}</ul>
+      :<Empty title={t('还没有进度记录','No timeline entries yet')}/>}
+    </Panel>
+   </div>
+   <div>
+    <Panel title={t('服务团队','Care team')} action={profile.role==='admin'?<MemberForm caseId={caseId} refresh={refresh}/>:undefined}>
+     <div className="stack">{members.map(m=><div key={String(m.id)} className="row-actions justify-between"><div><strong>{String(m.name)}</strong><div className="metadata">{label(String(m.role))}{m.email?` · ${String(m.email)}`:''}</div></div><Status value={String(m.status)}/></div>)}</div>
+    </Panel>
+    <Panel title={t('沟通记录','Conversations')}>
+     <QuestionForm caseId={caseId} refresh={refresh}/>
+     {questions.length?<div className="stack">{questions.map(q=><div key={String(q.id)} className="question"><div className="metadata">{String(q.author_name)} · {String(q.created_at).slice(0,10)}</div><p>{String(q.body)}</p>{q.reply?<div className="answer"><p>{String(q.reply)}</p></div>:manage?<ReplyForm questionId={String(q.id)} refresh={refresh}/>:<div className="metadata">{t('协调员会尽快回复。','Your coordinator will reply.')}</div>}</div>)}</div>
+      :<Empty title={t('还没有提问','No questions yet')}/>}
+    </Panel>
+   </div>
+  </div>
+ </>;
+}
+
+function StageForm({caseId,record,refresh}:{caseId:string;record:Data;refresh:()=>void}){
+ const {t}=useLocale();const label=useLabels();const [open,setOpen]=useState(false);
+ return <>
+  <Button variant="secondary" onClick={()=>setOpen(true)}>{t('更新阶段','Update stage')}</Button>
+  {open&&<Modal title={t('更新案件阶段','Update case stage')} description={t('阶段与周期变更会记入审计。','Stage and cycle changes are recorded in the audit log.')} onClose={()=>setOpen(false)}>
+   <ActionForm submitLabel={t('保存阶段','Save stage')} onSubmit={f=>api(`cases/${caseId}/stage`,{...formObject(f),cycle:Number(f.get('cycle'))})} onDone={()=>{setOpen(false);refresh()}}>
+    <Choice name="stage" label={t('阶段','Stage')} value={String(record.stage)} options={STAGES.map(s=>[s,label(s)] as [string,string])}/>
+    <Field name="cycle" type="number" label={t('周期','Cycle')} value={Number(record.cycle)}/>
+    <Field name="reason" type="textarea" label={t('变更说明','Reason')} max={500}/>
+   </ActionForm>
+  </Modal>}
+ </>;
+}
+
+function EventForm({caseId,cycle,refresh}:{caseId:string;cycle:number;refresh:()=>void}){
+ const {t}=useLocale();const label=useLabels();const [open,setOpen]=useState(false);
+ return <>
+  <Button variant="secondary" size="sm" onClick={()=>setOpen(true)}>{t('添加记录','Add entry')}</Button>
+  {open&&<Modal title={t('添加进度记录','Add timeline entry')} description={t('记录治疗、检查或预约安排。','Record treatment, checks or appointments.')} onClose={()=>setOpen(false)}>
+   <ActionForm submitLabel={t('保存记录','Save entry')} onSubmit={f=>api(`cases/${caseId}/events`,{...formObject(f),cycle:Number(f.get('cycle'))})} onDone={()=>{setOpen(false);refresh()}}>
+    <Field name="title" label={t('标题','Title')} max={150}/>
+    <div className="form-grid">
+     <Choice name="kind" label={t('类型','Type')} options={[['milestone',label('milestone')],['appointment',label('appointment')]]}/>
+     <Field name="event_date" type="date" label={t('日期','Date')}/>
+    </div>
+    <Field name="cycle" type="number" label={t('周期','Cycle')} value={cycle}/>
+    <Field name="note" type="textarea" label={t('备注','Note')} required={false} max={1500}/>
+   </ActionForm>
+  </Modal>}
+ </>;
+}
+
+function MemberForm({caseId,refresh}:{caseId:string;refresh:()=>void}){
+ const {t}=useLocale();const [open,setOpen]=useState(false);const people=useResource(open?'people':null);
+ const candidates=((people.data?.people||[]) as Data[]).filter(p=>p.status==='approved');
+ return <>
+  <Button variant="secondary" size="sm" onClick={()=>setOpen(true)}>{t('管理成员','Manage members')}</Button>
+  {open&&<Modal title={t('分配或移除成员','Assign or remove member')} description={t('成员角色取自账户角色；移除会同时收回该成员的报告接收资格。','Case role follows the account role. Removing a member also revokes their report recipients entries.')} onClose={()=>setOpen(false)}>
+   {people.error?<ErrorNotice code={people.error}/>
+    :<ActionForm submitLabel={t('保存成员','Save member')} onSubmit={f=>api(`cases/${caseId}/members`,{user_id:f.get('user_id'),reason:f.get('reason'),remove:f.get('action')==='remove'})} onDone={()=>{setOpen(false);refresh()}}>
+     <Choice name="user_id" label={t('账户','Account')} options={candidates.map(p=>[String(p.id),`${String(p.name)} · ${String(p.role)}`] as [string,string])}/>
+     <Choice name="action" label={t('操作','Action')} options={[['assign',t('分配到案件','Assign to case')],['remove',t('从案件移除','Remove from case')]]}/>
+     <Field name="reason" type="textarea" label={t('理由（记入审计）','Reason (recorded in audit)')} max={500}/>
+    </ActionForm>}
+  </Modal>}
+ </>;
+}
+
+function QuestionForm({caseId,refresh}:{caseId:string;refresh:()=>void}){
+ const {t}=useLocale();const [key,setKey]=useState(0);
+ return <div key={key} className="mb-4"><ActionForm submitLabel={t('提交问题','Send question')} onSubmit={f=>api(`cases/${caseId}/questions`,formObject(f))} onDone={()=>{setKey(k=>k+1);refresh()}}>
+  <Field name="body" type="textarea" label={t('想问的问题','Your question')} max={2000}/>
+ </ActionForm></div>;
+}
+
+function ReplyForm({questionId,refresh}:{questionId:string;refresh:()=>void}){
+ const {t}=useLocale();
+ return <ActionForm submitLabel={t('发送回复','Send reply')} onSubmit={f=>api('questions/'+questionId,formObject(f))} onDone={refresh}>
+  <Field name="reply" type="textarea" label={t('回复内容','Reply')} max={2000}/>
+ </ActionForm>;
+}
+
 function Directory(_:{profile:Data}){const {t}=useLocale();return <div className="notice">{t('资料库正在开发中。','Directory is under construction.')}</div>}
 function Admin(){const {t}=useLocale();return <div className="notice">{t('管理页正在开发中。','Administration is under construction.')}</div>}
+function ReportPanel(_:{data:Data;caseId:string;refresh:()=>void}){const {t}=useLocale();return <Panel title={t('报告与文件','Reports & documents')}><div className="notice">{t('报告面板正在开发中。','Report panel is under construction.')}</div></Panel>}
