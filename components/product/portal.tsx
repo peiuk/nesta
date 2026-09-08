@@ -1,14 +1,16 @@
 'use client';
-import {useEffect,useState,type ReactNode} from 'react';
+import {useEffect,useState,useRef,type ReactNode} from 'react';
 import {ArrowLeft,Download,Heart,LogOut,Upload} from 'lucide-react';
 import {Button} from '@/components/ui/button';
+import {Input} from '@/components/ui/input';
 import {Table,TableHeader,TableBody,TableRow,TableHead,TableCell} from '@/components/ui/table';
 import {Brand} from './brand';
 import {LanguageButton,useLocale} from './locale';
 import {Registration,SignIn} from './registration';
-import {api,useResource,ErrorNotice,Empty,Panel,Status,Field,Choice,ActionForm,Modal,formObject,useLabels,type Data} from './common';
+import {api,useResource,ErrorNotice,Empty,Panel,Status,Field,Choice,FilterSelect,ActionForm,Modal,formObject,useLabels,type Data} from './common';
 import {canUseDirectory,hasDirectoryAccess} from '@/lib/policy';
-import {filterDonors} from '@/lib/directory-filters';
+import {filterDonors,validAgeRange} from '@/lib/directory-filters';
+import {filterCases} from '@/lib/case-filters';
 
 export const STAGES=['assessment','treatment','transfer','pregnancy','birth','paperwork','paused','loss','closed'];
 const SIGN_OUT='/signout-with-chatgpt?return_to=%2F';
@@ -212,40 +214,44 @@ export function Directory({profile}:{profile:Data}){
  const [kind,setKind]=useState<'egg'|'sperm'>('egg');const [version,setVersion]=useState(0);
  const [status,setStatus]=useState('all');const [favoriteOnly,setFavoriteOnly]=useState(false);
  const [blood,setBlood]=useState('all');const [ageMin,setAgeMin]=useState('');const [ageMax,setAgeMax]=useState('');
- const selectKind=(k:'egg'|'sperm')=>{setKind(k);setStatus('all');setFavoriteOnly(false);setBlood('all');setAgeMin('');setAgeMax('')};
- const refresh=()=>setVersion(v=>v+1);
+ const [query,setQuery]=useState('');const [sort,setSort]=useState<'code'|'verified'>('code');const [saved,setSaved]=useState(false);
+ const resetFilters=()=>{setStatus('all');setFavoriteOnly(false);setBlood('all');setAgeMin('');setAgeMax('');setQuery('');setSort('code')};
+ const selectKind=(k:'egg'|'sperm')=>{setKind(k);resetFilters();setSaved(false)};
+ const refresh=()=>{setVersion(v=>v+1);setSaved(true)};
  const {data,error,loading}=useResource(`directory?kind=${kind}`,version);
  const donors=(data?.donors||[]) as Data[];
  const bloodOptions=[...new Set(donors.map(d=>String(d.blood_group||'')).filter(Boolean))].sort();
- const filtered=filterDonors(donors,{status,favoriteOnly,blood,ageMin,ageMax});
+ const filtered=filterDonors(donors,{status,favoriteOnly,blood,ageMin,ageMax,query,sort});
+ const ageValid=validAgeRange(ageMin,ageMax);
+ const hasFilters=status!=='all'||favoriteOnly||blood!=='all'||ageMin!==''||ageMax!==''||query.trim()!=='';
  const statusOptions=admin?['available','matching','unavailable','archived']:['available','matching','unavailable'];
  return <>
-  <div className="page-title"><div><h1>{t('供者资料库','Donor directory')}</h1><p>{t('授权范围与有效期由管理员设定，资料仅供本次服务评估使用。','Scope and expiry are set by an administrator. Records are for this service assessment only.')}</p></div>{admin&&<NewDonor refresh={refresh}/>}</div>
-  <div className="row-actions section-tabs">{(['egg','sperm'] as const).map(k=><Button key={k} variant={kind===k?'secondary':'ghost'} size="sm" onClick={()=>selectKind(k)}>{label(k)}</Button>)}</div>
+  <div className="page-title"><div>{admin?<h2>{t('合作方供者档案','Partner donor records')}</h2>:<h1>{t('供者资料库','Donor directory')}</h1>}<p>{admin?t('维护已核实的匿名档案、来源和当前可申请状态。','Maintain verified anonymous records, sources and availability.'):t('授权范围与有效期由管理员设定，资料仅供本次服务评估使用。','Scope and expiry are set by an administrator. Records are for this service assessment only.')}</p></div>{admin&&<NewDonor kind={kind} onCreated={k=>{selectKind(k);refresh()}} refresh={refresh}/>}</div>
+  {saved&&<div className="success-banner" role="status">{t('更改已保存。','Changes saved.')}</div>}
+  <div className="row-actions section-tabs" aria-label={t('资料库类别','Directory type')}>{(['egg','sperm'] as const).map(k=><Button key={k} variant={kind===k?'secondary':'ghost'} size="sm" aria-pressed={kind===k} onClick={()=>selectKind(k)}>{label(k)}</Button>)}</div>
   {!loading&&!error&&donors.length>0&&<div className="row-actions mb-4 flex-wrap gap-3">
-   <select className="min-h-11 rounded-md border border-input bg-transparent px-3 text-sm" value={status} onChange={e=>setStatus(e.target.value)} aria-label={t('状态','Status')}>
-    <option value="all">{t('全部状态','All statuses')}</option>
-    {statusOptions.map(s=><option key={s} value={s}>{label(s)}</option>)}
-   </select>
-   <Button variant={favoriteOnly?'secondary':'ghost'} size="sm" onClick={()=>setFavoriteOnly(v=>!v)}><Heart size={16}/>{favoriteOnly?t('仅收藏','Saved only'):t('全部','All')}</Button>
-   <select className="min-h-11 rounded-md border border-input bg-transparent px-3 text-sm" value={blood} onChange={e=>setBlood(e.target.value)} aria-label={t('血型','Blood group')}>
-    <option value="all">{t('全部血型','All blood groups')}</option>
-    {bloodOptions.map(b=><option key={b} value={b}>{b}</option>)}
-   </select>
+   <Input className="min-h-11 min-w-48 flex-1" value={query} onChange={e=>setQuery(e.target.value)} placeholder={t('搜索档案编号或来源机构','Search record code or source')} aria-label={t('搜索供者档案','Search donor records')}/>
+   <FilterSelect value={status} onChange={setStatus} label={t('状态','Status')} options={[["all",t('全部状态','All statuses')],...statusOptions.map(s=>[s,label(s)] as [string,string])]}/>
+   <Button variant={favoriteOnly?'secondary':'outline'} className="min-h-11" size="sm" aria-pressed={favoriteOnly} onClick={()=>setFavoriteOnly(v=>!v)}><Heart size={16}/>{t('仅看收藏','Saved only')}</Button>
+   <FilterSelect value={blood} onChange={setBlood} label={t('血型','Blood group')} options={[["all",t('全部血型','All blood groups')],...bloodOptions.map(b=>[b,b] as [string,string])]}/>
    <label className="metadata flex items-center gap-2">{t('年龄从','Age from')}<input type="number" className="min-h-11 w-20 rounded-md border border-input bg-transparent px-3 text-sm" value={ageMin} onChange={e=>setAgeMin(e.target.value)} min={18} max={65} aria-label={t('最小年龄','Minimum age')}/></label>
    <label className="metadata flex items-center gap-2">{t('至','to')}<input type="number" className="min-h-11 w-20 rounded-md border border-input bg-transparent px-3 text-sm" value={ageMax} onChange={e=>setAgeMax(e.target.value)} min={18} max={65} aria-label={t('最大年龄','Maximum age')}/></label>
+   <FilterSelect value={sort} onChange={v=>setSort(v as 'code'|'verified')} label={t('排序','Sort order')} options={[["code",t('按编号排序','Record code')],["verified",t('最近核实优先','Recently verified')]]}/>
+   {hasFilters&&<Button variant="ghost" onClick={resetFilters}>{t('清空筛选','Clear filters')}</Button>}
   </div>}
+  {!ageValid&&<div className="error-banner" role="alert">{t('请输入 18–65 岁的整数范围，最小年龄不能大于最大年龄。','Use whole ages from 18 to 65. Minimum age cannot exceed maximum age.')}</div>}
+  {!loading&&!error&&donors.length>0&&<p className="metadata mb-4" role="status">{t(`显示 ${filtered.length} / ${donors.length} 份档案`,`Showing ${filtered.length} of ${donors.length} records`)}{donors.length===300&&t(' · 当前最多载入 300 份',' · Up to 300 records loaded')}</p>}
   {loading?<div className="loading">{t('正在载入…','Loading…')}</div>
-   :error?<ErrorNotice code={error}/>
-   :donors.length===0?<Empty title={t('暂无可查看的档案','No records available')}/>
-   :filtered.length===0?<Empty title={t('没有匹配的档案','No matching records')}/>
+   :error?<><ErrorNotice code={error}/><Button variant="outline" onClick={()=>setVersion(v=>v+1)}>{t('重新载入','Retry')}</Button></>
+   :donors.length===0?<Empty title={t('暂无可查看的档案','No records available')}>{admin?t('点击「新增档案」，开始录入当前资料库的匿名供者资料。','Use Add record to create an anonymous donor profile in this directory.'):t('当前授权范围内还没有可查看的档案，请联系协调员。','No records are available within your access. Contact your coordinator.')}</Empty>
+   :filtered.length===0?<Empty title={t('没有匹配的档案','No matching records')}><Button variant="outline" className="mt-3" onClick={resetFilters}>{t('清空筛选','Clear filters')}</Button></Empty>
    :<div className="directory-grid">{filtered.map(d=><DonorCard key={String(d.id)} donor={d} admin={admin} summary={String(lang==='zh'?d.summary_zh:d.summary_en)} refresh={refresh}/>)}</div>}
  </>;
 }
 
 function DonorCard({donor,admin,summary,refresh}:{donor:Data;admin:boolean;summary:string;refresh:()=>void}){
- const {t}=useLocale();const [busy,setBusy]=useState(false);const favorite=Number(donor.favorite)===1;
- async function toggle(){if(busy)return;setBusy(true);try{await api('favorites',{donor_id:String(donor.id),favorite:!favorite});refresh()}finally{setBusy(false)}}
+ const {t}=useLocale();const [busy,setBusy]=useState(false);const [error,setError]=useState('');const favorite=Number(donor.favorite)===1;
+ async function toggle(){if(busy)return;setBusy(true);setError('');try{await api('favorites',{donor_id:String(donor.id),favorite:!favorite});refresh()}catch(e){setError(e instanceof Error?e.message:'SERVICE_UNAVAILABLE')}finally{setBusy(false)}}
  return <article className="donor-card">
   <div className="donor-top"><span className="donor-code">{String(donor.code)}</span><Status value={String(donor.status)}/></div>
   <dl>
@@ -257,8 +263,9 @@ function DonorCard({donor,admin,summary,refresh}:{donor:Data;admin:boolean;summa
   <p>{summary}</p>
   {donor.status_reason?<div className="metadata">{t('状态理由','Status reason')}: {String(donor.status_reason)}</div>:null}
   <div className="metadata">{t('来源','Source')}: {String(donor.source)}</div>
+  <ErrorNotice code={error}/>
   <div className="row-actions mt-4">
-   <Button variant={favorite?'secondary':'ghost'} size="sm" disabled={busy} onClick={toggle}><Heart size={16}/>{favorite?t('已收藏','Saved'):t('收藏','Save')}</Button>
+   {donor.status!=='archived'&&<Button variant={favorite?'secondary':'ghost'} size="sm" aria-pressed={favorite} disabled={busy} onClick={toggle}><Heart size={16}/>{busy?t('保存中…','Saving…'):favorite?t('已收藏','Saved'):t('收藏','Save')}</Button>}
    {admin&&<DonorEdit donor={donor} refresh={refresh}/>}
    {admin&&<DonorStatus donor={donor} refresh={refresh}/>}
   </div>
@@ -280,7 +287,7 @@ function DonorEdit({donor,refresh}:{donor:Data;refresh:()=>void}){
     <Field name="source" label={t('来源机构','Source')} value={String(donor.source)} max={150}/>
     <Field name="summary_zh" type="textarea" label={t('中文摘要','Chinese summary')} value={String(donor.summary_zh)} max={1500}/>
     <Field name="summary_en" type="textarea" label={t('英文摘要','English summary')} value={String(donor.summary_en)} max={1500}/>
-    <Field name="consent_ref" label={t('同意书编号','Consent reference')} value={String(donor.consent_ref)} max={250}/>
+    <Field name="consent_ref" label={t('同意书编号','Consent reference')} value={String(donor.consent_ref||'')} max={250}/>
     <Field name="reason" type="textarea" label={t('变更说明（可选）','Change note (optional)')} required={false} max={500}/>
    </ActionForm>
   </Modal>}
@@ -300,15 +307,15 @@ function DonorStatus({donor,refresh}:{donor:Data;refresh:()=>void}){
  </>;
 }
 
-function NewDonor({refresh}:{refresh:()=>void}){
- const {t}=useLocale();const label=useLabels();const [open,setOpen]=useState(false);
+function NewDonor({refresh,kind='egg',onCreated}:{refresh:()=>void;kind?:'egg'|'sperm';onCreated?:(kind:'egg'|'sperm')=>void}){
+ const {t}=useLocale();const label=useLabels();const [open,setOpen]=useState(false);const createdKind=useRef(kind);
  return <>
   <Button onClick={()=>setOpen(true)}>{t('新增档案','Add record')}</Button>
   {open&&<Modal title={t('新增供者档案','Add donor record')} description={t('仅录入已核实、已取得同意的匿名摘要，不含身份信息。','Record only verified, consented anonymous summaries. No identifying details.')} onClose={()=>setOpen(false)}>
-   <ActionForm submitLabel={t('保存档案','Save record')} onSubmit={f=>api('donors',{...formObject(f),age:Number(f.get('age')),height:f.get('height')?Number(f.get('height')):null})} onDone={()=>{setOpen(false);refresh()}}>
+   <ActionForm submitLabel={t('保存档案','Save record')} onSubmit={async f=>{await api('donors',{...formObject(f),age:Number(f.get('age')),height:f.get('height')?Number(f.get('height')):null});createdKind.current=f.get('kind')==='sperm'?'sperm':'egg'}} onDone={()=>{setOpen(false);if(onCreated)onCreated(createdKind.current);else refresh()}}>
     <div className="form-grid">
      <Field name="code" label={t('档案编号','Record code')} max={40}/>
-     <Choice name="kind" label={t('类别','Type')} options={[['egg',label('egg')],['sperm',label('sperm')]]}/>
+     <Choice name="kind" label={t('类别','Type')} value={kind} options={[['egg',label('egg')],['sperm',label('sperm')]]}/>
      <Field name="age" type="number" label={t('年龄 (18-65)','Age (18-65)')}/>
      <Field name="height" type="number" label={t('身高 cm（可选）','Height cm (optional)')} required={false}/>
      <Field name="blood_group" label={t('血型（可选）','Blood group (optional)')} required={false} max={20}/>
@@ -425,8 +432,12 @@ function GrantForm({refresh,userId,userLabel,allowRevoke=true,triggerLabel}:{ref
 
 export function CasesTab({profile,open,refresh,version}:{profile:Data;open:(id:string)=>void;refresh:()=>void;version:number}){
  const {t}=useLocale();const label=useLabels();const [busyId,setBusyId]=useState('');const [actionError,setActionError]=useState('');
+ const [query,setQuery]=useState('');const [stage,setStage]=useState('all');const [assignedOnly,setAssignedOnly]=useState(false);
  const {data,error,loading}=useResource('cases',version);
- const cases=(data?.cases||[]) as Data[];
+ const allCases=(data?.cases||[]) as Data[];
+ const cases=filterCases(allCases,{query,stage,assignedOnly});
+ const hasFilters=Boolean(query.trim()||stage!=='all'||assignedOnly);
+ const resetFilters=()=>{setQuery('');setStage('all');setAssignedOnly(false)};
  async function joinAndOpen(caseId:string){
   if(busyId)return;setBusyId(caseId);setActionError('');
   try{
@@ -436,9 +447,11 @@ export function CasesTab({profile,open,refresh,version}:{profile:Data;open:(id:s
  }
  if(loading)return <div className="loading">{t('正在载入…','Loading…')}</div>;
  if(error)return <ErrorNotice code={error}/>;
- return <Panel title={t('全部案件','All cases')} action={<NewCase refresh={refresh}/>}>
+ return <Panel title={t('案件列表 · 最近 200 个','Case list · latest 200')} action={<NewCase refresh={refresh}/>}>
   <ErrorNotice code={actionError}/>
   <div className="notice">{t('未参与的案件可一键加入为协调员后查看详情。','For cases you are not on, join as coordinator in one step to open the detail view.')}</div>
+  <div className="row-actions mb-4 gap-3"><Input className="min-h-11 min-w-48 flex-1" value={query} onChange={e=>setQuery(e.target.value)} placeholder={t('搜索案件编号或名称','Search case code or title')} aria-label={t('搜索案件','Search cases')}/><FilterSelect value={stage} onChange={setStage} label={t('案件阶段','Case stage')} options={[["all",t('全部阶段','All stages')],...STAGES.map(s=>[s,label(s)] as [string,string])]}/><Button variant={assignedOnly?'secondary':'outline'} className="min-h-11" aria-pressed={assignedOnly} onClick={()=>setAssignedOnly(v=>!v)}>{t('仅我参与的案件','Assigned to me')}</Button>{hasFilters&&<Button variant="ghost" onClick={resetFilters}>{t('清空筛选','Clear filters')}</Button>}</div>
+  <p className="metadata mb-4" role="status">{t(`显示 ${cases.length} / ${allCases.length} 个案件`,`Showing ${cases.length} of ${allCases.length} cases`)}</p>
   {cases.length?<div className="table-wrap"><Table>
    <TableHeader><TableRow><TableHead>{t('编号','Code')}</TableHead><TableHead>{t('名称','Title')}</TableHead><TableHead>{t('阶段','Stage')}</TableHead><TableHead>{t('我的身份','My role')}</TableHead><TableHead>{t('更新','Updated')}</TableHead></TableRow></TableHeader>
    <TableBody>{cases.map(c=><TableRow key={String(c.id)}>
@@ -448,7 +461,7 @@ export function CasesTab({profile,open,refresh,version}:{profile:Data;open:(id:s
      :<Button type="button" variant="secondary" size="sm" disabled={busyId===String(c.id)} onClick={()=>joinAndOpen(String(c.id))}>{busyId===String(c.id)?t('加入中…','Joining…'):t('加入并打开','Join & open')}</Button>}</TableCell>
     <TableCell>{String(c.updated_at).slice(0,10)}</TableCell>
    </TableRow>)}</TableBody>
-  </Table></div>:<Empty title={t('还没有案件','No cases yet')}/>}
+  </Table></div>:<Empty title={allCases.length?t('没有匹配的案件','No matching cases'):t('还没有案件','No cases yet')}>{hasFilters?<Button variant="outline" onClick={resetFilters}>{t('清空筛选','Clear filters')}</Button>:t('先批准客户账户，再建立第一个案件。','Approve a client account, then create your first case.')}</Empty>}
  </Panel>;
 }
 

@@ -2,6 +2,7 @@ import {env} from 'cloudflare:workers';
 import {getChatGPTUser} from '@/app/chatgpt-auth';
 import {ensureSchema} from './ensure-schema';
 import {readAdminOperations} from './admin-operations';
+import {directoryQuery} from './directory-query';
 import {canReadReport,canManageCase,canReviewReport,canPublishReport,canUseDirectory,validMutation,validDate,validateUpload} from './policy';
 import {normalizeEmail,emailProfileId,generateOtpCode,hashSecret,verifySecret,parseSessionCookie,sessionCookieValue,clearSessionCookie,OTP_TTL_MS,SESSION_TTL_MS,OTP_MAX_ATTEMPTS,OTP_RESEND_MS} from './email-auth';
 export type Profile={id:string;email:string;name:string;role:string;status:string;language:string;jurisdiction:string;interest:string;registered_at:string|null;created_at:string};
@@ -148,7 +149,7 @@ export async function read(path:string[],auth:AuthContext,request:Request){
  if(path[0]==='directory'){
   const kind=choice(new URL(request.url).searchParams.get('kind')||'egg',['egg','sperm']);
   if(a.role!=='admin'){const grant=await one('SELECT * FROM directory_grants WHERE user_id=? AND scope=?',a.id,kind);if(!canUseDirectory(a,grant as any,kind))fail(403,'DIRECTORY_LOCKED')}
-  const donors=await all(`SELECT d.id,d.code,d.kind,d.age,d.height,d.blood_group,d.source,d.summary_zh,d.summary_en,d.status,d.status_reason,d.verified_at,CASE WHEN f.user_id IS NULL THEN 0 ELSE 1 END AS favorite FROM donors d LEFT JOIN favorites f ON f.donor_id=d.id AND f.user_id=? WHERE d.kind=? ${a.role==='admin'?'':"AND d.status<>'archived'"} ORDER BY d.code LIMIT 300`,a.id,kind);
+  const donors=await all(directoryQuery(a.role==='admin'),a.id,kind);
   return response({donors});
  }
  if(path[0]==='cases'&&path.length===1){admin(a);return response({cases:await all('SELECT c.*,m.role AS membership_role FROM cases c LEFT JOIN case_members m ON m.case_id=c.id AND m.user_id=? ORDER BY updated_at DESC LIMIT 200',a.id)})}

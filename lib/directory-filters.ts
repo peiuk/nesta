@@ -1,9 +1,17 @@
-export type DonorFilter={status:string;favoriteOnly:boolean;blood:string;ageMin:string;ageMax:string};
+export type DonorFilter={status:string;favoriteOnly:boolean;blood:string;ageMin:string;ageMax:string;query?:string;sort?:'code'|'verified'};
 
-export function filterDonors<T extends {status?:unknown;favorite?:unknown;blood_group?:unknown;age?:unknown}>(
+export function validAgeRange(min:string,max:string){
+ const valid=(value:string)=>value===''||(/^\d+$/.test(value)&&Number(value)>=18&&Number(value)<=65);
+ return valid(min)&&valid(max)&&(min===''||max===''||Number(min)<=Number(max));
+}
+
+export function filterDonors<T extends {status?:unknown;favorite?:unknown;blood_group?:unknown;age?:unknown;code?:unknown;source?:unknown;verified_at?:unknown}>(
  donors:T[],f:DonorFilter
 ):T[]{
- return donors.filter(d=>{
+ if(!validAgeRange(f.ageMin,f.ageMax))return [];
+ const query=(f.query||'').trim().toLowerCase();
+ const result=donors.filter(d=>{
+  if(query&&!`${String(d.code||'')} ${String(d.source||'')}`.toLowerCase().includes(query))return false;
   if(f.status!=='all'&&String(d.status)!==f.status)return false;
   if(f.favoriteOnly&&Number(d.favorite)!==1)return false;
   if(f.blood!=='all'&&String(d.blood_group||'')!==f.blood)return false;
@@ -12,4 +20,7 @@ export function filterDonors<T extends {status?:unknown;favorite?:unknown;blood_
   if(f.ageMax!==''&&(!Number.isFinite(age)||age>Number(f.ageMax)))return false;
   return true;
  });
+ if(f.sort==='verified')result.sort((a,b)=>String(b.verified_at||'').localeCompare(String(a.verified_at||''))||String(a.code||'').localeCompare(String(b.code||'')));
+ if(f.sort==='code')result.sort((a,b)=>String(a.code||'').localeCompare(String(b.code||''),undefined,{numeric:true}));
+ return result;
 }
