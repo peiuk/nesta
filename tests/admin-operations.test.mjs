@@ -9,6 +9,7 @@ const now='2026-09-08T10:00:00.000Z';
 function fixture(){
  const db=new DatabaseSync(':memory:');
  db.exec(readFileSync(new URL('../drizzle/0000_swift_jamie_braddock.sql',import.meta.url),'utf8'));
+ db.exec(readFileSync(new URL('../drizzle/0003_egg_requests.sql',import.meta.url),'utf8'));
  const run=(sql,...args)=>db.prepare(sql).run(...args);
  for(const [id,role,status,registered] of [['owner','admin','approved',null],['client','client','approved',now],['pending','client','pending',now],['unfinished','client','pending',null],['suspended','client','suspended',now]])run('INSERT INTO profiles (id,email,name,role,status,registered_at,created_at) VALUES (?,?,?,?,?,?,?)',id,id+'@test.invalid',id,role,status,registered,now);
  for(const id of ['assigned','private','closed'])run('INSERT INTO cases (id,code,title,stage,created_by,created_at,updated_at) VALUES (?,?,?,?,?,?,?)',id,id,id,id==='closed'?'closed':'pregnancy','owner',now,now);

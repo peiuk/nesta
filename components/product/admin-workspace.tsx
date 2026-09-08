@@ -10,6 +10,7 @@ import {SidebarProvider,Sidebar,SidebarHeader,SidebarContent,SidebarFooter,Sideb
 import {Brand} from './brand';
 import {LanguageButton,useLocale} from './locale';
 import {SignIn} from './registration';
+import {EggRequests} from './egg-requests';
 import {api,useResource,Panel,Empty,ErrorNotice,Status,useLabels,type Data} from './common';
 import {Shell,PeopleTab,PersonForm,GrantsTab,CasesTab,CaseDetail,Directory,AuditTab,NewCase,ReplyForm} from './portal';
 
@@ -19,6 +20,7 @@ const sections=[
  {id:'cases',zh:'案件与进度',en:'Cases & progress',icon:FolderOpen},
  {id:'reports',zh:'报告与文件',en:'Reports & files',icon:FileCheck2},
  {id:'directory',zh:'供者资料库',en:'Donor directory',icon:Leaf},
+ {id:'egg-requests',zh:'选卵申请',en:'Egg requests',icon:FileCheck2},
  {id:'grants',zh:'访问授权',en:'Access grants',icon:ShieldCheck},
  {id:'questions',zh:'客户留言',en:'Client messages',icon:MessageSquare},
  {id:'audit',zh:'操作记录',en:'Activity log',icon:CheckCheck},
@@ -77,6 +79,7 @@ function AdminWorkspace({profile,signIn}:{profile:Data;signIn:string}){
      {route.view==='people'&&<PeopleTab key={version}/>}
      {route.view==='cases'&&<CasesTab profile={profile} open={openCase} refresh={refresh} version={version}/>}
      {route.view==='directory'&&<Directory key={version} profile={profile}/>}
+     {route.view==='egg-requests'&&<EggRequests admin externalVersion={version} onChanged={refresh}/>}
      {route.view==='grants'&&<GrantsTab key={version}/>}
      {route.view==='audit'&&<AuditTab key={version}/>}
     </>}
@@ -87,7 +90,7 @@ function AdminWorkspace({profile,signIn}:{profile:Data;signIn:string}){
 
 function AdminNavigation({profile,view,go,counts}:{profile:Data;view:View;go:(v:View)=>void;counts:Data}){
  const {t}=useLocale();const {setOpenMobile}=useSidebar();
- const badges:Partial<Record<View,number>>={people:Number(counts.pending_profiles||0),reports:Number(counts.ready_reports||0),questions:Number(counts.unanswered||0)};
+ const badges:Partial<Record<View,number>>={people:Number(counts.pending_profiles||0),reports:Number(counts.ready_reports||0),questions:Number(counts.unanswered||0),'egg-requests':Number(counts.pending_egg_requests||0)};
  return <Sidebar className="admin-sidebar">
   <SidebarHeader className="admin-brand"><Brand/><span>{t('服务管理中心','CARE OPERATIONS')}</span></SidebarHeader>
   <SidebarContent><SidebarGroup><SidebarGroupLabel>{t('日常工作','WORKSPACE')}</SidebarGroupLabel><SidebarMenu>
@@ -119,7 +122,7 @@ function Dashboard({data,go,openCase,refresh}:{data:Data;go:(v:View)=>void;openC
     {rows(data,'activity').length?rows(data,'activity').map(a=><div className="admin-activity" key={String(a.id)}><CheckCheck size={16}/><div><strong>{String(a.actor_name||t('系统','System'))}</strong><p>{String(a.action)}</p></div><time>{String(a.created_at).slice(0,16).replace('T',' ')}</time></div>):<p>{t('操作完成后，记录会显示在这里。','Completed actions will appear here.')}</p>}
    </Panel>
   </div><div>
-   <Panel title={t('开始处理','Start a task')}><div className="admin-quick-actions"><NewCase refresh={refresh}/><Button variant="outline" onClick={()=>go('directory')}>{t('维护供者资料','Manage donor profiles')}</Button><Button variant="outline" onClick={()=>go('grants')}>{t('管理客户授权','Manage client access')}</Button></div></Panel>
+   <Panel title={t('开始处理','Start a task')}><div className="admin-quick-actions"><NewCase refresh={refresh}/><Button variant="outline" onClick={()=>go('egg-requests')}>{t('待审批选卵申请','Egg requests to review')} · {Number(counts.pending_egg_requests||0)}</Button><Button variant="outline" onClick={()=>go('directory')}>{t('维护供者资料','Manage donor profiles')}</Button><Button variant="outline" onClick={()=>go('grants')}>{t('管理客户授权','Manage client access')}</Button></div></Panel>
    <Panel title={t('未来 7 天预约','Appointments · next 7 days')}>
     {rows(data,'appointments').length?rows(data,'appointments').map(e=><button key={String(e.id)} className="admin-appointment" onClick={()=>openCase(String(e.case_id))}><CalendarDays size={20}/><div><time>{String(e.event_date)}</time><strong>{String(e.title)}</strong><small>{String(e.case_code)}</small></div><ArrowRight size={15}/></button>):<p>{t('你参与的案件暂无近期预约。','No upcoming appointments in your assigned cases.')}</p>}
    </Panel>

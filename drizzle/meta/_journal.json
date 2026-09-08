@@ -22,6 +22,13 @@
       "when": 1788730000000,
       "tag": "0002_donor_status_reason",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1788879404711,
+      "tag": "0003_egg_requests",
+      "breakpoints": true
     }
   ]
 }

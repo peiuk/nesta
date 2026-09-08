@@ -11,6 +11,7 @@ import {api,useResource,ErrorNotice,Empty,Panel,Status,Field,Choice,FilterSelect
 import {canUseDirectory,hasDirectoryAccess} from '@/lib/policy';
 import {filterDonors,validAgeRange} from '@/lib/directory-filters';
 import {filterCases} from '@/lib/case-filters';
+import {EggRequests,SubmitEggRequest,SelectionStatus} from './egg-requests';
 
 export const STAGES=['assessment','treatment','transfer','pregnancy','birth','paperwork','paused','loss','closed'];
 const SIGN_OUT='/signout-with-chatgpt?return_to=%2F';
@@ -60,23 +61,24 @@ export function Portal({signInHref}:{signInHref:string}){
 }
 
 function Workspace({profile,signIn}:{profile:Data;signIn:string}){
- const {t}=useLocale();const [view,setView]=useState<'overview'|'directory'>('overview');const [caseId,setCaseId]=useState<string|null>(null);const [version,setVersion]=useState(0);
+ const {t}=useLocale();const [view,setView]=useState<'overview'|'directory'|'requests'>('overview');const [caseId,setCaseId]=useState<string|null>(null);const [version,setVersion]=useState(0);
  const refresh=()=>setVersion(v=>v+1);
  useEffect(()=>{const c=new AbortController();registerFirstleafReadTools(c.signal).catch(()=>{});return()=>c.abort()},[]);
  const overview=useResource('overview',version);
  const grants=(overview.data?.grants||[]) as Array<{scope:string;expires_at:string;revoked_at:string|null}>;
  const showDirectory=profile.role==='admin'||(profile.role==='client'&&hasDirectoryAccess({id:String(profile.id),role:String(profile.role),status:String(profile.status)},grants));
  useEffect(()=>{if(view==='directory'&&!showDirectory)setView('overview')},[view,showDirectory]);
- const go=(next:'overview'|'directory')=>{setCaseId(null);setView(next)};
- const item=(key:'overview'|'directory',label:string)=><Button key={key} variant={view===key?'secondary':'ghost'} size="sm" onClick={()=>go(key)}>{label}</Button>;
- const nav=<>{item('overview',t('概览','Overview'))}{showDirectory&&item('directory',t('资料库','Directory'))}{profile.role==='admin'&&<a className="quiet-link" href="/admin">{t('管理后台','Administration')}</a>}</>;
+ const go=(next:'overview'|'directory'|'requests')=>{setCaseId(null);setView(next)};
+ const item=(key:'overview'|'directory'|'requests',label:string)=><Button key={key} variant={view===key?'secondary':'ghost'} size="sm" onClick={()=>go(key)}>{label}</Button>;
+ const nav=<>{item('overview',t('概览','Overview'))}{showDirectory&&item('directory',t('资料库','Directory'))}{profile.role==='client'&&item('requests',t('我的选卵申请','My egg requests'))}{profile.role==='admin'&&<a className="quiet-link" href="/admin">{t('管理后台','Administration')}</a>}</>;
  return <Shell nav={nav} signIn={signIn}>
   {view==='overview'&&(caseId
    ?<CaseDetail caseId={caseId} profile={profile} back={()=>setCaseId(null)}/>
    :overview.loading?<div className="loading">{t('正在载入…','Loading…')}</div>
    :overview.error?<ErrorNotice code={overview.error}/>
    :<Overview profile={profile} data={overview.data||{}} open={setCaseId} refresh={refresh}/>)}
-  {view==='directory'&&showDirectory&&<Directory profile={profile}/>}
+  {view==='directory'&&showDirectory&&<Directory profile={profile} openRequests={()=>go('requests')}/>}
+  {view==='requests'&&profile.role==='client'&&<EggRequests/>}
  </Shell>;
 }
 
@@ -209,7 +211,7 @@ export function ReplyForm({questionId,refresh}:{questionId:string;refresh:()=>vo
  </ActionForm>;
 }
 
-export function Directory({profile}:{profile:Data}){
+export function Directory({profile,openRequests}:{profile:Data;openRequests?:()=>void}){
  const {t,lang}=useLocale();const label=useLabels();const admin=profile.role==='admin';
  const [kind,setKind]=useState<'egg'|'sperm'>('egg');const [version,setVersion]=useState(0);
  const [status,setStatus]=useState('all');const [favoriteOnly,setFavoriteOnly]=useState(false);
@@ -219,6 +221,8 @@ export function Directory({profile}:{profile:Data}){
  const selectKind=(k:'egg'|'sperm')=>{setKind(k);resetFilters();setSaved(false)};
  const refresh=()=>{setVersion(v=>v+1);setSaved(true)};
  const {data,error,loading}=useResource(`directory?kind=${kind}`,version);
+ const applications=useResource(profile.role==='client'&&kind==='egg'?'egg-requests':null,version);
+ const activeRequests=((applications.data?.requests||[]) as Data[]).filter(r=>r.status==='pending'||r.status==='approved');
  const donors=(data?.donors||[]) as Data[];
  const bloodOptions=[...new Set(donors.map(d=>String(d.blood_group||'')).filter(Boolean))].sort();
  const filtered=filterDonors(donors,{status,favoriteOnly,blood,ageMin,ageMax,query,sort});
@@ -228,6 +232,7 @@ export function Directory({profile}:{profile:Data}){
  return <>
   <div className="page-title"><div>{admin?<h2>{t('合作方供者档案','Partner donor records')}</h2>:<h1>{t('供者资料库','Donor directory')}</h1>}<p>{admin?t('维护已核实的匿名档案、来源和当前可申请状态。','Maintain verified anonymous records, sources and availability.'):t('授权范围与有效期由管理员设定，资料仅供本次服务评估使用。','Scope and expiry are set by an administrator. Records are for this service assessment only.')}</p></div>{admin&&<NewDonor kind={kind} onCreated={k=>{selectKind(k);refresh()}} refresh={refresh}/>}</div>
   {saved&&<div className="success-banner" role="status">{t('更改已保存。','Changes saved.')}</div>}
+  {profile.role==='client'&&kind==='egg'&&<div className="notice"><p>{t('收藏用于记录偏好。确定意向后，请点击档案上的「提交选卵申请」，等待服务团队审批。','Save records to shortlist your preferences. When ready, select Request this egg donor and wait for the service team to review.')}</p>{openRequests&&<Button variant="link" onClick={openRequests}>{t('查看我的选卵申请','View my egg requests')}</Button>}<ErrorNotice code={applications.error}/></div>}
   <div className="row-actions section-tabs" aria-label={t('资料库类别','Directory type')}>{(['egg','sperm'] as const).map(k=><Button key={k} variant={kind===k?'secondary':'ghost'} size="sm" aria-pressed={kind===k} onClick={()=>selectKind(k)}>{label(k)}</Button>)}</div>
   {!loading&&!error&&donors.length>0&&<div className="row-actions mb-4 flex-wrap gap-3">
    <Input className="min-h-11 min-w-48 flex-1" value={query} onChange={e=>setQuery(e.target.value)} placeholder={t('搜索档案编号或来源机构','Search record code or source')} aria-label={t('搜索供者档案','Search donor records')}/>
@@ -245,11 +250,11 @@ export function Directory({profile}:{profile:Data}){
    :error?<><ErrorNotice code={error}/><Button variant="outline" onClick={()=>setVersion(v=>v+1)}>{t('重新载入','Retry')}</Button></>
    :donors.length===0?<Empty title={t('暂无可查看的档案','No records available')}>{admin?t('点击「新增档案」，开始录入当前资料库的匿名供者资料。','Use Add record to create an anonymous donor profile in this directory.'):t('当前授权范围内还没有可查看的档案，请联系协调员。','No records are available within your access. Contact your coordinator.')}</Empty>
    :filtered.length===0?<Empty title={t('没有匹配的档案','No matching records')}><Button variant="outline" className="mt-3" onClick={resetFilters}>{t('清空筛选','Clear filters')}</Button></Empty>
-   :<div className="directory-grid">{filtered.map(d=><DonorCard key={String(d.id)} donor={d} admin={admin} summary={String(lang==='zh'?d.summary_zh:d.summary_en)} refresh={refresh}/>)}</div>}
+   :<div className="directory-grid">{filtered.map(d=>{const existing=activeRequests.find(r=>r.donor_code===d.code);const selectionAction=profile.role==='client'&&kind==='egg'?(existing?<SelectionStatus status={String(existing.status)}/>:d.status==='available'?<SubmitEggRequest donor={d} disabled={applications.loading||Boolean(applications.error)} refresh={refresh}/>:null):null;return <DonorCard key={String(d.id)} donor={d} admin={admin} summary={String(lang==='zh'?d.summary_zh:d.summary_en)} selectionAction={selectionAction} refresh={refresh}/>})}</div>}
  </>;
 }
 
-function DonorCard({donor,admin,summary,refresh}:{donor:Data;admin:boolean;summary:string;refresh:()=>void}){
+function DonorCard({donor,admin,summary,refresh,selectionAction}:{donor:Data;admin:boolean;summary:string;refresh:()=>void;selectionAction?:ReactNode}){
  const {t}=useLocale();const [busy,setBusy]=useState(false);const [error,setError]=useState('');const favorite=Number(donor.favorite)===1;
  async function toggle(){if(busy)return;setBusy(true);setError('');try{await api('favorites',{donor_id:String(donor.id),favorite:!favorite});refresh()}catch(e){setError(e instanceof Error?e.message:'SERVICE_UNAVAILABLE')}finally{setBusy(false)}}
  return <article className="donor-card">
@@ -265,6 +270,7 @@ function DonorCard({donor,admin,summary,refresh}:{donor:Data;admin:boolean;summa
   <div className="metadata">{t('来源','Source')}: {String(donor.source)}</div>
   <ErrorNotice code={error}/>
   <div className="row-actions mt-4">
+   {selectionAction}
    {donor.status!=='archived'&&<Button variant={favorite?'secondary':'ghost'} size="sm" aria-pressed={favorite} disabled={busy} onClick={toggle}><Heart size={16}/>{busy?t('保存中…','Saving…'):favorite?t('已收藏','Saved'):t('收藏','Save')}</Button>}
    {admin&&<DonorEdit donor={donor} refresh={refresh}/>}
    {admin&&<DonorStatus donor={donor} refresh={refresh}/>}

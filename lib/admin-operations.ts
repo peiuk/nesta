@@ -15,7 +15,8 @@ export async function readAdminOperations(actor: {id:string;role:string;status:s
   query.one(`SELECT
    (SELECT COUNT(*) FROM profiles WHERE role='client' AND status='approved') AS clients,
    (SELECT COUNT(*) FROM profiles WHERE status='pending' AND registered_at IS NOT NULL) AS pending_profiles,
-   (SELECT COUNT(*) FROM cases WHERE stage<>'closed') AS active_cases`),
+   (SELECT COUNT(*) FROM cases WHERE stage<>'closed') AS active_cases,
+   (SELECT COUNT(*) FROM egg_requests WHERE status='pending') AS pending_egg_requests`),
   query.one(`SELECT COALESCE(SUM(r.status='draft'),0) AS draft_reports, COALESCE(SUM(r.status='reviewed'),0) AS ready_reports FROM reports r JOIN cases c ON c.id=r.case_id ${assigned}`,actor.id),
   query.one(`SELECT COUNT(*) AS unanswered FROM questions q JOIN cases c ON c.id=q.case_id ${assigned} WHERE q.reply IS NULL`,actor.id),
   query.one(`SELECT COUNT(*) AS expiring_grants FROM directory_grants g JOIN profiles p ON p.id=g.user_id WHERE ${expiringWhere}`,timestamp,until),

@@ -3,6 +3,7 @@ import {getChatGPTUser} from '@/app/chatgpt-auth';
 import {ensureSchema} from './ensure-schema';
 import {readAdminOperations} from './admin-operations';
 import {directoryQuery} from './directory-query';
+import {submitEggRequest,decideEggRequest,withdrawEggRequest,listEggRequests,type SelectionStore} from './egg-requests';
 import {canReadReport,canManageCase,canReviewReport,canPublishReport,canUseDirectory,validMutation,validDate,validateUpload} from './policy';
 import {normalizeEmail,emailProfileId,generateOtpCode,hashSecret,verifySecret,parseSessionCookie,sessionCookieValue,clearSessionCookie,OTP_TTL_MS,SESSION_TTL_MS,OTP_MAX_ATTEMPTS,OTP_RESEND_MS} from './email-auth';
 export type Profile={id:string;email:string;name:string;role:string;status:string;language:string;jurisdiction:string;interest:string;registered_at:string|null;created_at:string};
@@ -16,6 +17,7 @@ export const all=async<T=Row>(sql:string,...params:any[])=>{const r=await db().p
 export const now=()=>new Date().toISOString();
 export const id=()=>crypto.randomUUID();
 export const statement=(sql:string,...p:any[])=>db().prepare(sql).bind(...p);
+const selectionStore:SelectionStore={first:one,all,batch:async items=>(await db().batch(items.map(s=>statement(s.sql,...s.params)))).map(r=>({changes:r.meta.changes||0}))};
 export function auditStatement(actor:Profile,action:string,target:string,reason:string){return statement('INSERT INTO audit (id,actor_id,action,target,reason,created_at) VALUES (?,?,?,?,?,?)',id(),actor.id,action,target,reason,now())}
 function isOwnerEmail(email:string){return !!env.ADMIN_EMAIL&&email===env.ADMIN_EMAIL.trim().toLowerCase()}
 function cookieSecure(request:Request){return new URL(request.url).protocol==='https:'}
@@ -137,6 +139,7 @@ export async function read(path:string[],auth:AuthContext,request:Request){
  const a=auth.profile;
  if(path[0]==='me')return response({profile:a,sign_in:auth.sign_in});
  active(a);
+ if(path[0]==='egg-requests'&&path.length===1)return response({requests:await listEggRequests(selectionStore,a)});
  if(path.length===1&&path[0]==='admin-operations'){admin(a);return response(await readAdminOperations(a,{one,all}))}
  if(path[0]==='overview'){
   const cases=await all('SELECT c.*,m.role AS membership_role FROM cases c JOIN case_members m ON m.case_id=c.id WHERE m.user_id=? ORDER BY c.updated_at DESC LIMIT 200',a.id);
@@ -172,6 +175,13 @@ export async function read(path:string[],auth:AuthContext,request:Request){
 
 export async function write(path:string[],a:Profile,request:Request){
  mutateRequest(request);
+ if(path[0]==='egg-requests'){
+  active(a);const body=await json(request);
+  if(path.length===1)return response(await submitEggRequest(selectionStore,a,text(body.donor_id),text(body.note||'',1000,false)));
+  if(path.length===3&&path[2]==='withdraw')return response(await withdrawEggRequest(selectionStore,a,path[1]));
+  if(path.length===3&&path[2]==='decision')return response(await decideEggRequest(selectionStore,a,path[1],choice(body.status,['approved','rejected']) as 'approved'|'rejected',text(body.reply,1000)));
+  fail(404,'NOT_FOUND');
+ }
  if(path[0]==='profile'){
   if(a.status==='suspended')fail(403,'ACCOUNT_SUSPENDED');const body=await json(request);if(body.accepted!==true)fail(400,'CONSENT_REQUIRED');const name=text(body.name,80),language=choice(body.language,['zh','en']),jurisdiction=text(body.jurisdiction,100),interest=text(body.interest,1000);
   await db().batch([statement('UPDATE profiles SET name=?,language=?,jurisdiction=?,interest=?,registered_at=COALESCE(registered_at,?) WHERE id=?',name,language,jurisdiction,interest,now(),a.id),auditStatement(a,'profile.register',a.id,'Private pilot notice v1 acknowledged')]);return response({ok:true});
