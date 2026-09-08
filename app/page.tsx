@@ -24,6 +24,7 @@ export default function Home(){
   <header className="site-header"><Brand/><nav>
    <a className="nav-desk" href="#journey">{t('服务旅程','The journey')}</a>
    <a className="nav-desk" href="#options">{t('方案','Options')}</a>
+   <a className="nav-desk" href="#packages">{t('套餐费用','Packages')}</a>
    <a className="nav-desk" href="#network">{t('协作网络','Partners')}</a>
    <a className="nav-desk" href="#care">{t('我们的服务','Our care')}</a>
    <a className="nav-desk" href="#boundaries">{t('服务边界','Boundaries')}</a>
@@ -39,7 +40,7 @@ export default function Home(){
      <div className="hero-brand hero-rise" aria-label="初禾 FIRSTLEAF"><span className="hero-mark"><Sprout size={28}/></span><div><strong>初禾 <span>FIRSTLEAF</span></strong><small>FAMILY CARE COORDINATION · GEORGIA</small></div></div>
      <h1 className="hero-rise delay-1">{t('迈向家庭的每一步，','Each step toward family,')}<br/><em>{t('都有清晰的陪伴。','with care and clarity.')}</em></h1>
      <p className="hero-rise delay-2">{t('初禾提供格鲁吉亚代孕相关协调，并备有独立卵子库与精子库供选择；方案可按需单独使用或组合。从沟通评估、合作 IVF 诊所与行程对接、月子衔接，到进度报告以及公证、海牙认证与出生后手续——每一次沟通都有清楚留存。','Firstleaf coordinates Georgia surrogacy-related care and offers independent egg and sperm donor banks to choose from — programmes can be used alone or combined. From consultation and partner IVF clinics and travel, through postpartum handoff, progress reports, notarisation, Apostille and post-birth paperwork — every conversation stays clearly recorded.')}</p>
-     <div className="hero-actions hero-rise delay-3"><a href="/portal" className="primary-link">{t('开始保密咨询','Start a private consultation')}<ArrowRight size={17}/></a><a href="#journey" className="quiet-link">{t('了解服务流程','Explore the journey')}<ArrowUpRight size={17}/></a></div>
+     <div className="hero-actions hero-rise delay-3"><a href="/portal" className="primary-link">{t('开始保密咨询','Start a private consultation')}<ArrowRight size={17}/></a><a href="#packages" className="quiet-link">{t('查看套餐费用','View packages & fees')}<ArrowUpRight size={17}/></a></div>
      <small className="hero-rise delay-3">{t('私密试用版 · 具体服务须经个别法律与医疗评估，不承诺结果。','Private pilot · Services require individual legal and clinical assessment. Outcomes are not guaranteed.')}</small>
     </div>
    </section>
@@ -54,6 +55,105 @@ export default function Home(){
     </div>
     <p className="options-note">{t('具体组合经个案评估后确认；首页不展示可供识别的供者样本。','Specific combinations are confirmed after individual assessment. Identifiable donor samples are not shown on this page.')}</p>
    </section>
+
+   <section id="packages" className="packages-section">
+    <div className="section-intro">
+     <div><div className="eyebrow">PACKAGES</div><h2>{t('三档套餐，按需升级。','Three tiers — upgrade as you need.')}</h2></div>
+     <p>{t('基础不含住宿与月子；中级含约定枚数 PGS 与可移植胚胎的移植安排；高级在中级之上含约 30 天月子与住宿。均为协调服务起始价，最终以书面报价为准，不承诺活产结果。','Basic excludes lodging and postpartum care. Mid includes an agreed number of PGS tests and transfers of transferable embryos. Advanced adds about 30 days of postpartum care and lodging. Starting coordination prices only — final quotes in writing. Live birth is not guaranteed.')}</p>
+    </div>
+    <div className="packages-grid">
+     {[{
+       tag:t('基础','Basic'),
+       title:t('基础套餐','Basic package'),
+       priceZh:'¥420,000',
+       priceEn:'$58,000',
+       desc:t('覆盖基础医疗与生产协调、常规检测与证件跟进；不含月子中心与住宿。适合预算优先、住宿可自理的家庭。','Covers basic medical and delivery coordination, routine testing, and document follow-up — no postpartum centre or lodging. For families who prefer a leaner budget and will arrange stay themselves.'),
+       points:[t('医院周期与生产协调','Clinic cycle and delivery coordination'),t('孕母匹配与基础检测','Surrogate matching and basic testing'),t('出生后手续协助；住宿/月子另计','Post-birth paperwork help; lodging/postpartum extra')]
+     },{
+       tag:t('最常选 · 中级','Most chosen · Mid'),
+       title:t('中级套餐','Mid package'),
+       priceZh:'¥520,000',
+       priceEn:'$72,000',
+       desc:t('在基础上增加约定枚数的 PGS 检测，并按合同安排可移植胚胎的移植（在可用胚胎与方案规则内），仍不含 30 天月子与住宿。','Adds an agreed number of PGS tests and contracted transfers of transferable embryos within available embryos and plan rules — still without 30-day postpartum care or lodging.'),
+       points:[t('含 6 枚 PGS（超出 $500/枚）','Includes 6 PGS tests ($500/embryo after)'),t('可移植胚胎的约定移植安排','Contracted transfers of transferable embryos'),t('不是「包活产」；胚胎用尽规则写进合同','Not a live-birth guarantee; embryo-exhaust rules in contract')]
+     },{
+       tag:t('高级','Advanced'),
+       title:t('高级套餐','Advanced package'),
+       priceZh:'¥600,000',
+       priceEn:'$84,000',
+       desc:t('含中级全部内容，并打包约 30 天月子中心与住宿，减少落地后的零散开支与协调成本。','Includes everything in Mid, plus about 30 days of postpartum centre care and lodging — fewer ad-hoc costs after arrival.'),
+       points:[t('中级全部权益','All Mid benefits'),t('约 30 天月子中心','About 30 days postpartum centre'),t('约 30 天住宿安排','About 30 days lodging')]
+     }].map((pkg,i)=> <article key={i} className={i===1?'is-featured':undefined}>
+      <span className="pkg-tag">{pkg.tag}</span>
+      <h3>{pkg.title}</h3>
+      <div className="pkg-price"><strong>{pkg.priceZh}</strong><small>{t('起','from')} · {pkg.priceEn} {t('起','from')}</small></div>
+      <p>{pkg.desc}</p>
+      <ul>{pkg.points.map((pt,j)=> <li key={j}>{pt}</li>)}</ul>
+      <a href="/portal" className="quiet-link">{t('咨询此套餐','Ask about this package')}<ArrowUpRight size={16}/></a>
+     </article>)}
+    </div>
+    <p className="packages-note">{t('供卵另计 $5,000、供精另计 $5,000（可写入报价）；机票签证、国内体检、双胎/剖宫、NICU、超出 PGS 枚数等通常另计。中级「可移植胚胎安排」指合同约定范围内的移植协调，不保证活产。','Egg donation +$5,000 and sperm donation +$5,000, quoted separately. Airfare, visas, domestic exams, twin/C-section, NICU, and extra PGS embryos are usually extra. Mid “transferable-embryo transfers” means coordination within the contract — not a live-birth guarantee.')}</p>
+    <div className="packages-detail">
+     <div className="packages-detail-block">
+      <h3>{t('三档对照','Tier comparison')}</h3>
+      <div className="packages-table-wrap" role="region" aria-label={t('套餐对照表','Package comparison table')}>
+       <table className="packages-table">
+        <thead>
+         <tr>
+          <th scope="col">{t('项目','Item')}</th>
+          <th scope="col">{t('基础','Basic')}</th>
+          <th scope="col">{t('中级','Mid')}</th>
+          <th scope="col">{t('高级','Advanced')}</th>
+         </tr>
+        </thead>
+        <tbody>
+         {[[t('医院周期 / 生产协调','Clinic cycle / delivery coordination'),t('含','Yes'),t('含','Yes'),t('含','Yes')],
+           [t('孕母匹配与基础检测','Surrogate matching & basic testing'),t('含','Yes'),t('含','Yes'),t('含','Yes')],
+           [t('出生后证件协助','Post-birth document support'),t('含','Yes'),t('含','Yes'),t('含','Yes')],
+           [t('PGS（6 枚）','PGS (6 embryos)'),t('不含','No'),t('含','Yes'),t('含','Yes')],
+           [t('可移植胚胎的约定移植','Contracted transferable-embryo transfers'),t('按基础规则','Per basic rules'),t('含','Yes'),t('含','Yes')],
+           [t('约 30 天月子中心','~30 days postpartum centre'),t('另计','Extra'),t('另计','Extra'),t('含','Yes')],
+           [t('约 30 天住宿','~30 days lodging'),t('另计','Extra'),t('另计','Extra'),t('含','Yes')],
+           [t('供卵 / 供精','Egg / sperm donation'),t('各 +$5,000','+$5,000 each'),t('各 +$5,000','+$5,000 each'),t('各 +$5,000','+$5,000 each')]].map((row,i)=> <tr key={i}><th scope="row">{row[0]}</th><td>{row[1]}</td><td>{row[2]}</td><td>{row[3]}</td></tr>)}
+        </tbody>
+       </table>
+      </div>
+     </div>
+     <div className="packages-detail-grid">
+      <div className="packages-detail-block">
+       <h3>{t('中级特别说明','Mid-tier notes')}</h3>
+       <ul>
+        <li>{t('中级/高级含 6 枚 PGS；超出按 $500/枚另计。','Mid/Advanced include 6 PGS tests; extras billed at $500 each.')}</li>
+        <li>{t('「可移植」指实验室与方案确认可移植的胚胎，在合同规则内安排移植。','“Transferable” means embryos cleared for transfer; transfers follow contract rules.')}</li>
+        <li>{t('不保证着床、活产或性别结果；胚胎用尽后的重启方式写进合同。','No guarantee of implantation, live birth, or sex selection; restart rules go in the contract.')}</li>
+       </ul>
+      </div>
+      <div className="packages-detail-block">
+       <h3>{t('通常不含（三档共用）','Usually excluded (all tiers)')}</h3>
+       <ul>
+        <li>{t('国际机票、签证与个人旅游消费','International flights, visas, personal travel')}</li>
+        <li>{t('国内体检及个人原因的重复检查','Domestic exams and repeat tests for personal reasons')}</li>
+        <li>{t('双胎/多胎、剖宫产、NICU 等额外医疗相关费用','Twin/multiple, C-section, NICU and similar extras')}</li>
+        <li>{t('超出约定天数的月子或住宿','Postpartum care or lodging beyond agreed days')}</li>
+       </ul>
+      </div>
+     </div>
+
+     <div className="packages-detail-block packages-pay">
+      <h3>{t('付款节点（示意）','Payment milestones (indicative)')}</h3>
+      <p className="packages-pay-lead">{t('以中级套餐为例按比例拆分；基础/高级按总价同比。未达节点不提前收取该笔，最终以书面报价为准。','Example split for the Mid package by share of total. Basic/Advanced scale with their totals. Each instalment is due only when the milestone is met — final figures follow the written quote.')}</p>
+      <ol className="packages-pay-list">
+       <li><strong>{t('签约启动','Contract start')}</strong><span>$10,000</span><em>{t('约 14%','~14%')}</em></li>
+       <li><strong>{t('周期启动 / 进入医疗','Cycle start')}</strong><span>$10,000</span><em>{t('约 14%','~14%')}</em></li>
+       <li><strong>{t('确认妊娠约 12 周','Pregnancy ~12 weeks')}</strong><span>$14,000</span><em>{t('约 19%','~19%')}</em></li>
+       <li><strong>{t('妊娠约 28 周','Pregnancy ~28 weeks')}</strong><span>$18,000</span><em>{t('约 25%','~25%')}</em></li>
+       <li><strong>{t('出生后约定工作日内','After birth')}</strong><span>$20,000</span><em>{t('约 28%','~28%')}</em></li>
+      </ol>
+      <p className="packages-pay-note">{t('上表合计 $72,000，对应中级起价。供卵/供精、超出 PGS、双胎等另计项不在此五笔内。','Totals $72,000 for Mid starting price. Egg/sperm, extra PGS, twins and similar extras sit outside these five instalments.')}</p>
+     </div>
+    </div>
+   </section>
+
    <section id="network" className="network-section">
     <div className="section-intro">
      <div><div className="eyebrow">PARTNER NETWORK</div><h2>{t('与诊所、月子与证件服务协作。','Coordinated with clinics, postpartum care and documents.')}</h2></div>

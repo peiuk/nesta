@@ -7,6 +7,7 @@ import {dirname,join} from 'node:path';
 const root=join(dirname(fileURLToPath(import.meta.url)),'..');
 const sql=readFileSync(join(root,'drizzle/0000_swift_jamie_braddock.sql'),'utf8');
 const sql1=readFileSync(join(root,'drizzle/0001_email_auth.sql'),'utf8');
+const sql2=readFileSync(join(root,'drizzle/0002_donor_status_reason.sql'),'utf8');
 const journal=JSON.parse(readFileSync(join(root,'drizzle/meta/_journal.json'),'utf8'));
 
 const tables=[
@@ -16,9 +17,14 @@ const tables=[
 
 test('migration journal points at prepared schemas',()=>{
  assert.equal(journal.dialect,'sqlite');
- assert.equal(journal.entries.length,2);
+ assert.equal(journal.entries.length,3);
  assert.equal(journal.entries[0].tag,'0000_swift_jamie_braddock');
  assert.equal(journal.entries[1].tag,'0001_email_auth');
+ assert.equal(journal.entries[2].tag,'0002_donor_status_reason');
+});
+
+test('donor status_reason migration alters donors',()=>{
+ assert.match(sql2,/ALTER TABLE `donors` ADD `status_reason` text/i);
 });
 
 test('email auth migration adds otp sessions and unique email',()=>{

@@ -1,6 +1,7 @@
 import {env} from 'cloudflare:workers';
 import {getChatGPTUser} from '@/app/chatgpt-auth';
 import {ensureSchema} from './ensure-schema';
+import {readAdminOperations} from './admin-operations';
 import {canReadReport,canManageCase,canReviewReport,canPublishReport,canUseDirectory,validMutation,validDate,validateUpload} from './policy';
 import {normalizeEmail,emailProfileId,generateOtpCode,hashSecret,verifySecret,parseSessionCookie,sessionCookieValue,clearSessionCookie,OTP_TTL_MS,SESSION_TTL_MS,OTP_MAX_ATTEMPTS,OTP_RESEND_MS} from './email-auth';
 export type Profile={id:string;email:string;name:string;role:string;status:string;language:string;jurisdiction:string;interest:string;registered_at:string|null;created_at:string};
@@ -135,6 +136,7 @@ export async function read(path:string[],auth:AuthContext,request:Request){
  const a=auth.profile;
  if(path[0]==='me')return response({profile:a,sign_in:auth.sign_in});
  active(a);
+ if(path.length===1&&path[0]==='admin-operations'){admin(a);return response(await readAdminOperations(a,{one,all}))}
  if(path[0]==='overview'){
   const cases=await all('SELECT c.*,m.role AS membership_role FROM cases c JOIN case_members m ON m.case_id=c.id WHERE m.user_id=? ORDER BY c.updated_at DESC LIMIT 200',a.id);
   const grants=await all('SELECT scope,expires_at,revoked_at FROM directory_grants WHERE user_id=?',a.id);
@@ -146,7 +148,7 @@ export async function read(path:string[],auth:AuthContext,request:Request){
  if(path[0]==='directory'){
   const kind=choice(new URL(request.url).searchParams.get('kind')||'egg',['egg','sperm']);
   if(a.role!=='admin'){const grant=await one('SELECT * FROM directory_grants WHERE user_id=? AND scope=?',a.id,kind);if(!canUseDirectory(a,grant as any,kind))fail(403,'DIRECTORY_LOCKED')}
-  const donors=await all(`SELECT d.id,d.code,d.kind,d.age,d.height,d.blood_group,d.source,d.summary_zh,d.summary_en,d.status,d.verified_at,CASE WHEN f.user_id IS NULL THEN 0 ELSE 1 END AS favorite FROM donors d LEFT JOIN favorites f ON f.donor_id=d.id AND f.user_id=? WHERE d.kind=? ${a.role==='admin'?'':"AND d.status<>'archived'"} ORDER BY d.code LIMIT 300`,a.id,kind);
+  const donors=await all(`SELECT d.id,d.code,d.kind,d.age,d.height,d.blood_group,d.source,d.summary_zh,d.summary_en,d.status,d.status_reason,d.verified_at,CASE WHEN f.user_id IS NULL THEN 0 ELSE 1 END AS favorite FROM donors d LEFT JOIN favorites f ON f.donor_id=d.id AND f.user_id=? WHERE d.kind=? ${a.role==='admin'?'':"AND d.status<>'archived'"} ORDER BY d.code LIMIT 300`,a.id,kind);
   return response({donors});
  }
  if(path[0]==='cases'&&path.length===1){admin(a);return response({cases:await all('SELECT c.*,m.role AS membership_role FROM cases c LEFT JOIN case_members m ON m.case_id=c.id AND m.user_id=? ORDER BY updated_at DESC LIMIT 200',a.id)})}
@@ -187,7 +189,17 @@ export async function write(path:string[],a:Profile,request:Request){
   admin(a);const b=await json(request),donorId=id(),code=text(b.code,40),kind=choice(b.kind,['egg','sperm']),age=number(b.age,18,65),height=b.height?number(b.height,100,230):null,group=text(b.blood_group||'',20,false),source=text(b.source,150),zh=text(b.summary_zh,1500),en=text(b.summary_en,1500),verified=date(b.verified_at),consent=text(b.consent_ref,250);const exists=await one('SELECT id FROM donors WHERE code=?',code);if(exists)fail(409,'DUPLICATE_CODE');
   await db().batch([statement('INSERT INTO donors (id,code,kind,age,height,blood_group,source,summary_zh,summary_en,verified_at,consent_ref,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)',donorId,code,kind,age,height,group,source,zh,en,verified,consent,now()),auditStatement(a,'donor.create',donorId,consent)]);return response({id:donorId});
  }
- if(path[0]==='donors'&&path.length===2){admin(a);const b=await json(request);const status=choice(b.status,['available','matching','unavailable','archived']);await db().batch([statement('UPDATE donors SET status=? WHERE id=?',status,path[1]),auditStatement(a,'donor.status',path[1],text(b.reason,500))]);return response({ok:true})}
+ if(path[0]==='donors'&&path.length===2){
+  admin(a);const b=await json(request);const donor=await one('SELECT * FROM donors WHERE id=?',path[1]);if(!donor)fail(404,'NOT_FOUND');
+  if(b.status!==undefined&&b.summary_zh===undefined&&b.summary_en===undefined&&b.source===undefined){
+   const status=choice(b.status,['available','matching','unavailable','archived']);
+   const reason=text(b.reason,500);
+   const statusReason=(status==='unavailable'||status==='archived')?reason:null;
+   await db().batch([statement('UPDATE donors SET status=?,status_reason=? WHERE id=?',status,statusReason,path[1]),auditStatement(a,'donor.status',path[1],reason)]);return response({ok:true});
+  }
+  const age=number(b.age,18,65),height=b.height===''||b.height==null?null:number(b.height,100,230),group=text(b.blood_group||'',20,false),source=text(b.source,150),zh=text(b.summary_zh,1500),en=text(b.summary_en,1500),verified=date(b.verified_at),consent=text(b.consent_ref,250),reason=text(b.reason||'Donor record updated',500,false)||'Donor record updated';
+  await db().batch([statement('UPDATE donors SET age=?,height=?,blood_group=?,source=?,summary_zh=?,summary_en=?,verified_at=?,consent_ref=? WHERE id=?',age,height,group,source,zh,en,verified,consent,path[1]),auditStatement(a,'donor.update',path[1],reason)]);return response({ok:true});
+ }
  if(path[0]==='favorites'){
   const b=await json(request),d=await one('SELECT * FROM donors WHERE id=?',text(b.donor_id));if(!d||d.status==='archived')fail(404,'NOT_FOUND');if(a.role!=='admin'){const grant=await one('SELECT * FROM directory_grants WHERE user_id=? AND scope=?',a.id,d.kind);if(!canUseDirectory(a,grant as any,d.kind))fail(403,'DIRECTORY_LOCKED')}
   if(b.favorite===true)await statement('INSERT OR IGNORE INTO favorites (user_id,donor_id) VALUES (?,?)',a.id,d.id).run();else await statement('DELETE FROM favorites WHERE user_id=? AND donor_id=?',a.id,d.id).run();return response({ok:true});

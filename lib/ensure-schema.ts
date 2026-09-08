@@ -1,6 +1,7 @@
 import {env} from 'cloudflare:workers';
 import migration0 from '../drizzle/0000_swift_jamie_braddock.sql?raw';
 import migration1 from '../drizzle/0001_email_auth.sql?raw';
+import migration2 from '../drizzle/0002_donor_status_reason.sql?raw';
 
 let ready:Promise<void>|null=null;
 
@@ -16,10 +17,19 @@ async function applyIfMissing(table:string,sql:string){
  await env.DB.batch(parts.map(s=>env.DB.prepare(s)));
 }
 
+async function applyColumnIfMissing(table:string,column:string,sql:string){
+ const rows=await env.DB.prepare(`PRAGMA table_info(${table})`).all<{name:string}>();
+ if((rows.results||[]).some(r=>r.name===column))return;
+ const parts=statements(sql);
+ if(!parts.length)throw new Error('SCHEMA_MISSING');
+ await env.DB.batch(parts.map(s=>env.DB.prepare(s)));
+}
+
 export async function ensureSchema(){
  if(!ready)ready=(async()=>{
   await applyIfMissing('profiles',migration0);
   await applyIfMissing('email_otps',migration1);
+  await applyColumnIfMissing('donors','status_reason',migration2);
  })().catch(error=>{ready=null;throw error});
  await ready;
 }
