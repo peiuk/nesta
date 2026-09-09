@@ -40,7 +40,7 @@ export default function Home(){
      <div className="hero-brand hero-rise" aria-label="初禾 FIRSTLEAF"><span className="hero-mark"><Sprout size={28}/></span><div><strong>初禾 <span>FIRSTLEAF</span></strong><small>FAMILY CARE COORDINATION · GEORGIA</small></div></div>
      <h1 className="hero-rise delay-1">{t('迈向家庭的每一步，','Each step toward family,')}<br/><em>{t('都有清晰的陪伴。','with care and clarity.')}</em></h1>
      <p className="hero-rise delay-2">{t('初禾提供格鲁吉亚代孕相关协调，并备有独立卵子库与精子库供选择；方案可按需单独使用或组合。从沟通评估、合作 IVF 诊所与行程对接、月子衔接，到进度报告以及公证、海牙认证与出生后手续——每一次沟通都有清楚留存。','Firstleaf coordinates Georgia surrogacy-related care and offers independent egg and sperm donor banks to choose from — programmes can be used alone or combined. From consultation and partner IVF clinics and travel, through postpartum handoff, progress reports, notarisation, Apostille and post-birth paperwork — every conversation stays clearly recorded.')}</p>
-     <div className="hero-actions hero-rise delay-3"><a href="/portal" className="primary-link">{t('开始保密咨询','Start a private consultation')}<ArrowRight size={17}/></a><a href="#packages" className="quiet-link">{t('查看套餐费用','View packages & fees')}<ArrowUpRight size={17}/></a></div>
+     <div className="hero-actions hero-rise delay-3"><a href="#contact" className="primary-link">{t('开始保密咨询','Start a private consultation')}<ArrowRight size={17}/></a><a href="#packages" className="quiet-link">{t('查看套餐费用','View packages & fees')}<ArrowUpRight size={17}/></a></div>
      <small className="hero-rise delay-3">{t('私密试用版 · 具体服务须经个别法律与医疗评估，不承诺结果。','Private pilot · Services require individual legal and clinical assessment. Outcomes are not guaranteed.')}</small>
     </div>
    </section>
@@ -178,6 +178,7 @@ export default function Home(){
       <a href={`tel:${CONTACT_PHONE_TEL}`}><Phone size={16} strokeWidth={1.5}/><span>{CONTACT_PHONE}</span></a>
       <a href={`mailto:${CONTACT_EMAIL}`}><Mail size={16} strokeWidth={1.5}/><span>{CONTACT_EMAIL}</span></a>
      </div>
+     <ol className="consultation-steps"><li>{t('电话或邮件沟通基本需求，无需先注册。','Contact us by phone or email; registration is not required.')}</li><li>{t('团队说明资料要求、服务流程与费用范围。','The team explains information needed, the process and fee scope.')}</li><li>{t('确认继续后建立档案，按审核结果开放服务空间。','Create a profile when ready; access is granted after review.')}</li></ol>
     </div>
     <a href="/portal" className="primary-link on-dark">{t('建立我的档案','Create my profile')}<ArrowUpRight size={18}/></a>
    </section>

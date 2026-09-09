@@ -3,6 +3,7 @@ import { LocaleProvider } from '@/components/product/locale';
 import './globals.css';
 import './product.css';
 import './admin.css';
+import './client.css';
 
 export const metadata: Metadata = {
   title: '初禾 FIRSTLEAF · 生育服务协调',

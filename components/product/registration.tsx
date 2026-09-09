@@ -4,14 +4,15 @@ import {ShieldCheck} from 'lucide-react';
 import {Checkbox} from '@/components/ui/checkbox';
 import {Brand} from './brand';
 import {LanguageButton,useLocale} from './locale';
-import {ActionForm,api,Choice,Field,formObject,type Data} from './common';
+import {ActionForm,api,Choice,Field,formObject,useResource,type Data} from './common';
 
 export function SignIn({href,returnTo='/portal'}:{href:string;returnTo?:'/portal'|'/admin'}){
  const {t}=useLocale();
  const [phase,setPhase]=useState<'email'|'code'>('email');
  const [email,setEmail]=useState('');
- return <main className="auth-page"><div className="flex justify-between items-center"><Brand/><LanguageButton/></div><section className="auth-card"><ShieldCheck size={30}/><h1>{returnTo==='/admin'?t('登录管理后台','Administration sign-in'):t('进入你的私密空间','Your private care space')}</h1><p>{returnTo==='/admin'?t('请使用已配置的管理员 ChatGPT 账户登录，验证后进入工作台。','Sign in with the configured administrator ChatGPT account to enter the workspace.'):t('可用 ChatGPT 或邮箱验证码登录。首次登录后填写基本档案；资料库和案件访问需另行审核。','Sign in with ChatGPT or an email code. Complete your profile after the first sign-in. Directory and case access are reviewed separately.')}</p><a className="primary-link w-full" href={href} target="_top">{t('使用 ChatGPT 登录','Sign in with ChatGPT')}</a>
-  {returnTo!=='/admin'&&<>
+ const options=useResource(returnTo==='/portal'?'auth/options':null);const emailEnabled=options.data?.email_enabled===true;
+ return <main className="auth-page"><div className="flex justify-between items-center"><Brand/><LanguageButton/></div><section className="auth-card"><ShieldCheck size={30}/><h1>{returnTo==='/admin'?t('登录管理后台','Administration sign-in'):t('进入你的私密空间','Your private care space')}</h1><p>{returnTo==='/admin'?t('请使用已配置的管理员 ChatGPT 账户登录，验证后进入工作台。','Sign in with the configured administrator ChatGPT account to enter the workspace.'):t('登录后建立基本档案，服务团队审核后开放资料库和案件访问。','Create your profile after signing in. The service team reviews directory and case access.')}</p><a className="primary-link w-full" href={href} target="_top">{t('使用 ChatGPT 登录','Sign in with ChatGPT')}</a>
+  {returnTo!=='/admin'&&emailEnabled&&<>
   <div className="auth-divider"><span>{t('或使用邮箱验证码','Or use an email code')}</span></div>
   {phase==='email'
    ?<ActionForm submitLabel={t('发送验证码','Send code')} onDone={()=>setPhase('code')} onSubmit={async f=>{const value=String(f.get('email')||'');await api('auth/email/request',{email:value});setEmail(value)}}>

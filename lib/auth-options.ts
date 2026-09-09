@@ -1,0 +1,1 @@
+export function emailSignInAvailable(env:{RESEND_API_KEY?:string;EMAIL_FROM?:string;SESSION_SECRET?:string}){return Boolean(env.RESEND_API_KEY?.trim()&&env.EMAIL_FROM?.trim()&&env.SESSION_SECRET?.trim())}

@@ -3,6 +3,8 @@ import {getChatGPTUser} from '@/app/chatgpt-auth';
 import {ensureSchema} from './ensure-schema';
 import {readAdminOperations} from './admin-operations';
 import {directoryQuery} from './directory-query';
+import {emailSignInAvailable} from './auth-options';
+import {readClientHighlights} from './client-highlights';
 import {submitEggRequest,decideEggRequest,withdrawEggRequest,listEggRequests,type SelectionStore} from './egg-requests';
 import {canReadReport,canManageCase,canReviewReport,canPublishReport,canUseDirectory,validMutation,validDate,validateUpload} from './policy';
 import {normalizeEmail,emailProfileId,generateOtpCode,hashSecret,verifySecret,parseSessionCookie,sessionCookieValue,clearSessionCookie,OTP_TTL_MS,SESSION_TTL_MS,OTP_MAX_ATTEMPTS,OTP_RESEND_MS} from './email-auth';
@@ -82,6 +84,7 @@ async function sendOtpEmail(to:string,code:string){
 }
 
 export async function handleAuth(path:string[],request:Request){
+ if(request.method==='GET'&&path.length===1&&path[0]==='options')return response({email_enabled:emailSignInAvailable(env)});
  await ensureSchema();
  if(request.method!=='POST')fail(404,'NOT_FOUND');
  mutateRequest(request);
@@ -92,6 +95,7 @@ export async function handleAuth(path:string[],request:Request){
   return response({ok:true},200,{'Set-Cookie':clearSessionCookie(secure)});
  }
  if(path[0]==='email'&&path[1]==='request'){
+  if(!emailSignInAvailable(env))fail(503,'SERVICE_UNAVAILABLE');
   const body=await json(request);const email=normalizeEmail(String(body.email||''));if(!email)fail(400,'INVALID_EMAIL');
   const existing=await one<{created_at:string}>('SELECT created_at FROM email_otps WHERE email=?',email);
   if(existing&&Date.now()-Date.parse(existing.created_at)<OTP_RESEND_MS)fail(429,'TOO_MANY_REQUESTS');
@@ -144,7 +148,7 @@ export async function read(path:string[],auth:AuthContext,request:Request){
  if(path[0]==='overview'){
   const cases=await all('SELECT c.*,m.role AS membership_role FROM cases c JOIN case_members m ON m.case_id=c.id WHERE m.user_id=? ORDER BY c.updated_at DESC LIMIT 200',a.id);
   const grants=await all('SELECT scope,expires_at,revoked_at FROM directory_grants WHERE user_id=?',a.id);
-  return response({cases,grants});
+  return response({cases,grants,...(a.role==='client'?await readClientHighlights(a,{all,one}):{})});
  }
  if(path[0]==='people'){admin(a);return response({people:await all('SELECT * FROM profiles ORDER BY created_at DESC LIMIT 300')})}
  if(path[0]==='audit'){admin(a);return response({audit:await all('SELECT a.*,p.name AS actor_name FROM audit a LEFT JOIN profiles p ON p.id=a.actor_id ORDER BY a.created_at DESC LIMIT 100')})}

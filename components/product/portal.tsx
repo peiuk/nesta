@@ -12,6 +12,9 @@ import {canUseDirectory,hasDirectoryAccess} from '@/lib/policy';
 import {filterDonors,validAgeRange} from '@/lib/directory-filters';
 import {filterCases} from '@/lib/case-filters';
 import {EggRequests,SubmitEggRequest,SelectionStatus} from './egg-requests';
+import {ClientOverview} from './client-overview';
+import {DonorDetails,DonorComparison} from './donor-details';
+import {groupReports} from '@/lib/report-groups';
 
 export const STAGES=['assessment','treatment','transfer','pregnancy','birth','paperwork','paused','loss','closed'];
 const SIGN_OUT='/signout-with-chatgpt?return_to=%2F';
@@ -76,7 +79,7 @@ function Workspace({profile,signIn}:{profile:Data;signIn:string}){
    ?<CaseDetail caseId={caseId} profile={profile} back={()=>setCaseId(null)}/>
    :overview.loading?<div className="loading">{t('正在载入…','Loading…')}</div>
    :overview.error?<ErrorNotice code={overview.error}/>
-   :<Overview profile={profile} data={overview.data||{}} open={setCaseId} refresh={refresh}/>)}
+   :profile.role==='client'?<ClientOverview profile={profile} data={overview.data||{}} open={setCaseId} go={go}/>:<Overview profile={profile} data={overview.data||{}} open={setCaseId} refresh={refresh}/>)}
   {view==='directory'&&showDirectory&&<Directory profile={profile} openRequests={()=>go('requests')}/>}
   {view==='requests'&&profile.role==='client'&&<EggRequests/>}
  </Shell>;
@@ -217,13 +220,16 @@ export function Directory({profile,openRequests}:{profile:Data;openRequests?:()=
  const [status,setStatus]=useState('all');const [favoriteOnly,setFavoriteOnly]=useState(false);
  const [blood,setBlood]=useState('all');const [ageMin,setAgeMin]=useState('');const [ageMax,setAgeMax]=useState('');
  const [query,setQuery]=useState('');const [sort,setSort]=useState<'code'|'verified'>('code');const [saved,setSaved]=useState(false);
+ const [selected,setSelected]=useState<string[]>([]);const [comparing,setComparing]=useState(false);const [submitted,setSubmitted]=useState(false);
  const resetFilters=()=>{setStatus('all');setFavoriteOnly(false);setBlood('all');setAgeMin('');setAgeMax('');setQuery('');setSort('code')};
- const selectKind=(k:'egg'|'sperm')=>{setKind(k);resetFilters();setSaved(false)};
- const refresh=()=>{setVersion(v=>v+1);setSaved(true)};
+ const selectKind=(k:'egg'|'sperm')=>{setKind(k);resetFilters();setSaved(false);setSelected([]);setComparing(false);setSubmitted(false)};
+ const refresh=()=>{setVersion(v=>v+1);setSaved(true);setSubmitted(false)};
  const {data,error,loading}=useResource(`directory?kind=${kind}`,version);
  const applications=useResource(profile.role==='client'&&kind==='egg'?'egg-requests':null,version);
  const activeRequests=((applications.data?.requests||[]) as Data[]).filter(r=>r.status==='pending'||r.status==='approved');
  const donors=(data?.donors||[]) as Data[];
+ const comparison=donors.filter(d=>selected.includes(String(d.id)));
+ const toggleCompare=(id:string)=>setSelected(ids=>ids.includes(id)?ids.filter(x=>x!==id):ids.length<3?[...ids,id]:ids);
  const bloodOptions=[...new Set(donors.map(d=>String(d.blood_group||'')).filter(Boolean))].sort();
  const filtered=filterDonors(donors,{status,favoriteOnly,blood,ageMin,ageMax,query,sort});
  const ageValid=validAgeRange(ageMin,ageMax);
@@ -231,7 +237,7 @@ export function Directory({profile,openRequests}:{profile:Data;openRequests?:()=
  const statusOptions=admin?['available','matching','unavailable','archived']:['available','matching','unavailable'];
  return <>
   <div className="page-title"><div>{admin?<h2>{t('合作方供者档案','Partner donor records')}</h2>:<h1>{t('供者资料库','Donor directory')}</h1>}<p>{admin?t('维护已核实的匿名档案、来源和当前可申请状态。','Maintain verified anonymous records, sources and availability.'):t('授权范围与有效期由管理员设定，资料仅供本次服务评估使用。','Scope and expiry are set by an administrator. Records are for this service assessment only.')}</p></div>{admin&&<NewDonor kind={kind} onCreated={k=>{selectKind(k);refresh()}} refresh={refresh}/>}</div>
-  {saved&&<div className="success-banner" role="status">{t('更改已保存。','Changes saved.')}</div>}
+  {saved&&<div className="success-banner" role="status">{submitted?t('选卵申请已提交，等待服务团队审批。','Egg request submitted. Awaiting review by the service team.'):t('更改已保存。','Changes saved.')}{submitted&&openRequests&&<Button variant="link" onClick={openRequests}>{t('查看申请状态','View request status')}</Button>}</div>}
   {profile.role==='client'&&kind==='egg'&&<div className="notice"><p>{t('收藏用于记录偏好。确定意向后，请点击档案上的「提交选卵申请」，等待服务团队审批。','Save records to shortlist your preferences. When ready, select Request this egg donor and wait for the service team to review.')}</p>{openRequests&&<Button variant="link" onClick={openRequests}>{t('查看我的选卵申请','View my egg requests')}</Button>}<ErrorNotice code={applications.error}/></div>}
   <div className="row-actions section-tabs" aria-label={t('资料库类别','Directory type')}>{(['egg','sperm'] as const).map(k=><Button key={k} variant={kind===k?'secondary':'ghost'} size="sm" aria-pressed={kind===k} onClick={()=>selectKind(k)}>{label(k)}</Button>)}</div>
   {!loading&&!error&&donors.length>0&&<div className="row-actions mb-4 flex-wrap gap-3">
@@ -250,7 +256,9 @@ export function Directory({profile,openRequests}:{profile:Data;openRequests?:()=
    :error?<><ErrorNotice code={error}/><Button variant="outline" onClick={()=>setVersion(v=>v+1)}>{t('重新载入','Retry')}</Button></>
    :donors.length===0?<Empty title={t('暂无可查看的档案','No records available')}>{admin?t('点击「新增档案」，开始录入当前资料库的匿名供者资料。','Use Add record to create an anonymous donor profile in this directory.'):t('当前授权范围内还没有可查看的档案，请联系协调员。','No records are available within your access. Contact your coordinator.')}</Empty>
    :filtered.length===0?<Empty title={t('没有匹配的档案','No matching records')}><Button variant="outline" className="mt-3" onClick={resetFilters}>{t('清空筛选','Clear filters')}</Button></Empty>
-   :<div className="directory-grid">{filtered.map(d=>{const existing=activeRequests.find(r=>r.donor_code===d.code);const selectionAction=profile.role==='client'&&kind==='egg'?(existing?<SelectionStatus status={String(existing.status)}/>:d.status==='available'?<SubmitEggRequest donor={d} disabled={applications.loading||Boolean(applications.error)} refresh={refresh}/>:null):null;return <DonorCard key={String(d.id)} donor={d} admin={admin} summary={String(lang==='zh'?d.summary_zh:d.summary_en)} selectionAction={selectionAction} refresh={refresh}/>})}</div>}
+   :<div className="directory-grid">{filtered.map(d=>{const existing=activeRequests.find(r=>r.donor_code===d.code);const selectionAction=<><DonorDetails donor={d}/><Button size="sm" variant={selected.includes(String(d.id))?'secondary':'ghost'} aria-pressed={selected.includes(String(d.id))} disabled={selected.length>=3&&!selected.includes(String(d.id))} onClick={()=>toggleCompare(String(d.id))}>{selected.includes(String(d.id))?t('已加入对比','Added to compare'):t('加入对比','Compare')}</Button>{profile.role==='client'&&kind==='egg'?(existing?<SelectionStatus status={String(existing.status)}/>:d.status==='available'?<SubmitEggRequest donor={d} disabled={applications.loading||Boolean(applications.error)} refresh={refresh} onSubmitted={()=>setSubmitted(true)}/>:null):null}</>;return <DonorCard key={String(d.id)} donor={d} admin={admin} summary={String(lang==='zh'?d.summary_zh:d.summary_en)} selectionAction={selectionAction} refresh={refresh}/>})}</div>}
+  {comparison.length>0&&<div className="comparison-bar"><span>{t('对比档案','Compare records')} · {comparison.map(d=>String(d.code)).join(' / ')} <small>({comparison.length}/3)</small></span><div className="row-actions"><Button variant="ghost" onClick={()=>{setSelected([]);setComparing(false)}}>{t('清空','Clear')}</Button><Button disabled={comparison.length<2} onClick={()=>setComparing(true)}>{t('开始对比','Compare')}</Button></div></div>}
+  {comparing&&comparison.length>=2&&<DonorComparison donors={comparison} onClose={()=>setComparing(false)}/>}
  </>;
 }
 
@@ -500,10 +508,15 @@ export function AuditTab(){
 }
 function ReportPanel({data,caseId,refresh}:{data:Data;caseId:string;refresh:()=>void}){
  const {t}=useLocale();const label=useLabels();const reports=(data.reports||[]) as Data[];const manage=data.can_manage===true;
+ const [cycle,setCycle]=useState('all');const [query,setQuery]=useState('');
+ const cycles=[...new Set(reports.map(r=>String(r.cycle)))].sort((a,b)=>Number(b)-Number(a));
+ const groups=groupReports(reports.filter(r=>(cycle==='all'||String(r.cycle)===cycle)&&`${r.title} ${r.source}`.toLowerCase().includes(query.trim().toLowerCase())));
  return <Panel title={t('报告与文件','Reports & documents')} action={manage?<UploadForm caseId={caseId} members={(data.members||[]) as Data[]} reports={reports} refresh={refresh}/>:undefined}>
-  {reports.length?<div>{reports.map(r=><div key={String(r.id)} className="report-row"><div>
+  {reports.length>0&&<div className="row-actions mb-4 gap-3"><Input className="min-h-11 min-w-40 flex-1" value={query} onChange={e=>setQuery(e.target.value)} placeholder={t('搜索报告或来源','Search report or source')} aria-label={t('搜索报告','Search reports')}/><FilterSelect value={cycle} onChange={setCycle} label={t('治疗周期','Treatment cycle')} options={[["all",t('全部周期','All cycles')],...cycles.map(c=>[c,`${t('周期','Cycle')} ${c}`] as [string,string])]}/></div>}
+  {reports.length?<div>{groups.length===0&&<Empty title={t('没有匹配的报告','No matching reports')}><Button variant="outline" onClick={()=>{setQuery('');setCycle('all')}}>{t('清空筛选','Clear filters')}</Button></Empty>}{groups.map(group=><section key={group.cycle} className="report-cycle"><h3>{t('周期','Cycle')} {group.cycle}</h3>{group.reports.map(r=><div key={String(r.id)} className="report-row"><div>
    <h3>{String(r.title)}</h3>
    <p className="metadata">{label(String(r.kind))} · {String(r.report_date)} · {String(r.source)} · v{String(r.version)} · {String(r.language).toUpperCase()}</p>
+   {r.published_at&&<p className="metadata">{t('发布时间','Published')} {String(r.published_at).slice(0,16).replace('T',' ')}</p>}
    {r.review_note?<div className="report-review">{t('复核意见','Review note')}: {String(r.review_note)}</div>:null}
    <div className="row-actions">
     <a className="quiet-link" href={`/api/files/${String(r.id)}/original`} target="_blank" rel="noreferrer"><Download size={16}/>{t('原件','Original')}</a>
@@ -512,7 +525,7 @@ function ReportPanel({data,caseId,refresh}:{data:Data;caseId:string;refresh:()=>
     {r.can_publish?<ReportAction report={r} action="publish" refresh={refresh}/>:null}
     {manage&&['draft','reviewed','published'].includes(String(r.status))?<ReportAction report={r} action="withdraw" refresh={refresh}/>:null}
    </div>
-  </div><Status value={String(r.status)}/></div>)}</div>
+  </div><Status value={String(r.status)}/></div>)}</section>)}</div>
    :<Empty title={t('还没有报告','No reports yet')}>{t('协调员上传并完成独立复核后，已发布报告会显示在这里。','Published reports appear here after upload and independent review.')}</Empty>}
  </Panel>;
 }

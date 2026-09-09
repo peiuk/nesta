@@ -10,12 +10,12 @@ import {api,useResource,Panel,Empty,ErrorNotice,Modal,ActionForm,Field,Choice,Fi
 const statusLabels:Record<string,[string,string]>={pending:['待审批','Awaiting review'],approved:['已通过 · 待机构确认','Approved · Clinic confirmation pending'],rejected:['未通过','Not approved'],withdrawn:['已撤回','Withdrawn']};
 export function SelectionStatus({status}:{status:string}){const {t}=useLocale();return <Badge variant={status==='pending'?'outline':'secondary'}>{statusLabels[status]?t(...statusLabels[status]):status}</Badge>}
 
-export function SubmitEggRequest({donor,existingStatus,disabled,refresh}:{donor:Data;existingStatus?:string;disabled?:boolean;refresh:()=>void}){
+export function SubmitEggRequest({donor,existingStatus,disabled,refresh,onSubmitted}:{donor:Data;existingStatus?:string;disabled?:boolean;refresh:()=>void;onSubmitted?:()=>void}){
  const {t}=useLocale();const [open,setOpen]=useState(false);
  if(existingStatus)return <SelectionStatus status={existingStatus}/>;
  return <><Button size="sm" disabled={disabled} onClick={()=>setOpen(true)}><Send size={15}/>{t('提交选卵申请','Request this egg donor')}</Button>
   {open&&<Modal title={`${t('提交选卵申请','Request egg donor')} · ${String(donor.code)}`} description={t('提交后由服务团队审批。审批通过后仍需合作机构确认，不代表已预留或医疗适配结论。','The service team reviews your request. Approval remains subject to clinic confirmation and does not reserve the donor or establish medical suitability.')} onClose={()=>setOpen(false)}>
-   <ActionForm submitLabel={t('确认提交','Submit request')} onSubmit={f=>api('egg-requests',{donor_id:String(donor.id),note:String(f.get('note')||'')})} onDone={()=>{setOpen(false);refresh()}}>
+   <ActionForm submitLabel={t('确认提交','Submit request')} onSubmit={f=>api('egg-requests',{donor_id:String(donor.id),note:String(f.get('note')||'')})} onDone={()=>{setOpen(false);refresh();onSubmitted?.()}}>
     <Field name="note" label={t('备注（可选）','Note (optional)')} type="textarea" required={false} max={1000}/>
     <p className="metadata">{t('可以说明希望进一步了解的问题；医疗资料请通过案件文件提交。','Describe any questions you have. Submit medical records through your case files.')}</p>
    </ActionForm>
