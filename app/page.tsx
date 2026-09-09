@@ -1,6 +1,6 @@
 'use client';
 import {useEffect,useRef} from 'react';
-import {ArrowUpRight,ArrowRight,ShieldCheck,FileHeart,MessagesSquare,Sprout,Phone,Mail} from 'lucide-react';
+import {ArrowUpRight,ArrowRight,ShieldCheck,FileHeart,MessagesSquare,Phone,Mail} from 'lucide-react';
 import {Brand} from '@/components/product/brand';
 import {LanguageButton,useLocale} from '@/components/product/locale';
 
@@ -22,13 +22,8 @@ export default function Home(){
  return <div className="home-shell">
   <div className="pilot-strip">{t('私密试用版 · 请使用测试资料','Private pilot · Please use test data')}</div>
   <header className="site-header"><Brand/><nav>
-   <a className="nav-desk" href="#journey">{t('服务旅程','The journey')}</a>
-   <a className="nav-desk" href="#options">{t('方案','Options')}</a>
-   <a className="nav-desk" href="#packages">{t('套餐费用','Packages')}</a>
-   <a className="nav-desk" href="#network">{t('协作网络','Partners')}</a>
-   <a className="nav-desk" href="#care">{t('我们的服务','Our care')}</a>
-   <a className="nav-desk" href="#boundaries">{t('服务边界','Boundaries')}</a>
-   <a href="#contact">{t('联系我们','Contact')}</a>
+   <a className="nav-desk" href="#options">{t('服务','Services')}</a>
+   <a className="nav-desk" href="#packages">{t('费用','Fees')}</a>
    <LanguageButton/>
    <a className="primary-link" href="/portal">{t('客户登录','Client sign-in')}<ArrowUpRight size={17}/></a>
   </nav></header>
@@ -37,10 +32,9 @@ export default function Home(){
     <div className="hero-media" aria-hidden="true"/>
     <div className="hero-shade" aria-hidden="true"/>
     <div className="hero-copy">
-     <div className="hero-brand hero-rise" aria-label="初禾 FIRSTLEAF"><span className="hero-mark"><Sprout size={28}/></span><div><strong>初禾 <span>FIRSTLEAF</span></strong><small>FAMILY CARE COORDINATION · GEORGIA</small></div></div>
-     <h1 className="hero-rise delay-1">{t('迈向家庭的每一步，','Each step toward family,')}<br/><em>{t('都有清晰的陪伴。','with care and clarity.')}</em></h1>
-     <p className="hero-rise delay-2">{t('初禾提供格鲁吉亚代孕相关协调，并备有独立卵子库与精子库供选择；方案可按需单独使用或组合。从沟通评估、合作 IVF 诊所与行程对接、月子衔接，到进度报告以及公证、海牙认证与出生后手续——每一次沟通都有清楚留存。','Firstleaf coordinates Georgia surrogacy-related care and offers independent egg and sperm donor banks to choose from — programmes can be used alone or combined. From consultation and partner IVF clinics and travel, through postpartum handoff, progress reports, notarisation, Apostille and post-birth paperwork — every conversation stays clearly recorded.')}</p>
-     <div className="hero-actions hero-rise delay-3"><a href="#contact" className="primary-link">{t('开始保密咨询','Start a private consultation')}<ArrowRight size={17}/></a><a href="#packages" className="quiet-link">{t('查看套餐费用','View packages & fees')}<ArrowUpRight size={17}/></a></div>
+     <h1 className="hero-rise">{t('生育旅程，安心相伴','Care for your family journey')}</h1>
+     <p className="hero-rise delay-1">{t('格鲁吉亚代孕协调服务。从诊所对接到孕期跟进，提供中英双语支持。','Surrogacy coordination in Georgia, with Chinese and English support from clinic arrangements through pregnancy follow-up.')}</p>
+     <div className="hero-actions hero-rise delay-2"><a href="#contact" className="primary-link">{t('预约咨询','Book a consultation')}<ArrowRight size={17}/></a></div>
      <small className="hero-rise delay-3">{t('私密试用版 · 具体服务须经个别法律与医疗评估，不承诺结果。','Private pilot · Services require individual legal and clinical assessment. Outcomes are not guaranteed.')}</small>
     </div>
    </section>
@@ -91,6 +85,12 @@ export default function Home(){
       <ul>{pkg.points.map((pt,j)=> <li key={j}>{pt}</li>)}</ul>
       <a href="/portal" className="quiet-link">{t('咨询此套餐','Ask about this package')}<ArrowUpRight size={16}/></a>
      </article>)}
+    </div>
+    <div className="packages-download">
+     <a className="primary-link" href="/firstleaf-packages-zh-v2026-09-09.pdf" download>
+      {t('下载套餐说明 PDF','Download package PDF')}<Download size={16}/>
+     </a>
+     <span className="packages-download-meta">{t('中文 · 版本 2026-09-09','Chinese · v2026-09-09')}</span>
     </div>
     <p className="packages-note">{t('供卵另计 $5,000、供精另计 $5,000（可写入报价）；机票签证、国内体检、超出 PGS 枚数等通常另计；双胎/剖宫/NICU 见下方参考区间。中级「可移植胚胎安排」指合同约定范围内的移植协调，不保证活产。','Egg donation +$5,000 and sperm donation +$5,000, quoted separately. Airfare, visas, domestic exams, and extra PGS embryos are usually extra; twin/C-section/NICU ranges are listed below. Mid “transferable-embryo transfers” means coordination within the contract — not a live-birth guarantee.')}</p>
     <div className="packages-detail">

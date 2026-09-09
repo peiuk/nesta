@@ -121,3 +121,6 @@ html{scroll-behavior:smooth}body{font-family:var(--font-geist-sans);font-size:16
 .packages-pay-list em{font-style:normal;font-size:.8rem;color:var(--muted-foreground)}
 .packages-pay-note{margin:12px 0 0;font-size:.82rem;color:var(--muted-foreground);max-width:640px}
 @media(max-width:650px){.packages-pay-list li{grid-template-columns:1fr auto;gap:6px}.packages-pay-list em{grid-column:1/-1}}
+
+.packages-download{display:flex;flex-wrap:wrap;align-items:center;gap:14px;margin:28px 0 8px}
+.packages-download-meta{font-size:.82rem;color:var(--muted-foreground)}
