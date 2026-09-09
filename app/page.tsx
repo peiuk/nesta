@@ -92,7 +92,7 @@ export default function Home(){
       <a href="/portal" className="quiet-link">{t('咨询此套餐','Ask about this package')}<ArrowUpRight size={16}/></a>
      </article>)}
     </div>
-    <p className="packages-note">{t('供卵另计 $5,000、供精另计 $5,000（可写入报价）；机票签证、国内体检、双胎/剖宫、NICU、超出 PGS 枚数等通常另计。中级「可移植胚胎安排」指合同约定范围内的移植协调，不保证活产。','Egg donation +$5,000 and sperm donation +$5,000, quoted separately. Airfare, visas, domestic exams, twin/C-section, NICU, and extra PGS embryos are usually extra. Mid “transferable-embryo transfers” means coordination within the contract — not a live-birth guarantee.')}</p>
+    <p className="packages-note">{t('供卵另计 $5,000、供精另计 $5,000（可写入报价）；机票签证、国内体检、超出 PGS 枚数等通常另计；双胎/剖宫/NICU 见下方参考区间。中级「可移植胚胎安排」指合同约定范围内的移植协调，不保证活产。','Egg donation +$5,000 and sperm donation +$5,000, quoted separately. Airfare, visas, domestic exams, and extra PGS embryos are usually extra; twin/C-section/NICU ranges are listed below. Mid “transferable-embryo transfers” means coordination within the contract — not a live-birth guarantee.')}</p>
     <div className="packages-detail">
      <div className="packages-detail-block">
       <h3>{t('三档对照','Tier comparison')}</h3>
@@ -133,8 +133,16 @@ export default function Home(){
        <ul>
         <li>{t('国际机票、签证与个人旅游消费','International flights, visas, personal travel')}</li>
         <li>{t('国内体检及个人原因的重复检查','Domestic exams and repeat tests for personal reasons')}</li>
-        <li>{t('双胎/多胎、剖宫产、NICU 等额外医疗相关费用','Twin/multiple, C-section, NICU and similar extras')}</li>
         <li>{t('超出约定天数的月子或住宿','Postpartum care or lodging beyond agreed days')}</li>
+       </ul>
+      </div>
+      <div className="packages-detail-block">
+       <h3>{t('常见加价参考（发生时）','Common add-ons if they occur')}</h3>
+       <ul>
+        <li>{t('双胎 / 多胎补偿：约 $4,000–$6,000','Twin / multiple compensation: about $4,000–$6,000')}</li>
+        <li>{t('剖宫产相关：约 $2,000–$4,000','C-section related: about $2,000–$4,000')}</li>
+        <li>{t('新生儿 NICU：约 $150–$300 / 天','Newborn NICU: about $150–$300 / day')}</li>
+        <li>{t('以上为常见参考区间，非报价单；是否发生、最终金额以医院账单与书面确认为准。','Ranges are indicative, not a fixed quote; occurrence and final amounts follow hospital bills and written confirmation.')}</li>
        </ul>
       </div>
      </div>
