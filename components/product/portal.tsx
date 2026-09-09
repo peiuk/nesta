@@ -14,6 +14,7 @@ import {filterCases} from '@/lib/case-filters';
 import {EggRequests,SubmitEggRequest,SelectionStatus} from './egg-requests';
 import {ClientOverview} from './client-overview';
 import {DonorDetails,DonorComparison} from './donor-details';
+import {DonorCover,DonorPhotoManager} from './donor-photos';
 import {groupReports} from '@/lib/report-groups';
 
 export const STAGES=['assessment','treatment','transfer','pregnancy','birth','paperwork','paused','loss','closed'];
@@ -267,6 +268,7 @@ function DonorCard({donor,admin,summary,refresh,selectionAction}:{donor:Data;adm
  async function toggle(){if(busy)return;setBusy(true);setError('');try{await api('favorites',{donor_id:String(donor.id),favorite:!favorite});refresh()}catch(e){setError(e instanceof Error?e.message:'SERVICE_UNAVAILABLE')}finally{setBusy(false)}}
  return <article className="donor-card">
   <div className="donor-top"><span className="donor-code">{String(donor.code)}</span><Status value={String(donor.status)}/></div>
+  <DonorCover donor={donor}/>
   <dl>
    <div><dt>{t('年龄','Age')}</dt><dd>{String(donor.age)}</dd></div>
    <div><dt>{t('身高','Height')}</dt><dd>{donor.height?`${String(donor.height)} cm`:'—'}</dd></div>
@@ -281,6 +283,7 @@ function DonorCard({donor,admin,summary,refresh,selectionAction}:{donor:Data;adm
    {selectionAction}
    {donor.status!=='archived'&&<Button variant={favorite?'secondary':'ghost'} size="sm" aria-pressed={favorite} disabled={busy} onClick={toggle}><Heart size={16}/>{busy?t('保存中…','Saving…'):favorite?t('已收藏','Saved'):t('收藏','Save')}</Button>}
    {admin&&<DonorEdit donor={donor} refresh={refresh}/>}
+   {admin&&<DonorPhotoManager donor={donor} refresh={refresh}/>}
    {admin&&<DonorStatus donor={donor} refresh={refresh}/>}
   </div>
  </article>;

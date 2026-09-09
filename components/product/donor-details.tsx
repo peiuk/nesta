@@ -4,10 +4,11 @@ import {Button} from '@/components/ui/button';
 import {Table,TableBody,TableCell,TableHead,TableHeader,TableRow} from '@/components/ui/table';
 import {useLocale} from './locale';
 import {Modal,Status,type Data} from './common';
+import {DonorGallery} from './donor-photos';
 
 export function DonorDetails({donor}:{donor:Data}){
  const {t,lang}=useLocale();const [open,setOpen]=useState(false);
- return <><Button size="sm" variant="outline" onClick={()=>setOpen(true)}>{t('查看详情','View details')}</Button>{open&&<Modal title={String(donor.code)} description={t('合作方提供的匿名资料，供本次服务评估使用。','Anonymous partner information for this service assessment.')} onClose={()=>setOpen(false)}><Status value={String(donor.status)}/><dl className="donor-detail-fields">{[[t('年龄','Age'),donor.age],[t('身高','Height'),donor.height?donor.height+' cm':'—'],[t('血型','Blood group'),donor.blood_group||'—'],[t('核实日期','Verified'),donor.verified_at],[t('来源机构','Source'),donor.source]].map(([key,value])=><div key={String(key)}><dt>{String(key)}</dt><dd>{String(value)}</dd></div>)}</dl><h3>{t('资料摘要','Profile summary')}</h3><p className="whitespace-pre-wrap mt-3">{String(lang==='zh'?donor.summary_zh:donor.summary_en)}</p>{donor.status_reason&&<p className="notice mt-4">{String(donor.status_reason)}</p>}</Modal>}</>;
+ return <><Button size="sm" variant="outline" onClick={()=>setOpen(true)}>{t('查看详情','View details')}</Button>{open&&<Modal title={String(donor.code)} description={t('合作方提供的匿名资料，供本次服务评估使用。','Anonymous partner information for this service assessment.')} onClose={()=>setOpen(false)}><Status value={String(donor.status)}/><DonorGallery donor={donor}/><dl className="donor-detail-fields">{[[t('年龄','Age'),donor.age],[t('身高','Height'),donor.height?donor.height+' cm':'—'],[t('血型','Blood group'),donor.blood_group||'—'],[t('核实日期','Verified'),donor.verified_at],[t('来源机构','Source'),donor.source]].map(([key,value])=><div key={String(key)}><dt>{String(key)}</dt><dd>{String(value)}</dd></div>)}</dl><h3>{t('资料摘要','Profile summary')}</h3><p className="whitespace-pre-wrap mt-3">{String(lang==='zh'?donor.summary_zh:donor.summary_en)}</p>{donor.status_reason&&<p className="notice mt-4">{String(donor.status_reason)}</p>}</Modal>}</>;
 }
 
 export function DonorComparison({donors,onClose}:{donors:Data[];onClose:()=>void}){

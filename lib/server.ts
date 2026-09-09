@@ -3,6 +3,7 @@ import {getChatGPTUser} from '@/app/chatgpt-auth';
 import {ensureSchema} from './ensure-schema';
 import {readAdminOperations} from './admin-operations';
 import {directoryQuery} from './directory-query';
+import {listDonorPhotos,readDonorPhoto,uploadDonorPhotos,deleteDonorPhoto} from './donor-photos';
 import {emailSignInAvailable} from './auth-options';
 import {readClientHighlights} from './client-highlights';
 import {submitEggRequest,decideEggRequest,withdrawEggRequest,listEggRequests,type SelectionStore} from './egg-requests';
@@ -20,6 +21,7 @@ export const now=()=>new Date().toISOString();
 export const id=()=>crypto.randomUUID();
 export const statement=(sql:string,...p:any[])=>db().prepare(sql).bind(...p);
 const selectionStore:SelectionStore={first:one,all,batch:async items=>(await db().batch(items.map(s=>statement(s.sql,...s.params)))).map(r=>({changes:r.meta.changes||0}))};
+const photoStorage={put:(key:string,bytes:Uint8Array,mime:string)=>env.FILES.put(key,bytes,{httpMetadata:{contentType:mime}}),delete:(key:string)=>env.FILES.delete(key)};
 export function auditStatement(actor:Profile,action:string,target:string,reason:string){return statement('INSERT INTO audit (id,actor_id,action,target,reason,created_at) VALUES (?,?,?,?,?,?)',id(),actor.id,action,target,reason,now())}
 function isOwnerEmail(email:string){return !!env.ADMIN_EMAIL&&email===env.ADMIN_EMAIL.trim().toLowerCase()}
 function cookieSecure(request:Request){return new URL(request.url).protocol==='https:'}
@@ -143,6 +145,12 @@ export async function read(path:string[],auth:AuthContext,request:Request){
  const a=auth.profile;
  if(path[0]==='me')return response({profile:a,sign_in:auth.sign_in});
  active(a);
+ if(path[0]==='donors'&&path.length===3&&path[2]==='photos')return response({photos:await listDonorPhotos(selectionStore,a,path[1])});
+ if(path[0]==='donor-photos'&&path.length===2){
+  const photo=await readDonorPhoto(selectionStore,a,path[1]);
+  const object=await env.FILES.get(photo.object_key);if(!object)fail(404,'NOT_FOUND');
+  return new Response(object.body,{headers:{'Content-Type':photo.mime,'Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer','Cross-Origin-Resource-Policy':'same-origin','Content-Security-Policy':"default-src 'none'; sandbox"}});
+ }
  if(path[0]==='egg-requests'&&path.length===1)return response({requests:await listEggRequests(selectionStore,a)});
  if(path.length===1&&path[0]==='admin-operations'){admin(a);return response(await readAdminOperations(a,{one,all}))}
  if(path[0]==='overview'){
@@ -179,6 +187,20 @@ export async function read(path:string[],auth:AuthContext,request:Request){
 
 export async function write(path:string[],a:Profile,request:Request){
  mutateRequest(request);
+ if(path[0]==='donors'&&path.length===3&&path[2]==='photos'){
+  admin(a);const limit=21*1024*1024;
+  if(Number(request.headers.get('content-length'))>limit)fail(413,'PHOTO_BATCH_TOO_LARGE');
+  const reader=request.body?.getReader();if(!reader)fail(400,'PHOTO_REQUIRED');
+  const chunks:Uint8Array[]=[];let size=0;
+  try{while(true){const {done,value}=await reader.read();if(done)break;size+=value.length;if(size>limit){await reader.cancel();fail(413,'PHOTO_BATCH_TOO_LARGE')}chunks.push(value)}}finally{reader.releaseLock()}
+  const bytes=new Uint8Array(size);let offset=0;for(const chunk of chunks){bytes.set(chunk,offset);offset+=chunk.length}chunks.length=0;
+  let form:FormData;try{form=await new Response(bytes,{headers:{'Content-Type':request.headers.get('content-type')||''}}).formData()}catch{fail(400,'INVALID_INPUT')}
+  const files=form.getAll('photos');if(!files.length)fail(400,'PHOTO_REQUIRED');if(files.length>10)fail(409,'PHOTO_LIMIT');
+  const photos=[];let total=0;
+  for(const file of files){if(typeof file==='string'||file.size>5*1024*1024)fail(400,'INVALID_PHOTO');total+=file.size;if(total>20*1024*1024)fail(413,'PHOTO_BATCH_TOO_LARGE');photos.push({mime:file.type,bytes:new Uint8Array(await file.arrayBuffer())})}
+  return response(await uploadDonorPhotos(selectionStore,photoStorage,a,path[1],photos));
+ }
+ if(path[0]==='donor-photos'&&path.length===3&&path[2]==='delete')return response(await deleteDonorPhoto(selectionStore,photoStorage,a,path[1]));
  if(path[0]==='egg-requests'){
   active(a);const body=await json(request);
   if(path.length===1)return response(await submitEggRequest(selectionStore,a,text(body.donor_id),text(body.note||'',1000,false)));

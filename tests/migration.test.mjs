@@ -17,11 +17,12 @@ const tables=[
 
 test('migration journal points at prepared schemas',()=>{
  assert.equal(journal.dialect,'sqlite');
- assert.equal(journal.entries.length,4);
+ assert.equal(journal.entries.length,5);
  assert.equal(journal.entries[0].tag,'0000_swift_jamie_braddock');
  assert.equal(journal.entries[1].tag,'0001_email_auth');
  assert.equal(journal.entries[2].tag,'0002_donor_status_reason');
  assert.equal(journal.entries[3].tag,'0003_egg_requests');
+ assert.equal(journal.entries[4].tag,'0004_donor_photos');
 });
 
 test('donor status_reason migration alters donors',()=>{
