@@ -2,6 +2,9 @@ import {env} from 'cloudflare:workers';
 import migration0 from '../drizzle/0000_swift_jamie_braddock.sql?raw';
 import migration1 from '../drizzle/0001_email_auth.sql?raw';
 import migration2 from '../drizzle/0002_donor_status_reason.sql?raw';
+import migration3 from '../drizzle/0003_egg_requests.sql?raw';
+import migration4 from '../drizzle/0004_donor_photos.sql?raw';
+import migration5 from '../drizzle/0005_case_plans.sql?raw';
 
 let ready:Promise<void>|null=null;
 
@@ -30,6 +33,9 @@ export async function ensureSchema(){
   await applyIfMissing('profiles',migration0);
   await applyIfMissing('email_otps',migration1);
   await applyColumnIfMissing('donors','status_reason',migration2);
+  await applyIfMissing('egg_requests',migration3);
+  await applyIfMissing('donor_photos',migration4);
+  await applyIfMissing('case_plans',migration5);
  })().catch(error=>{ready=null;throw error});
  await ready;
 }

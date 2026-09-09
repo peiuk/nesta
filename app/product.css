@@ -124,3 +124,6 @@ html{scroll-behavior:smooth}body{font-family:var(--font-geist-sans);font-size:16
 
 .packages-download{display:flex;flex-wrap:wrap;align-items:center;gap:14px;margin:28px 0 8px}
 .packages-download-meta{font-size:.82rem;color:var(--muted-foreground)}
+
+.panel-card{border:1px solid var(--border);border-radius:14px;padding:18px;background:rgba(255,255,255,.55)}.stack.gap-6{display:grid;gap:24px}.stack.gap-4{display:grid;gap:16px}
+

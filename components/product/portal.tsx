@@ -16,6 +16,7 @@ import {ClientOverview} from './client-overview';
 import {DonorDetails,DonorComparison} from './donor-details';
 import {DonorCover,DonorPhotoManager} from './donor-photos';
 import {groupReports} from '@/lib/report-groups';
+import {ClientPlanFees,CasePlanPanel} from './plan-fees';
 
 export const STAGES=['assessment','treatment','transfer','pregnancy','birth','paperwork','paused','loss','closed'];
 const SIGN_OUT='/signout-with-chatgpt?return_to=%2F';
@@ -65,16 +66,16 @@ export function Portal({signInHref}:{signInHref:string}){
 }
 
 function Workspace({profile,signIn}:{profile:Data;signIn:string}){
- const {t}=useLocale();const [view,setView]=useState<'overview'|'directory'|'requests'>('overview');const [caseId,setCaseId]=useState<string|null>(null);const [version,setVersion]=useState(0);
+ const {t}=useLocale();const [view,setView]=useState<'overview'|'directory'|'requests'|'plan'>('overview');const [caseId,setCaseId]=useState<string|null>(null);const [version,setVersion]=useState(0);
  const refresh=()=>setVersion(v=>v+1);
  useEffect(()=>{const c=new AbortController();registerFirstleafReadTools(c.signal).catch(()=>{});return()=>c.abort()},[]);
  const overview=useResource('overview',version);
  const grants=(overview.data?.grants||[]) as Array<{scope:string;expires_at:string;revoked_at:string|null}>;
  const showDirectory=profile.role==='admin'||(profile.role==='client'&&hasDirectoryAccess({id:String(profile.id),role:String(profile.role),status:String(profile.status)},grants));
  useEffect(()=>{if(view==='directory'&&!showDirectory)setView('overview')},[view,showDirectory]);
- const go=(next:'overview'|'directory'|'requests')=>{setCaseId(null);setView(next)};
- const item=(key:'overview'|'directory'|'requests',label:string)=><Button key={key} variant={view===key?'secondary':'ghost'} size="sm" onClick={()=>go(key)}>{label}</Button>;
- const nav=<>{item('overview',t('概览','Overview'))}{showDirectory&&item('directory',t('资料库','Directory'))}{profile.role==='client'&&item('requests',t('我的选卵申请','My egg requests'))}{profile.role==='admin'&&<a className="quiet-link" href="/admin">{t('管理后台','Administration')}</a>}</>;
+ const go=(next:'overview'|'directory'|'requests'|'plan')=>{setCaseId(null);setView(next)};
+ const item=(key:'overview'|'directory'|'requests'|'plan',label:string)=><Button key={key} variant={view===key?'secondary':'ghost'} size="sm" onClick={()=>go(key)}>{label}</Button>;
+ const nav=<>{item('overview',t('概览','Overview'))}{profile.role==='client'&&item('plan',t('我的方案/费用','My plan / fees'))}{showDirectory&&item('directory',t('资料库','Directory'))}{profile.role==='client'&&item('requests',t('我的选卵申请','My egg requests'))}{profile.role==='admin'&&<a className="quiet-link" href="/admin">{t('管理后台','Administration')}</a>}</>;
  return <Shell nav={nav} signIn={signIn}>
   {view==='overview'&&(caseId
    ?<CaseDetail caseId={caseId} profile={profile} back={()=>setCaseId(null)}/>
@@ -82,6 +83,7 @@ function Workspace({profile,signIn}:{profile:Data;signIn:string}){
    :overview.error?<ErrorNotice code={overview.error}/>
    :profile.role==='client'?<ClientOverview profile={profile} data={overview.data||{}} open={setCaseId} go={go}/>:<Overview profile={profile} data={overview.data||{}} open={setCaseId} refresh={refresh}/>)}
   {view==='directory'&&showDirectory&&<Directory profile={profile} openRequests={()=>go('requests')}/>}
+  {view==='plan'&&profile.role==='client'&&<ClientPlanFees/>}
   {view==='requests'&&profile.role==='client'&&<EggRequests/>}
  </Shell>;
 }
@@ -133,6 +135,7 @@ export function CaseDetail({caseId,profile,back}:{caseId:string;profile:Data;bac
   <div className="stage-banner"><div><small>{String(record.code)}</small><h2>{String(record.title)}</h2><p>{label(String(record.stage))} · {t('周期','Cycle')} {String(record.cycle)} · {t('我的身份','My role')}: {label(membership)}</p></div>{manage&&<StageForm caseId={caseId} record={record} refresh={refresh}/>}</div>
   <div className="split">
    <div>
+    <CasePlanPanel caseId={caseId} canManage={manage} refresh={refresh}/>
     <ReportPanel data={data} caseId={caseId} refresh={refresh}/>
     <Panel title={t('服务进度','Care timeline')} action={manage?<EventForm caseId={caseId} cycle={Number(record.cycle)} refresh={refresh}/>:undefined}>
      {events.length?<ul className="timeline">{events.map(e=><li key={String(e.id)}><strong>{String(e.title)}</strong><div className="metadata">{String(e.event_date)} · {label(String(e.kind))} · {t('周期','Cycle')} {String(e.cycle)} · {String(e.author_name)}</div>{e.note?<p>{String(e.note)}</p>:null}</li>)}</ul>

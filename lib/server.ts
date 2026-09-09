@@ -6,6 +6,7 @@ import {directoryQuery} from './directory-query';
 import {listDonorPhotos,readDonorPhoto,uploadDonorPhotos,deleteDonorPhoto} from './donor-photos';
 import {emailSignInAvailable} from './auth-options';
 import {readClientHighlights} from './client-highlights';
+import {defaultMilestones,isAddon,isTier,publicPlan,TIER_PGS,TIER_TOTAL} from './case-plans';
 import {submitEggRequest,decideEggRequest,withdrawEggRequest,listEggRequests,type SelectionStore} from './egg-requests';
 import {canReadReport,canManageCase,canReviewReport,canPublishReport,canUseDirectory,validMutation,validDate,validateUpload} from './policy';
 import {normalizeEmail,emailProfileId,generateOtpCode,hashSecret,verifySecret,parseSessionCookie,sessionCookieValue,clearSessionCookie,OTP_TTL_MS,SESSION_TTL_MS,OTP_MAX_ATTEMPTS,OTP_RESEND_MS} from './email-auth';
@@ -177,6 +178,17 @@ export async function read(path:string[],auth:AuthContext,request:Request){
   const events=await all('SELECT e.*,p.name AS author_name FROM events e JOIN profiles p ON p.id=e.created_by WHERE e.case_id=? ORDER BY e.event_date DESC,e.created_at DESC LIMIT 200',caseId);
   return response({case:c,membership:role,can_manage:canManageCase(a,role),members,reports,events,questions});
  }
+ if(path[0]==='plans'){
+  // Client: plans for cases they belong to. Staff: only via case detail.
+  if(a.role!=='client')fail(403,'FORBIDDEN');
+  const rows=await all(`SELECT p.*,c.code AS case_code,c.title AS case_title FROM case_plans p JOIN cases c ON c.id=p.case_id JOIN case_members m ON m.case_id=p.case_id WHERE m.user_id=? ORDER BY p.updated_at DESC LIMIT 50`,a.id);
+  return response({plans:rows.map(publicPlan)});
+ }
+ if(path[0]==='cases'&&path.length===3&&path[2]==='plan'){
+  await member(a,path[1]);
+  const row=await one(`SELECT p.*,c.code AS case_code,c.title AS case_title FROM case_plans p JOIN cases c ON c.id=p.case_id WHERE p.case_id=?`,path[1]);
+  return response({plan:publicPlan(row)});
+ }
  if(path[0]==='files'&&path.length===3){
   const r=await one('SELECT * FROM reports WHERE id=?',path[1]);if(!r)fail(404,'NOT_FOUND');const role=await member(a,r.case_id);const recipient=await one('SELECT 1 FROM report_recipients WHERE report_id=? AND user_id=?',r.id,a.id);if(!canReadReport(a,role,r as any,!!recipient))fail(404,'NOT_FOUND');
   const variant=choice(path[2],['original','translation']);const key=variant==='original'?r.object_key:r.translation_key;if(!key)fail(404,'NOT_FOUND');const object=await env.FILES.get(key);if(!object)fail(404,'NOT_FOUND');await auditStatement(a,'file.download',r.id,variant).run();const name=variant==='original'?r.file_name:r.translation_name;
@@ -247,6 +259,38 @@ export async function write(path:string[],a:Profile,request:Request){
  }
  if(path[0]==='cases'&&path.length===3&&path[2]==='members'){
   admin(a);const b=await json(request),caseId=path[1],userId=text(b.user_id),reason=text(b.reason,500);if(!await one('SELECT id FROM cases WHERE id=?',caseId))fail(404,'NOT_FOUND');if(b.remove===true){await db().batch([statement('DELETE FROM case_members WHERE case_id=? AND user_id=?',caseId,userId),statement('DELETE FROM report_recipients WHERE user_id=? AND report_id IN (SELECT id FROM reports WHERE case_id=?)',userId,caseId),auditStatement(a,'member.remove',caseId,`${userId}: ${reason}`)]);return response({ok:true})}const target=await one<Profile>('SELECT * FROM profiles WHERE id=?',userId);if(!target||target.status!=='approved')fail(400,'APPROVAL_REQUIRED');const role=target.role==='admin'?'coordinator':choice(target.role,['client','coordinator','reviewer']);await db().batch([statement('INSERT INTO case_members (case_id,user_id,role,created_at) VALUES (?,?,?,?) ON CONFLICT(case_id,user_id) DO UPDATE SET role=excluded.role',caseId,userId,role,now()),auditStatement(a,'member.assign',caseId,`${userId}/${role}: ${reason}`)]);return response({ok:true});
+ }
+ if(path[0]==='cases'&&path.length===3&&path[2]==='plan'){
+  await manager(a,path[1]);
+  const b=await json(request);
+  if(!isTier(b.tier))fail(400,'INVALID_TIER');
+  const tier=b.tier;
+  const total=b.total_usd==null?TIER_TOTAL[tier]:number(b.total_usd,1000,500000);
+  const pgsIncluded=b.pgs_included==null?TIER_PGS[tier]:number(b.pgs_included,0,50);
+  const pgsExtra=b.pgs_extra_usd==null?500:number(b.pgs_extra_usd,0,5000);
+  for(const k of ['egg_status','sperm_status','twin_status','csection_status','nicu_status']){if(b[k]!=null&&!isAddon(b[k]))fail(400,'INVALID_ADDON')}
+  const egg=isAddon(b.egg_status)?b.egg_status:'none';
+  const sperm=isAddon(b.sperm_status)?b.sperm_status:'none';
+  const twin=isAddon(b.twin_status)?b.twin_status:'none';
+  const csection=isAddon(b.csection_status)?b.csection_status:'none';
+  const nicu=isAddon(b.nicu_status)?b.nicu_status:'none';
+  const note=text(b.note||'',500,false);
+  const reason=text(b.reason,500);
+  const paidKeys=Array.isArray(b.paid_keys)?b.paid_keys.map((x:any)=>String(x).slice(0,40)):String(b.paid_keys||'').split(',').map(x=>x.trim()).filter(Boolean);
+  const milestones=defaultMilestones(tier,paidKeys);
+  // If custom total, rescale milestone amounts to sum to total
+  const sum=milestones.reduce((s,m)=>s+m.amount_usd,0)||1;
+  if(sum!==total){let acc=0;milestones.forEach((m,i)=>{if(i===milestones.length-1)m.amount_usd=total-acc;else{m.amount_usd=Math.round(m.amount_usd*(total/sum));acc+=m.amount_usd}})}
+  const jsonMs=JSON.stringify(milestones);
+  const ts=now();
+  await db().batch([
+   statement(`INSERT INTO case_plans (case_id,tier,total_usd,pgs_included,pgs_extra_usd,egg_status,sperm_status,twin_status,csection_status,nicu_status,milestones_json,note,updated_at,updated_by) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+    ON CONFLICT(case_id) DO UPDATE SET tier=excluded.tier,total_usd=excluded.total_usd,pgs_included=excluded.pgs_included,pgs_extra_usd=excluded.pgs_extra_usd,egg_status=excluded.egg_status,sperm_status=excluded.sperm_status,twin_status=excluded.twin_status,csection_status=excluded.csection_status,nicu_status=excluded.nicu_status,milestones_json=excluded.milestones_json,note=excluded.note,updated_at=excluded.updated_at,updated_by=excluded.updated_by`,
+    path[1],tier,total,pgsIncluded,pgsExtra,egg,sperm,twin,csection,nicu,jsonMs,note,ts,a.id),
+   statement('UPDATE cases SET updated_at=? WHERE id=?',ts,path[1]),
+   auditStatement(a,'case.plan',path[1],`${tier}/$${total}: ${reason}`)
+  ]);
+  return response({ok:true});
  }
  if(path[0]==='cases'&&path.length===3&&path[2]==='stage'){
   await manager(a,path[1]);const b=await json(request),stage=choice(b.stage,stages),cycle=number(b.cycle,1,99),reason=text(b.reason,500);await db().batch([statement('UPDATE cases SET stage=?,cycle=?,updated_at=? WHERE id=?',stage,cycle,now(),path[1]),auditStatement(a,'case.stage',path[1],`${stage}/cycle ${cycle}: ${reason}`)]);return response({ok:true});
