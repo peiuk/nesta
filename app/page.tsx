@@ -20,7 +20,6 @@ export default function Home(){
   return ()=>io.disconnect();
  },[]);
  return <div className="home-shell">
-  <div className="pilot-strip">{t('私密试用版 · 请使用测试资料','Private pilot · Please use test data')}</div>
   <header className="site-header"><Brand/><nav>
    <a className="nav-desk" href="#options">{t('服务','Services')}</a>
    <a className="nav-desk" href="#packages">{t('费用','Fees')}</a>
@@ -35,7 +34,7 @@ export default function Home(){
      <h1 className="hero-rise">{t('生育旅程，安心相伴','Care for your family journey')}</h1>
      <p className="hero-rise delay-1">{t('格鲁吉亚代孕协调服务。从诊所对接到孕期跟进，提供中英双语支持。','Surrogacy coordination in Georgia, with Chinese and English support from clinic arrangements through pregnancy follow-up.')}</p>
      <div className="hero-actions hero-rise delay-2"><a href="#contact" className="primary-link">{t('预约咨询','Book a consultation')}<ArrowRight size={17}/></a></div>
-     <small className="hero-rise delay-3">{t('私密试用版 · 具体服务须经个别法律与医疗评估，不承诺结果。','Private pilot · Services require individual legal and clinical assessment. Outcomes are not guaranteed.')}</small>
+     <small className="hero-rise delay-3">{t('具体服务须经个别法律与医疗评估，不承诺结果。','Services require individual legal and clinical assessment. Outcomes are not guaranteed.')}</small>
     </div>
    </section>
    <section id="care" className="service-strip">{[[ShieldCheck,t('私密的服务空间','A private care space'),t('身份验证后建立代孕协调档案；阶段与负责人按人、按案件可见。','Create your surrogacy-coordination profile after sign-in. Stages and a named coordinator stay visible by person and case.')],[FileHeart,t('可追溯的报告','Traceable reports'),t('原件与复核译稿按权限交付；来源、日期、版本与复核状态完整记录。','Originals and reviewed translations shared privately — source, date, version and review status recorded together.')],[MessagesSquare,t('持续的双语沟通','Ongoing bilingual support'),t('专属协调员跟进代孕行程中的问题，让下一步更明确。','A named coordinator follows questions through your surrogacy journey so next steps stay clear.')]].map(([Icon,title,description],i)=>{const I=Icon as typeof ShieldCheck;return <article key={i}><span className="service-index">0{i+1}</span><I size={22} strokeWidth={1.5}/><h3>{title as string}</h3><p>{description as string}</p></article>})}</section>
