@@ -25,4 +25,4 @@ export function LocaleProvider({children}:{children:ReactNode}){
  return <Locale.Provider value={{lang,t:(zh,en)=>lang==='zh'?zh:en,toggle}}>{children}</Locale.Provider>;
 }
 export const useLocale=()=>useContext(Locale);
-export function LanguageButton(){const {lang,toggle}=useLocale();return <Button variant="ghost" size="sm" onClick={toggle} aria-label={lang==='zh'?'Switch to English':'切换中文'}>{lang==='zh'?'English':'中文'}</Button>}
+export function LanguageButton(){const {lang,toggle}=useLocale();return <Button className="language-switch" variant="ghost" size="sm" onClick={toggle} aria-label={lang==='zh'?'Switch to English':'切换中文'}>{lang==='zh'?'English':'中文'}</Button>}

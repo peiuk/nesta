@@ -18,6 +18,9 @@ html{scroll-behavior:smooth}body{font-family:var(--font-geist-sans);font-size:16
 .home-shell .site-header nav{display:flex;align-items:center;gap:22px;font-size:.9rem;flex-wrap:wrap}
 .home-shell .site-header .primary-link{background:#f4f7f1;color:var(--primary)}
 .home-shell .site-header button{color:#f4f7f1}
+.home-shell .site-header .language-switch{background:transparent;color:#f4f7f1;transition:background-color .18s ease,border-color .18s ease}
+.home-shell .site-header .language-switch:hover,.home-shell .site-header .language-switch:focus-visible{background:rgba(20,40,30,.55);color:#f4f7f1;border-color:rgba(244,247,241,.4)}
+.home-shell .site-header .language-switch:focus-visible{outline:2px solid #f4f7f1;outline-offset:3px}
 .home-hero{position:relative;min-height:min(100vh,980px);display:grid;align-items:end;padding:clamp(120px,16vw,180px) max(5vw,24px) clamp(56px,8vw,96px);overflow:hidden;color:#f4f7f1}
 .hero-media{position:absolute;inset:-4%;background:center/cover no-repeat url('/hero-canopy.jpg');animation:hero-drift 28s ease-in-out infinite alternate;will-change:transform}
 .hero-shade{position:absolute;inset:0;background:linear-gradient(115deg,rgba(20,40,30,.78) 0%,rgba(28,52,38,.55) 42%,rgba(36,60,45,.28) 100%),linear-gradient(0deg,rgba(20,34,28,.55),transparent 55%)}
