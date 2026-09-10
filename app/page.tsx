@@ -1,6 +1,6 @@
 'use client';
 import {useEffect,useRef} from 'react';
-import {ArrowUpRight,ArrowRight,ShieldCheck,FileHeart,MessagesSquare,Phone,Mail} from 'lucide-react';
+import {ArrowUpRight,ArrowRight,Download,ShieldCheck,FileHeart,MessagesSquare,Phone,Mail} from 'lucide-react';
 import {Brand} from '@/components/product/brand';
 import {LanguageButton,useLocale} from '@/components/product/locale';
 
