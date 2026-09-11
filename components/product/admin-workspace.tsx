@@ -1,7 +1,7 @@
 'use client';
 
 import {useEffect,useState} from 'react';
-import {ArrowRight,CalendarDays,CheckCheck,FileCheck2,FolderOpen,LayoutDashboard,Leaf,LogOut,MessageSquare,RefreshCw,ShieldCheck,Users} from 'lucide-react';
+import {ArrowRight,Building2,CalendarDays,CheckCheck,FileCheck2,FolderOpen,LayoutDashboard,Leaf,LogOut,MessageSquare,RefreshCw,ShieldCheck,Users} from 'lucide-react';
 import {Button} from '@/components/ui/button';
 import {Input} from '@/components/ui/input';
 import {Select,SelectContent,SelectItem,SelectTrigger,SelectValue} from '@/components/ui/select';
@@ -11,7 +11,7 @@ import {Brand} from './brand';
 import {LanguageButton,useLocale} from './locale';
 import {SignIn} from './registration';
 import {EggRequests} from './egg-requests';
-import {api,useResource,Panel,Empty,ErrorNotice,Status,useLabels,type Data} from './common';
+import {api,useResource,Panel,Empty,ErrorNotice,Status,Field,Choice,ActionForm,Modal,formObject,useLabels,type Data} from './common';
 import {Shell,PeopleTab,PersonForm,GrantsTab,CasesTab,CaseDetail,Directory,AuditTab,NewCase,ReplyForm} from './portal';
 
 const sections=[
@@ -20,6 +20,7 @@ const sections=[
  {id:'cases',zh:'案件与进度',en:'Cases & progress',icon:FolderOpen},
  {id:'reports',zh:'报告与文件',en:'Reports & files',icon:FileCheck2},
  {id:'directory',zh:'供者资料库',en:'Donor directory',icon:Leaf},
+ {id:'partners',zh:'合作方',en:'Partners',icon:Building2},
  {id:'egg-requests',zh:'选卵申请',en:'Egg requests',icon:FileCheck2},
  {id:'grants',zh:'访问授权',en:'Access grants',icon:ShieldCheck},
  {id:'questions',zh:'客户留言',en:'Client messages',icon:MessageSquare},
@@ -79,6 +80,7 @@ function AdminWorkspace({profile,signIn}:{profile:Data;signIn:string}){
      {route.view==='people'&&<PeopleTab key={version}/>}
      {route.view==='cases'&&<CasesTab profile={profile} open={openCase} refresh={refresh} version={version}/>}
      {route.view==='directory'&&<Directory key={version} profile={profile}/>}
+     {route.view==='partners'&&<PartnersTab key={version}/>}
      {route.view==='egg-requests'&&<EggRequests admin externalVersion={version} onChanged={refresh}/>}
      {route.view==='grants'&&<GrantsTab key={version}/>}
      {route.view==='audit'&&<AuditTab key={version}/>}
@@ -147,4 +149,79 @@ function QuestionQueue({data,openCase,refresh}:{data:Data;openCase:(id:string)=>
  return <Panel title={t('待回复留言 · 最早 100 条','Unanswered messages · oldest 100')}>
   {questions.length?questions.map(q=><article className="admin-question" key={String(q.id)}><div className="admin-list-row"><div><h3>{String(q.author_name)}</h3><p>{String(q.case_code)} · {String(q.created_at).slice(0,16).replace('T',' ')}</p></div><Button variant="ghost" size="sm" onClick={()=>openCase(String(q.case_id))}>{t('查看案件','Open case')}<ArrowRight size={14}/></Button></div><p className="admin-question-body">{String(q.body)}</p>{replyId===String(q.id)?<><ReplyForm questionId={String(q.id)} refresh={()=>{setReplyId(null);refresh()}}/><Button variant="ghost" size="sm" onClick={()=>setReplyId(null)}>{t('取消','Cancel')}</Button></>:<Button variant="outline" size="sm" onClick={()=>setReplyId(String(q.id))}>{t('回复客户','Reply to client')}</Button>}</article>):<Empty title={t('暂无待回复留言','No unanswered messages')}>{t('你参与案件中的客户提问会汇集到这里。','Questions from your assigned cases appear here.')}</Empty>}
  </Panel>;
+}
+
+function PartnersTab(){
+ const {t}=useLocale();const label=useLabels();const [version,setVersion]=useState(0);const refresh=()=>setVersion(v=>v+1);
+ const [kind,setKind]=useState('all');const [status,setStatus]=useState('all');
+ const {data,error,loading}=useResource('partners',version);
+ const partners=((data?.partners||[]) as Data[]).filter(p=>(kind==='all'||String(p.kind)===kind)&&(status==='all'||String(p.status)===status));
+ if(loading)return <div className="loading">{t('正在载入…','Loading…')}</div>;
+ if(error)return <ErrorNotice code={error}/>;
+ return <Panel title={t('IVF 诊所与月子中心','IVF clinics & postpartum centers')} action={<PartnerForm refresh={refresh}/>}>
+  <div className="notice">{t('停用不会解绑已关联案件；历史案件仍显示名称并标注停用。','Deactivating does not unbind cases; historical cases keep the name marked inactive.')}</div>
+  <div className="row-actions mb-4 flex-wrap gap-3">
+   <select className="min-h-11 rounded-md border border-input bg-transparent px-3 text-sm" value={kind} onChange={e=>setKind(e.target.value)} aria-label={t('类型','Type')}>
+    <option value="all">{t('全部类型','All types')}</option>
+    <option value="ivf">{label('ivf')}</option>
+    <option value="postpartum">{label('postpartum')}</option>
+   </select>
+   <select className="min-h-11 rounded-md border border-input bg-transparent px-3 text-sm" value={status} onChange={e=>setStatus(e.target.value)} aria-label={t('状态','Status')}>
+    <option value="all">{t('全部状态','All statuses')}</option>
+    <option value="active">{label('active')}</option>
+    <option value="inactive">{label('inactive')}</option>
+   </select>
+  </div>
+  <div className="table-wrap"><Table>
+   <TableHeader><TableRow><TableHead>{t('名称','Name')}</TableHead><TableHead>{t('类型','Type')}</TableHead><TableHead>{t('联系','Contact')}</TableHead><TableHead>{t('状态','Status')}</TableHead><TableHead>{t('操作','Actions')}</TableHead></TableRow></TableHeader>
+   <TableBody>{partners.length?partners.map(p=>{
+    const contact=[p.contact_name,p.phone,p.email].filter(Boolean).map(String).join(' · ')||'—';
+    return <TableRow key={String(p.id)}>
+     <TableCell className="whitespace-normal"><strong>{String(p.name)}</strong>{p.notes?<p className="metadata">{String(p.notes)}</p>:null}</TableCell>
+     <TableCell>{label(String(p.kind))}</TableCell>
+     <TableCell className="whitespace-normal">{contact}</TableCell>
+     <TableCell><Status value={String(p.status)}/></TableCell>
+     <TableCell><div className="row-actions"><PartnerForm partner={p} refresh={refresh}/><PartnerStatusButton partner={p} refresh={refresh}/></div></TableCell>
+    </TableRow>;
+   }):<TableRow><TableCell colSpan={5}><Empty title={t('没有匹配的合作方','No matching partners')}>{t('先新建 IVF 诊所或月子中心。','Create an IVF clinic or postpartum center first.')}</Empty></TableCell></TableRow>}</TableBody>
+  </Table></div>
+ </Panel>;
+}
+
+function PartnerForm({partner,refresh}:{partner?:Data;refresh:()=>void}){
+ const {t}=useLocale();const label=useLabels();const [open,setOpen]=useState(false);const editing=Boolean(partner);
+ return <>
+  <Button size="sm" variant={editing?'secondary':'default'} onClick={()=>setOpen(true)}>{editing?t('编辑','Edit'):t('新建合作方','New partner')}</Button>
+  {open&&<Modal title={editing?t('编辑合作方','Edit partner'):t('新建合作方','New partner')} description={t('仅 IVF 诊所与月子中心；变更记入审计。','IVF clinics and postpartum centers only. Changes are audited.')} onClose={()=>setOpen(false)}>
+   <ActionForm submitLabel={t('保存','Save')} onSubmit={async f=>{
+    const body={...formObject(f)};
+    if(editing)await api('partners/'+String(partner!.id),body);
+    else await api('partners',body);
+   }} onDone={()=>{setOpen(false);refresh()}}>
+    {!editing&&<Choice name="kind" label={t('类型','Type')} options={[['ivf',label('ivf')],['postpartum',label('postpartum')]]} value="ivf"/>}
+    <Field name="name" label={t('名称','Name')} value={partner?String(partner.name):undefined} max={150}/>
+    <div className="form-grid">
+     <Field name="contact_name" label={t('联系人','Contact name')} value={partner?String(partner.contact_name||''):undefined} required={false} max={80}/>
+     <Field name="phone" label={t('电话','Phone')} value={partner?String(partner.phone||''):undefined} required={false} max={40}/>
+    </div>
+    <Field name="email" label={t('邮箱','Email')} value={partner?String(partner.email||''):undefined} required={false} max={120}/>
+    <Field name="notes" type="textarea" label={t('内部备注','Internal notes')} value={partner?String(partner.notes||''):undefined} required={false} max={1500}/>
+    {editing&&<Field name="reason" type="textarea" label={t('理由（记入审计）','Reason (recorded in audit)')} max={500} required/>}
+   </ActionForm>
+  </Modal>}
+ </>;
+}
+
+function PartnerStatusButton({partner,refresh}:{partner:Data;refresh:()=>void}){
+ const {t}=useLocale();const label=useLabels();const [open,setOpen]=useState(false);
+ const next=String(partner.status)==='active'?'inactive':'active';
+ return <>
+  <Button size="sm" variant="outline" onClick={()=>setOpen(true)}>{next==='inactive'?t('停用','Deactivate'):t('启用','Activate')}</Button>
+  {open&&<Modal title={next==='inactive'?t('停用合作方','Deactivate partner'):t('启用合作方','Activate partner')} description={t('状态变更记入审计；停用不解除案件绑定。','Status changes are audited. Deactivation does not clear case bindings.')} onClose={()=>setOpen(false)}>
+   <p className="mb-3">{String(partner.name)} · {label(String(partner.kind))}</p>
+   <ActionForm submitLabel={next==='inactive'?t('确认停用','Confirm deactivate'):t('确认启用','Confirm activate')} onSubmit={f=>api('partners/'+String(partner.id),{status:next,reason:f.get('reason')})} onDone={()=>{setOpen(false);refresh()}}>
+    <Field name="reason" type="textarea" label={t('理由（记入审计）','Reason (recorded in audit)')} max={500}/>
+   </ActionForm>
+  </Modal>}
+ </>;
 }

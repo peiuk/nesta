@@ -141,11 +141,13 @@ export function CaseDetail({caseId,profile,back}:{caseId:string;profile:Data;bac
      {events.length?<ul className="timeline">{events.map(e=><li key={String(e.id)}><strong>{String(e.title)}</strong><div className="metadata">{String(e.event_date)} · {label(String(e.kind))} · {t('周期','Cycle')} {String(e.cycle)} · {String(e.author_name)}</div>{e.note?<p>{String(e.note)}</p>:null}</li>)}</ul>
       :<Empty title={t('还没有进度记录','No timeline entries yet')}/>}
     </Panel>
+    <CaseDocumentsPanel caseId={caseId} documents={(data.documents||[]) as Data[]} canManage={manage} refresh={refresh}/>
    </div>
    <div>
     <Panel title={t('服务团队','Care team')} action={profile.role==='admin'?<MemberForm caseId={caseId} refresh={refresh}/>:undefined}>
      <div className="stack">{members.map(m=><div key={String(m.id)} className="row-actions justify-between"><div><strong>{String(m.name)}</strong><div className="metadata">{label(String(m.role))}{m.email?` · ${String(m.email)}`:''}</div></div><div className="row-actions">{profile.role==='admin'&&m.role==='client'&&m.status==='approved'&&<GrantForm refresh={refresh} userId={String(m.id)} userLabel={String(m.name)} allowRevoke={false} triggerLabel={t('资料库授权','Directory grant')}/>}<Status value={String(m.status)}/></div></div>)}</div>
     </Panel>
+    {profile.role==='admin'&&<CasePartnersPanel caseId={caseId} summary={(data.partners||null) as Data|null} refresh={refresh}/>}
     <Panel title={t('沟通记录','Conversations')}>
      <QuestionForm caseId={caseId} refresh={refresh}/>
      {questions.length?<div className="stack">{questions.map(q=><div key={String(q.id)} className="question"><div className="metadata">{String(q.author_name)} · {String(q.created_at).slice(0,10)}</div><p>{String(q.body)}</p>{q.reply?<div className="answer"><p>{String(q.reply)}</p></div>:manage?<ReplyForm questionId={String(q.id)} refresh={refresh}/>:<div className="metadata">{t('协调员会尽快回复。','Your coordinator will reply.')}</div>}</div>)}</div>
@@ -154,6 +156,62 @@ export function CaseDetail({caseId,profile,back}:{caseId:string;profile:Data;bac
    </div>
   </div>
  </>;
+}
+
+const NONE='__none__';
+function partnerOptions(active:Data[],current:Data|null|undefined,label:(v:string)=>string,noneLabel:string){
+ const opts:Array<[string,string]>=[[NONE,noneLabel]];
+ const seen=new Set<string>();
+ for(const p of active){const id=String(p.id);seen.add(id);opts.push([id,String(p.name)])}
+ if(current?.id&&!seen.has(String(current.id))){
+  const inactive=String(current.status)==='inactive'?` (${label('inactive')})`:'';
+  opts.push([String(current.id),`${String(current.name)}${inactive}`]);
+ }
+ return opts;
+}
+
+function CasePartnersPanel({caseId,summary,refresh}:{caseId:string;summary:Data|null;refresh:()=>void}){
+ const {t}=useLocale();const label=useLabels();const [open,setOpen]=useState(false);
+ const ivfList=useResource(open?'partners?kind=ivf&status=active':null);
+ const postpartumList=useResource(open?'partners?kind=postpartum&status=active':null);
+ const ivf=summary?.ivf as Data|null|undefined;
+ const postpartum=summary?.postpartum as Data|null|undefined;
+ const ready=!open||((!ivfList.loading&&!ivfList.error)&&(!postpartumList.loading&&!postpartumList.error));
+ return <Panel title={t('合作方','Partners')} action={<Button variant="secondary" size="sm" onClick={()=>setOpen(true)}>{t('绑定合作方','Bind partners')}</Button>}>
+  <div className="stack">
+   <div><span className="metadata">{label('ivf')}</span><div className="row-actions justify-between"><strong>{ivf?String(ivf.name):t('未绑定','Not bound')}</strong>{ivf&&<Status value={String(ivf.status)}/>}</div></div>
+   <div><span className="metadata">{label('postpartum')}</span><div className="row-actions justify-between"><strong>{postpartum?String(postpartum.name):t('未绑定','Not bound')}</strong>{postpartum&&<Status value={String(postpartum.status)}/>}</div></div>
+  </div>
+  {open&&<Modal title={t('绑定合作方','Bind partners')} description={t('每个案件最多一家 IVF 诊所与一家月子中心；变更记入审计。','At most one IVF clinic and one postpartum center per case. Changes are audited.')} onClose={()=>setOpen(false)}>
+   {(ivfList.loading||postpartumList.loading)&&<div className="loading">{t('正在载入…','Loading…')}</div>}
+   <ErrorNotice code={ivfList.error||postpartumList.error}/>
+   {ready&&<ActionForm submitLabel={t('保存绑定','Save bindings')} onSubmit={f=>{
+    const pick=(key:string)=>{const v=String(f.get(key)||'');return v===NONE?null:v};
+    return api(`cases/${caseId}/partners`,{ivf_partner_id:pick('ivf_partner_id'),postpartum_partner_id:pick('postpartum_partner_id'),reason:f.get('reason')});
+   }} onDone={()=>{setOpen(false);refresh()}}>
+    <Choice name="ivf_partner_id" label={label('ivf')} value={ivf?String(ivf.id):NONE} options={partnerOptions((ivfList.data?.partners||[]) as Data[],ivf,label,t('未绑定','Not bound'))}/>
+    <Choice name="postpartum_partner_id" label={label('postpartum')} value={postpartum?String(postpartum.id):NONE} options={partnerOptions((postpartumList.data?.partners||[]) as Data[],postpartum,label,t('未绑定','Not bound'))}/>
+    <Field name="reason" type="textarea" label={t('理由（记入审计）','Reason (recorded in audit)')} max={500}/>
+   </ActionForm>}
+  </Modal>}
+ </Panel>;
+}
+
+const DOCUMENT_STATUSES=['not_started','in_progress','complete','blocked'] as const;
+function CaseDocumentsPanel({caseId,documents,canManage,refresh}:{caseId:string;documents:Data[];canManage:boolean;refresh:()=>void}){
+ const {t}=useLocale();const label=useLabels();const [editing,setEditing]=useState<Data|null>(null);
+ return <Panel title={t('证件进度','Document progress')}>
+  {documents.length?<div className="stack">{documents.map(doc=><div key={String(doc.kind)} className="row-actions justify-between"><div><strong>{label(String(doc.kind))}</strong><div className="metadata">{doc.status_date?String(doc.status_date):t('未填日期','No date yet')}</div>{canManage&&doc.notes?<p>{String(doc.notes)}</p>:null}</div><div className="row-actions"><Status value={String(doc.status)}/>{canManage&&<Button variant="ghost" size="sm" onClick={()=>setEditing(doc)}>{t('更新','Update')}</Button>}</div></div>)}</div>
+   :<Empty title={t('还没有证件节点','No document nodes yet')}/>}
+  {editing&&<Modal title={t('更新证件进度','Update document progress')} description={t('状态与日期对客户可见；内部备注只给协调员和管理员。变更记入审计。','Status and date are visible to the client. Internal notes stay with coordinators and admins. Changes are audited.')} onClose={()=>setEditing(null)}>
+   <ActionForm submitLabel={t('保存进度','Save progress')} onSubmit={f=>api(`cases/${caseId}/documents`,{kind:String(editing.kind),status:f.get('status'),status_date:f.get('status_date')||null,notes:f.get('notes')||'',reason:f.get('reason')})} onDone={()=>{setEditing(null);refresh()}}>
+    <Choice name="status" label={t('状态','Status')} value={String(editing.status)} options={DOCUMENT_STATUSES.map(s=>[s,label(s)] as [string,string])}/>
+    <Field name="status_date" type="date" label={t('日期','Date')} value={editing.status_date?String(editing.status_date):''} required={false}/>
+    <Field name="notes" type="textarea" label={t('内部备注','Internal notes')} value={editing.notes?String(editing.notes):''} required={false} max={1500}/>
+    <Field name="reason" type="textarea" label={t('理由（记入审计）','Reason (recorded in audit)')} max={500}/>
+   </ActionForm>
+  </Modal>}
+ </Panel>;
 }
 
 function StageForm({caseId,record,refresh}:{caseId:string;record:Data;refresh:()=>void}){

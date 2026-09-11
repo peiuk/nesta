@@ -8,6 +8,9 @@ const root=join(dirname(fileURLToPath(import.meta.url)),'..');
 const sql=readFileSync(join(root,'drizzle/0000_swift_jamie_braddock.sql'),'utf8');
 const sql1=readFileSync(join(root,'drizzle/0001_email_auth.sql'),'utf8');
 const sql2=readFileSync(join(root,'drizzle/0002_donor_status_reason.sql'),'utf8');
+const sql5=readFileSync(join(root,'drizzle/0005_case_plans.sql'),'utf8');
+const sql6=readFileSync(join(root,'drizzle/0006_partners.sql'),'utf8');
+const sql7=readFileSync(join(root,'drizzle/0007_case_documents.sql'),'utf8');
 const journal=JSON.parse(readFileSync(join(root,'drizzle/meta/_journal.json'),'utf8'));
 
 const tables=[
@@ -17,12 +20,38 @@ const tables=[
 
 test('migration journal points at prepared schemas',()=>{
  assert.equal(journal.dialect,'sqlite');
- assert.equal(journal.entries.length,5);
+ assert.equal(journal.entries.length,8);
  assert.equal(journal.entries[0].tag,'0000_swift_jamie_braddock');
  assert.equal(journal.entries[1].tag,'0001_email_auth');
  assert.equal(journal.entries[2].tag,'0002_donor_status_reason');
  assert.equal(journal.entries[3].tag,'0003_egg_requests');
  assert.equal(journal.entries[4].tag,'0004_donor_photos');
+ assert.equal(journal.entries[5].tag,'0005_case_plans');
+ assert.equal(journal.entries[6].tag,'0006_partners');
+ assert.equal(journal.entries[7].tag,'0007_case_documents');
+});
+
+test('case plans migration creates case_plans table',()=>{
+ assert.match(sql5,/CREATE TABLE `case_plans`/);
+ assert.match(sql5,/REFERENCES `cases`\(`id`\)/);
+});
+
+test('partners migration creates partners and extends cases',()=>{
+ assert.match(sql6,/CREATE TABLE `partners`/);
+ assert.match(sql6,/CREATE INDEX `idx_partners_kind_status`/);
+ assert.match(sql6,/ALTER TABLE `cases` ADD `ivf_partner_id`/);
+ assert.match(sql6,/ALTER TABLE `cases` ADD `postpartum_partner_id`/);
+});
+
+test('case documents migration creates table and backfills four kinds',()=>{
+ assert.match(sql7,/CREATE TABLE `case_documents`/);
+ assert.match(sql7,/PRIMARY KEY\(`case_id`, `kind`\)/);
+ assert.match(sql7,/CREATE INDEX `idx_case_documents_case`/);
+ assert.match(sql7,/INSERT OR IGNORE INTO `case_documents`/);
+ assert.match(sql7,/'birth_certificate'/);
+ assert.match(sql7,/'parentage'/);
+ assert.match(sql7,/'notarisation'/);
+ assert.match(sql7,/'apostille'/);
 });
 
 test('donor status_reason migration alters donors',()=>{
