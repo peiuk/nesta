@@ -1,6 +1,6 @@
 'use client';
 import {useEffect,useRef} from 'react';
-import {ArrowUpRight,ArrowRight,Download,ShieldCheck,FileHeart,MessagesSquare,Phone,Mail} from 'lucide-react';
+import {ArrowUpRight,ArrowRight,Download,FileText,ShieldCheck,FileHeart,MessagesSquare,Phone,Mail} from 'lucide-react';
 import {Brand} from '@/components/product/brand';
 import {LanguageButton,useLocale} from '@/components/product/locale';
 
@@ -86,6 +86,7 @@ export default function Home(){
      </article>)}
     </div>
     <aside className="packages-download-card" aria-label={t('套餐说明下载','Package sheet download')}>
+     <div className="packages-download-icon" aria-hidden="true"><FileText size={22}/></div>
      <div className="packages-download-copy">
       <h3>{t('套餐说明（咨询用）','Package sheet (for consultation)')}</h3>
       <p>{t('三档对照 + 付款节点 + 加价参考，一页带走','Three tiers, payment milestones, and add-on ranges — one page to take away.')}</p>
