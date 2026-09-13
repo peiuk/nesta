@@ -53,7 +53,7 @@ export default function Home(){
    <section id="packages" className="packages-section">
     <div className="section-intro">
      <div><div className="eyebrow">PACKAGES</div><h2>{t('三档套餐，按需升级。','Three tiers — upgrade as you need.')}</h2></div>
-     <p>{t('基础不含住宿与月子；中级含约定枚数 PGS 与可移植胚胎的移植安排；高级在中级之上含约 30 天月子与住宿。均为协调服务起始价，最终以书面报价为准，不承诺活产结果。','Basic excludes lodging and postpartum care. Mid includes an agreed number of PGS tests and transfers of transferable embryos. Advanced adds about 30 days of postpartum care and lodging. Starting coordination prices only — final quotes in writing. Live birth is not guaranteed.')}</p>
+     <p>{t('基础不含住宿与月子；中级含约定枚数 PGS、可移植胚胎的移植安排与约 20 天住宿（月子另计）；高级在中级之上含约 30 天月子与约 30 天住宿。均为协调服务起始价，最终以书面报价为准，不承诺活产结果。','Basic excludes lodging and postpartum care. Mid includes an agreed number of PGS tests, transfers of transferable embryos, and about 20 days of lodging (postpartum care still extra). Advanced adds about 30 days of postpartum care and about 30 days of lodging. Starting coordination prices only — final quotes in writing. Live birth is not guaranteed.')}</p>
     </div>
     <div className="packages-grid">
      {[{
@@ -68,15 +68,15 @@ export default function Home(){
        title:t('中级套餐','Mid package'),
        priceZh:'¥520,000',
        priceEn:'$72,000',
-       desc:t('在基础上增加约定枚数的 PGS 检测，并按合同安排可移植胚胎的移植（在可用胚胎与方案规则内），仍不含 30 天月子与住宿。','Adds an agreed number of PGS tests and contracted transfers of transferable embryos within available embryos and plan rules — still without 30-day postpartum care or lodging.'),
-       points:[t('含 6 枚 PGS（超出 $500/枚）','Includes 6 PGS tests ($500/embryo after)'),t('可移植胚胎的约定移植安排','Contracted transfers of transferable embryos'),t('首次移植未成功，可在剩余可移植胚胎内、按合同约定次数继续移植；不是包活产，胚胎用尽后的重启方式写进合同','If the first transfer does not succeed, further transfers may continue within remaining transferable embryos and the contracted transfer count; not a live-birth guarantee — restart rules after embryos are exhausted go in the contract')]
+       desc:t('在基础上增加约定枚数的 PGS 检测，并按合同安排可移植胚胎的移植（在可用胚胎与方案规则内），另含约 20 天住宿；月子仍另计。','Adds an agreed number of PGS tests and contracted transfers of transferable embryos within available embryos and plan rules, plus about 20 days of lodging — postpartum care still extra.'),
+       points:[t('含 6 枚 PGS（超出 $500/枚）','Includes 6 PGS tests ($500/embryo after)'),t('可移植胚胎的约定移植安排','Contracted transfers of transferable embryos'),t('约 20 天住宿（月子另计）','About 20 days lodging (postpartum care extra)'),t('首次移植未成功，可在剩余可移植胚胎内、按合同约定次数继续移植；不是包活产，胚胎用尽后的重启方式写进合同','If the first transfer does not succeed, further transfers may continue within remaining transferable embryos and the contracted transfer count; not a live-birth guarantee — restart rules after embryos are exhausted go in the contract')]
      },{
        tag:t('高级','Advanced'),
        title:t('高级套餐','Advanced package'),
        priceZh:'¥600,000',
        priceEn:'$84,000',
-       desc:t('含中级全部内容，并打包约 30 天月子中心与住宿，减少落地后的零散开支与协调成本。','Includes everything in Mid, plus about 30 days of postpartum centre care and lodging — fewer ad-hoc costs after arrival.'),
-       points:[t('与中级医疗规则相同，增加月子与住宿','Same medical rules as Mid; adds postpartum care and lodging'),t('约 30 天月子中心','About 30 days postpartum centre'),t('约 30 天住宿安排','About 30 days lodging')]
+       desc:t('含中级全部内容（含约 20 天住宿规则之上），并打包约 30 天月子中心与约 30 天住宿，减少落地后的零散开支与协调成本。','Includes everything in Mid, plus about 30 days of postpartum centre care and about 30 days of lodging (about 10 more lodging days than Mid) — fewer ad-hoc costs after arrival.'),
+       points:[t('与中级医疗规则相同，增加月子与更长住宿','Same medical rules as Mid; adds postpartum care and longer lodging'),t('约 30 天月子中心','About 30 days postpartum centre'),t('约 30 天住宿（比中级多约 10 天）','About 30 days lodging (~10 more than Mid)')]
      }].map((pkg,i)=> <article key={i} className={i===1?'is-featured':undefined}>
       <span className="pkg-tag">{pkg.tag}</span>
       <h3>{pkg.title}</h3>
@@ -97,7 +97,7 @@ export default function Home(){
       {t('下载套餐说明','Download package sheet')}<Download size={16}/>
      </a>
     </aside>
-    <p className="packages-note">{t('供卵另计 $5,000、供精另计 $5,000（可写入报价）；机票签证、国内体检、超出 PGS 枚数等通常另计；双胎/剖宫/NICU 见下方参考区间。中级：首次移植未成功，可在剩余可移植胚胎内、按合同约定次数继续移植；不是包活产。高级与中级医疗规则相同，增加月子与住宿。','Egg donation +$5,000 and sperm donation +$5,000, quoted separately. Airfare, visas, domestic exams, and extra PGS embryos are usually extra; twin/C-section/NICU ranges are listed below. Mid: further contracted transfers may continue within remaining transferable embryos after a failed first transfer — not a live-birth guarantee. Advanced matches Mid medical rules and adds postpartum care and lodging.')}</p>
+    <p className="packages-note">{t('供卵另计 $5,000、供精另计 $5,000（可写入报价）；机票签证、国内体检、超出 PGS 枚数等通常另计；双胎/剖宫/NICU 见下方参考区间。中级：首次移植未成功，可在剩余可移植胚胎内、按合同约定次数继续移植；不是包活产；含约 20 天住宿，月子另计。高级与中级医疗规则相同，增加约 30 天月子与约 30 天住宿。','Egg donation +$5,000 and sperm donation +$5,000, quoted separately. Airfare, visas, domestic exams, and extra PGS embryos are usually extra; twin/C-section/NICU ranges are listed below. Mid: further contracted transfers may continue within remaining transferable embryos after a failed first transfer — not a live-birth guarantee; includes about 20 days lodging (postpartum care extra). Advanced matches Mid medical rules and adds about 30 days postpartum care and about 30 days lodging.')}</p>
     <div className="packages-detail">
      <div className="packages-detail-block">
       <h3>{t('三档对照','Tier comparison')}</h3>
@@ -118,7 +118,7 @@ export default function Home(){
            [t('PGS（6 枚）','PGS (6 embryos)'),t('不含','No'),t('含','Yes'),t('含','Yes')],
            [t('可移植胚胎的约定移植','Contracted transferable-embryo transfers'),t('按基础规则','Per basic rules'),t('含','Yes'),t('含','Yes')],
            [t('约 30 天月子中心','~30 days postpartum centre'),t('另计','Extra'),t('另计','Extra'),t('含','Yes')],
-           [t('约 30 天住宿','~30 days lodging'),t('另计','Extra'),t('另计','Extra'),t('含','Yes')],
+           [t('住宿安排','Lodging'),t('另计','Extra'),t('约 20 天','~20 days'),t('约 30 天','~30 days')],
            [t('供卵 / 供精','Egg / sperm donation'),t('各 +$5,000','+$5,000 each'),t('各 +$5,000','+$5,000 each'),t('各 +$5,000','+$5,000 each')]].map((row,i)=> <tr key={i}><th scope="row">{row[0]}</th><td>{row[1]}</td><td>{row[2]}</td><td>{row[3]}</td></tr>)}
         </tbody>
        </table>
