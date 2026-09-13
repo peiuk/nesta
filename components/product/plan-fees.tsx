@@ -31,7 +31,7 @@ export function ClientPlanFees(){
   <Empty title={t('还没有签约方案','No plan on file yet')}>{t('协调员确认套餐并写入方案后，这里会显示档位、付款节点与加项。你也可以先查看公开套餐说明。','After your coordinator confirms a package, tier, payment milestones and add-ons appear here. You can review the public package sheet meanwhile.')}</Empty>
   <div className="row-actions">
    <a className="primary-link" href="/#packages">{t('查看套餐页','View packages')}</a>
-   <a className="quiet-link" href="/firstleaf-packages-zh-v2026-09-09.pdf" download>{t('下载套餐说明','Download package sheet')}</a>
+   <a className="quiet-link" href="/firstleaf-packages-zh-v2026-09-13.pdf" download>{t('下载套餐说明','Download package sheet')}</a>
   </div>
  </div>;
  return <div className="stack gap-6">{plans.map(p=><PlanCard key={String(p.case_id)} plan={p} lang={lang} t={t}/>)}</div>;

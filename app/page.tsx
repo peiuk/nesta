@@ -90,9 +90,9 @@ export default function Home(){
      <div className="packages-download-copy">
       <h3>{t('套餐说明（咨询用）','Package sheet (for consultation)')}</h3>
       <p>{t('三档对照 + 付款节点 + 加价参考，一页带走','Three tiers, payment milestones, and add-on ranges — one page to take away.')}</p>
-      <span className="packages-download-meta">{t('中文 · PDF · 版本 2026-09-09','Chinese · PDF · v2026-09-09')}</span>
+      <span className="packages-download-meta">{t('中文 · PDF · 版本 2026-09-13','Chinese · PDF · v2026-09-13')}</span>
      </div>
-     <a className="primary-link packages-download-btn" href="/firstleaf-packages-zh-v2026-09-09.pdf" download>
+     <a className="primary-link packages-download-btn" href="/firstleaf-packages-zh-v2026-09-13.pdf" download>
       {t('下载套餐说明','Download package sheet')}<Download size={16}/>
      </a>
     </aside>
