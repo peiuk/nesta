@@ -20,14 +20,14 @@ export default function Home(){
   return ()=>io.disconnect();
  },[]);
  return <div className="home-shell">
+  <main>
+   <section className="home-hero">
   <header className="site-header"><Brand/><nav>
    <a className="nav-desk" href="#options">{t('服务','Services')}</a>
    <a className="nav-desk" href="#packages">{t('费用','Fees')}</a>
    <LanguageButton/>
    <a className="primary-link" href="/portal">{t('客户登录','Client sign-in')}<ArrowUpRight size={17}/></a>
   </nav></header>
-  <main>
-   <section className="home-hero">
     <div className="hero-media" aria-hidden="true"/>
     <div className="hero-shade" aria-hidden="true"/>
     <div className="hero-copy">
@@ -85,12 +85,16 @@ export default function Home(){
       <a href="/portal" className="quiet-link">{t('咨询此套餐','Ask about this package')}<ArrowUpRight size={16}/></a>
      </article>)}
     </div>
-    <div className="packages-download">
-     <a className="primary-link" href="/firstleaf-packages-zh-v2026-09-09.pdf" download>
-      {t('下载套餐说明 PDF','Download package PDF')}<Download size={16}/>
+    <aside className="packages-download-card" aria-label={t('套餐说明下载','Package sheet download')}>
+     <div className="packages-download-copy">
+      <h3>{t('套餐说明（咨询用）','Package sheet (for consultation)')}</h3>
+      <p>{t('三档对照 + 付款节点 + 加价参考，一页带走','Three tiers, payment milestones, and add-on ranges — one page to take away.')}</p>
+      <span className="packages-download-meta">{t('中文 · PDF · 版本 2026-09-09','Chinese · PDF · v2026-09-09')}</span>
+     </div>
+     <a className="primary-link packages-download-btn" href="/firstleaf-packages-zh-v2026-09-09.pdf" download>
+      {t('下载套餐说明','Download package sheet')}<Download size={16}/>
      </a>
-     <span className="packages-download-meta">{t('中文 · 版本 2026-09-09','Chinese · v2026-09-09')}</span>
-    </div>
+    </aside>
     <p className="packages-note">{t('供卵另计 $5,000、供精另计 $5,000（可写入报价）；机票签证、国内体检、超出 PGS 枚数等通常另计；双胎/剖宫/NICU 见下方参考区间。中级「可移植胚胎安排」指合同约定范围内的移植协调，不保证活产。','Egg donation +$5,000 and sperm donation +$5,000, quoted separately. Airfare, visas, domestic exams, and extra PGS embryos are usually extra; twin/C-section/NICU ranges are listed below. Mid “transferable-embryo transfers” means coordination within the contract — not a live-birth guarantee.')}</p>
     <div className="packages-detail">
      <div className="packages-detail-block">
