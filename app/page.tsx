@@ -92,7 +92,7 @@ export default function Home(){
       <p>{t('三档对照 + 付款节点 + 加价参考，一页带走','Three tiers, payment milestones, and add-on ranges — one page to take away.')}</p>
       <span className="packages-download-meta">{t('中文 · PDF · 版本 2026-09-13','Chinese · PDF · v2026-09-13')}</span>
      </div>
-     <a className="primary-link packages-download-btn" href="/firstleaf-packages-zh-v2026-09-13.pdf" download>
+     <a className="primary-link packages-download-btn" href="/nesta-packages-zh-v2026-09-13.pdf" download>
       {t('下载套餐说明','Download package sheet')}<Download size={16}/>
      </a>
     </aside>
@@ -179,7 +179,7 @@ export default function Home(){
    <section id="boundaries" className="boundaries-section">
     <div className="section-intro">
      <div><div className="eyebrow">BOUNDARIES</div><h2>{t('我们做什么，不做什么。','What we do — and do not do.')}</h2></div>
-     <p>{t('初禾提供格鲁吉亚代孕相关协调与进度记录，并协调独立精卵资料库的授权查阅，不是医疗机构，也不是律师事务所。资料库服务于知情选择与协调，不构成医疗或法律意见。我们不提供医疗诊断、法律资格判断、紧急医疗联络或付款结算。诊疗由接诊医疗机构负责；法律事务由持牌专业人士确认。能否开展服务须个案评估，且不承诺结果。','Firstleaf provides Georgia surrogacy-related coordination and progress records, and coordinates authorised access to independent egg and sperm directories. We are not a medical provider or a law firm. Directories support informed choice and coordination — they are not medical or legal advice. We do not offer diagnosis, legal eligibility decisions, emergency medical contact, or payment processing. Clinics handle clinical care; licensed professionals handle legal matters. Whether a service proceeds requires individual assessment, and outcomes are not guaranteed.')}</p>
+     <p>{t('奈斯提供格鲁吉亚代孕相关协调与进度记录，并协调独立精卵资料库的授权查阅，不是医疗机构，也不是律师事务所。资料库服务于知情选择与协调，不构成医疗或法律意见。我们不提供医疗诊断、法律资格判断、紧急医疗联络或付款结算。诊疗由接诊医疗机构负责；法律事务由持牌专业人士确认。能否开展服务须个案评估，且不承诺结果。','Nesta provides Georgia surrogacy-related coordination and progress records, and coordinates authorised access to independent egg and sperm directories. We are not a medical provider or a law firm. Directories support informed choice and coordination — they are not medical or legal advice. We do not offer diagnosis, legal eligibility decisions, emergency medical contact, or payment processing. Clinics handle clinical care; licensed professionals handle legal matters. Whether a service proceeds requires individual assessment, and outcomes are not guaranteed.')}</p>
     </div>
    </section>
    <section id="contact" className="cta-band">

@@ -30,7 +30,7 @@ async function registerFirstleafReadTools(signal:AbortSignal){
  const empty={type:'object' as const,properties:{} as Record<string,never>,additionalProperties:false as const};
  await document.modelContext.registerTool({
   name:'firstleaf_get_profile',
-  description:'Private pilot: return the signed-in Firstleaf profile summary for this session (id, name, email, role, status, language, jurisdiction). No long-form interest text. Test data only.',
+  description:'Private pilot: return the signed-in Nesta profile summary for this session (id, name, email, role, status, language, jurisdiction). No long-form interest text. Test data only.',
   inputSchema:empty,
   annotations:{readOnlyHint:true},
   execute:async()=>{try{const data=await api('me');return pick(data.profile as Data,PROFILE_KEYS)}catch(e){return {error:e instanceof Error?e.message:'SERVICE_UNAVAILABLE'}}}

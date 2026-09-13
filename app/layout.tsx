@@ -6,7 +6,7 @@ import './admin.css';
 import './client.css';
 
 export const metadata: Metadata = {
-  title: '初禾 FIRSTLEAF · 生育服务协调',
+  title: 'Nesta · 格鲁吉亚代孕协调',
   description: '中文与英文客户服务空间：个别评估、案件进度与私密报告交付。',
   robots: { index: false, follow: false },
 };
