@@ -21,20 +21,21 @@ export default function Home(){
  },[]);
  return <div className="home-shell">
   <main>
-   <section className="home-hero">
+   <section className="home-hero home-hero-family">
   <header className="site-header"><Brand/><nav>
    <a className="nav-desk" href="#options">{t('服务','Services')}</a>
    <a className="nav-desk" href="#packages">{t('费用','Fees')}</a>
    <LanguageButton/>
    <a className="primary-link" href="/portal">{t('客户登录','Client sign-in')}<ArrowUpRight size={17}/></a>
   </nav></header>
-    <div className="hero-media" aria-hidden="true"/>
-    <div className="hero-shade" aria-hidden="true"/>
+    <div className="family-hero-layout">
     <div className="hero-copy">
-     <h1 className="hero-rise">{t('生育旅程，安心相伴','Care for your family journey')}</h1>
-     <p className="hero-rise delay-1">{t('格鲁吉亚代孕协调服务。从诊所对接到孕期跟进，提供中英双语支持。','Surrogacy coordination in Georgia, with Chinese and English support from clinic arrangements through pregnancy follow-up.')}</p>
+     <h1 className="hero-rise">{t('格鲁吉亚代孕服务协调','Surrogacy coordination in Georgia')}</h1>
+     <p className="hero-rise delay-1">{t('中英双语支持，协助对接诊所、查阅供者资料，持续跟进孕期进度。','Support in Chinese and English, with clinic coordination, authorised access to donor profiles, and ongoing pregnancy updates.')}</p>
      <div className="hero-actions hero-rise delay-2"><a href="#contact" className="primary-link">{t('预约咨询','Book a consultation')}<ArrowRight size={17}/></a></div>
      <small className="hero-rise delay-3">{t('具体服务须经个别法律与医疗评估，不承诺结果。','Services require individual legal and clinical assessment. Outcomes are not guaranteed.')}</small>
+    </div>
+    <figure className="family-hero-photo"><img src="/nesta-family.webp" width="1448" height="1086" fetchPriority="high" alt={t('父母轻抱婴儿的家庭主题配图','Family illustration: parents gently holding their baby')}/></figure>
     </div>
    </section>
    <section id="care" className="service-strip">{[[ShieldCheck,t('私密的服务空间','A private care space'),t('身份验证后建立代孕协调档案；阶段与负责人按人、按案件可见。','Create your surrogacy-coordination profile after sign-in. Stages and a named coordinator stay visible by person and case.')],[FileHeart,t('可追溯的报告','Traceable reports'),t('原件与复核译稿按权限交付；来源、日期、版本与复核状态完整记录。','Originals and reviewed translations shared privately — source, date, version and review status recorded together.')],[MessagesSquare,t('持续的双语沟通','Ongoing bilingual support'),t('专属协调员跟进代孕行程中的问题，让下一步更明确。','A named coordinator follows questions through your surrogacy journey so next steps stay clear.')]].map(([Icon,title,description],i)=>{const I=Icon as typeof ShieldCheck;return <article key={i}><span className="service-index">0{i+1}</span><I size={22} strokeWidth={1.5}/><h3>{title as string}</h3><p>{description as string}</p></article>})}</section>
@@ -68,14 +69,14 @@ export default function Home(){
        priceZh:'¥520,000',
        priceEn:'$72,000',
        desc:t('在基础上增加约定枚数的 PGS 检测，并按合同安排可移植胚胎的移植（在可用胚胎与方案规则内），仍不含 30 天月子与住宿。','Adds an agreed number of PGS tests and contracted transfers of transferable embryos within available embryos and plan rules — still without 30-day postpartum care or lodging.'),
-       points:[t('含 6 枚 PGS（超出 $500/枚）','Includes 6 PGS tests ($500/embryo after)'),t('可移植胚胎的约定移植安排','Contracted transfers of transferable embryos'),t('不是「包活产」；胚胎用尽规则写进合同','Not a live-birth guarantee; embryo-exhaust rules in contract')]
+       points:[t('含 6 枚 PGS（超出 $500/枚）','Includes 6 PGS tests ($500/embryo after)'),t('可移植胚胎的约定移植安排','Contracted transfers of transferable embryos'),t('首次移植未成功，可在剩余可移植胚胎内、按合同约定次数继续移植；不是包活产，胚胎用尽后的重启方式写进合同','If the first transfer does not succeed, further transfers may continue within remaining transferable embryos and the contracted transfer count; not a live-birth guarantee — restart rules after embryos are exhausted go in the contract')]
      },{
        tag:t('高级','Advanced'),
        title:t('高级套餐','Advanced package'),
        priceZh:'¥600,000',
        priceEn:'$84,000',
        desc:t('含中级全部内容，并打包约 30 天月子中心与住宿，减少落地后的零散开支与协调成本。','Includes everything in Mid, plus about 30 days of postpartum centre care and lodging — fewer ad-hoc costs after arrival.'),
-       points:[t('中级全部权益','All Mid benefits'),t('约 30 天月子中心','About 30 days postpartum centre'),t('约 30 天住宿安排','About 30 days lodging')]
+       points:[t('与中级医疗规则相同，增加月子与住宿','Same medical rules as Mid; adds postpartum care and lodging'),t('约 30 天月子中心','About 30 days postpartum centre'),t('约 30 天住宿安排','About 30 days lodging')]
      }].map((pkg,i)=> <article key={i} className={i===1?'is-featured':undefined}>
       <span className="pkg-tag">{pkg.tag}</span>
       <h3>{pkg.title}</h3>
@@ -96,7 +97,7 @@ export default function Home(){
       {t('下载套餐说明','Download package sheet')}<Download size={16}/>
      </a>
     </aside>
-    <p className="packages-note">{t('供卵另计 $5,000、供精另计 $5,000（可写入报价）；机票签证、国内体检、超出 PGS 枚数等通常另计；双胎/剖宫/NICU 见下方参考区间。中级「可移植胚胎安排」指合同约定范围内的移植协调，不保证活产。','Egg donation +$5,000 and sperm donation +$5,000, quoted separately. Airfare, visas, domestic exams, and extra PGS embryos are usually extra; twin/C-section/NICU ranges are listed below. Mid “transferable-embryo transfers” means coordination within the contract — not a live-birth guarantee.')}</p>
+    <p className="packages-note">{t('供卵另计 $5,000、供精另计 $5,000（可写入报价）；机票签证、国内体检、超出 PGS 枚数等通常另计；双胎/剖宫/NICU 见下方参考区间。中级：首次移植未成功，可在剩余可移植胚胎内、按合同约定次数继续移植；不是包活产。高级与中级医疗规则相同，增加月子与住宿。','Egg donation +$5,000 and sperm donation +$5,000, quoted separately. Airfare, visas, domestic exams, and extra PGS embryos are usually extra; twin/C-section/NICU ranges are listed below. Mid: further contracted transfers may continue within remaining transferable embryos after a failed first transfer — not a live-birth guarantee. Advanced matches Mid medical rules and adds postpartum care and lodging.')}</p>
     <div className="packages-detail">
      <div className="packages-detail-block">
       <h3>{t('三档对照','Tier comparison')}</h3>
@@ -129,7 +130,7 @@ export default function Home(){
        <ul>
         <li>{t('中级/高级含 6 枚 PGS；超出按 $500/枚另计。','Mid/Advanced include 6 PGS tests; extras billed at $500 each.')}</li>
         <li>{t('「可移植」指实验室与方案确认可移植的胚胎，在合同规则内安排移植。','“Transferable” means embryos cleared for transfer; transfers follow contract rules.')}</li>
-        <li>{t('不保证着床、活产或性别结果；胚胎用尽后的重启方式写进合同。','No guarantee of implantation, live birth, or sex selection; restart rules go in the contract.')}</li>
+        <li>{t('首次移植未成功，可在剩余可移植胚胎内、按合同约定次数继续移植；不是包活产，胚胎用尽后的重启方式写进合同。仍不保证着床、活产或性别结果。','If the first transfer does not succeed, further transfers may continue within remaining transferable embryos and the contracted transfer count; not a live-birth guarantee — restart rules after embryos are exhausted go in the contract. Implantation, live birth, and sex selection are still not guaranteed.')}</li>
        </ul>
       </div>
       <div className="packages-detail-block">
