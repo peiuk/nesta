@@ -4,39 +4,128 @@
 <meta charset="utf-8"/>
 <title>初禾 FIRSTLEAF · 套餐说明 2026-09-13</title>
 <style>
-  @page { size: A4; margin: 12mm 14mm 14mm; }
+  @page { size: A4; margin: 9mm 11mm 10mm; }
   * { box-sizing: border-box; }
-  body { font-family: "Noto Sans CJK SC", "Source Han Sans SC", "Microsoft YaHei", "PingFang SC", sans-serif; color: #1a1f1c; font-size: 10.5px; line-height: 1.48; margin: 0; }
-  header { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 2px solid #284e3c; }
-  h1 { font-size: 17px; color: #284e3c; margin: 0; font-weight: 650; letter-spacing: .02em; }
-  .sub { color: #5a655e; font-size: 10px; margin-top: 3px; }
-  .brand-mark { font-size: 10px; color: #284e3c; background: #e7efe4; padding: 4px 10px; border-radius: 999px; white-space: nowrap; }
-  h2 { font-size: 12px; color: #284e3c; margin: 11px 0 5px; padding: 0 0 3px 8px; border-left: 3px solid #284e3c; border-bottom: 1px solid #d7e0d4; }
-  table { width: 100%; border-collapse: collapse; margin: 4px 0 6px; }
+  body {
+    font-family: "Noto Sans CJK SC", "Source Han Sans SC", "Microsoft YaHei", "PingFang SC", sans-serif;
+    color: #1a1f1c; font-size: 10.2px; line-height: 1.42; margin: 0;
+    background: #f6f8f4;
+  }
+  .sheet { background: #fff; }
+  .hero {
+    display: grid; grid-template-columns: 1.15fr .85fr; gap: 0;
+    height: 168px; border-radius: 14px; overflow: hidden; margin-bottom: 10px;
+    box-shadow: 0 8px 22px rgba(40,78,60,.12);
+  }
+  .hero-pane { position: relative; overflow: hidden; }
+  .hero-pane img {
+    width: 100%; height: 100%; object-fit: cover; display: block;
+  }
+  .hero-pane.maternity img { object-position: center 30%; filter: saturate(.95) brightness(.9); }
+  .hero-pane.baby img { object-position: center 35%; filter: saturate(.92) brightness(.98); }
+  .hero-veil {
+    position: absolute; inset: 0;
+    background: linear-gradient(180deg, rgba(20,40,30,.15), rgba(20,40,30,.72));
+  }
+  .hero-pane.maternity .hero-veil {
+    background: linear-gradient(100deg, rgba(20,40,30,.82) 8%, rgba(20,40,30,.35) 70%, rgba(20,40,30,.15));
+  }
+  .hero-title {
+    position: absolute; left: 16px; right: 14px; bottom: 14px; color: #f4f7f1; z-index: 1;
+  }
+  .hero-title h1 { margin: 0; font-size: 17px; font-weight: 700; letter-spacing: .02em; text-shadow: 0 1px 8px rgba(0,0,0,.25); }
+  .hero-title .sub { margin-top: 4px; font-size: 9.5px; opacity: .92; }
+  .hero-badge {
+    position: absolute; top: 12px; right: 12px; z-index: 1;
+    font-size: 9.5px; font-weight: 700; color: #284e3c; background: rgba(244,247,241,.94);
+    padding: 5px 10px; border-radius: 999px;
+  }
+  .hero-caption {
+    position: absolute; left: 12px; bottom: 12px; z-index: 1;
+    color: #f4f7f1; font-size: 10px; font-weight: 600; letter-spacing: .04em;
+    text-shadow: 0 1px 6px rgba(0,0,0,.35);
+  }
+  h2 {
+    font-size: 11.5px; color: #284e3c; margin: 10px 0 5px; padding: 0 0 3px 0;
+    display: flex; align-items: center; gap: 7px; border-bottom: 1px solid #d7e0d4;
+  }
+  h2 .ico {
+    width: 18px; height: 18px; border-radius: 6px; background: #e7efe4;
+    display: inline-grid; place-items: center; flex-shrink: 0;
+  }
+  h2 .ico svg { width: 11px; height: 11px; }
+  table { width: 100%; border-collapse: separate; border-spacing: 0; margin: 4px 0 6px; border-radius: 10px; overflow: hidden; }
   th, td { border: 1px solid #cfd8c9; padding: 5px 7px; text-align: left; vertical-align: top; }
-  th { background: #eef3ea; font-weight: 600; color: #284e3c; }
+  th { background: linear-gradient(180deg, #eef3ea, #e4edde); font-weight: 700; color: #284e3c; }
+  tbody tr:nth-child(even) td { background: #f7faf5; }
   td:nth-child(2) { white-space: nowrap; }
   ul { margin: 3px 0 6px; padding-left: 17px; }
   li { margin: 1.5px 0; }
-  .note { color: #5a655e; font-size: 9.5px; margin: 2px 0 0; }
-  .fx { color: #5a655e; font-size: 9.5px; }
-  .foot { margin-top: 10px; font-size: 9px; color: #5a655e; border-top: 1px solid #cfd8c9; padding-top: 7px; }
-  .foot p { margin: 0 0 4px; }
-  .tag { display: inline-block; background: #e7efe4; color: #284e3c; font-size: 9px; padding: 1px 6px; border-radius: 999px; margin-left: 4px; vertical-align: middle; }
-  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 18px; }
+  .note { color: #5a655e; font-size: 9.2px; margin: 2px 0 0; }
+  .fx { color: #5a655e; font-size: 9.2px; }
+  .tag {
+    display: inline-block; background: #e7efe4; color: #284e3c; font-size: 9px;
+    padding: 1px 6px; border-radius: 999px; margin-left: 4px; vertical-align: middle; font-weight: 700;
+  }
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 14px; }
   .two-col h2 { margin-top: 8px; }
+  .band {
+    margin: 10px 0 8px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+    align-items: stretch;
+  }
+  .band-photo {
+    border-radius: 12px; overflow: hidden; min-height: 132px;
+    border: 1px solid #d7e0d4; box-shadow: 0 6px 16px rgba(40,78,60,.08);
+  }
+  .band-photo img { width: 100%; height: 100%; object-fit: cover; object-position: center 40%; display: block; }
+  .band-card {
+    border-radius: 12px; padding: 12px 14px;
+    background: linear-gradient(145deg, #eaf1e6, #f7faf5);
+    border: 1px solid #d2ddcb;
+    display: flex; flex-direction: column; justify-content: center; gap: 6px;
+  }
+  .band-card strong { color: #284e3c; font-size: 12px; }
+  .band-card p { margin: 0; color: #4d5a52; font-size: 9.6px; line-height: 1.5; }
+  .gallery {
+    display: grid; grid-template-columns: 1.2fr .9fr .9fr; gap: 8px; margin: 8px 0 4px;
+  }
+  .gallery figure {
+    margin: 0; border-radius: 11px; overflow: hidden; height: 88px;
+    border: 1px solid #d7e0d4; position: relative;
+  }
+  .gallery img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .gallery figcaption {
+    position: absolute; left: 0; right: 0; bottom: 0; padding: 5px 8px;
+    font-size: 8.5px; color: #f4f7f1; background: linear-gradient(transparent, rgba(20,40,30,.7));
+  }
+  .foot {
+    margin-top: 8px; font-size: 8.7px; color: #5a655e;
+    border-top: 1px solid #cfd8c9; padding-top: 7px;
+  }
+  .foot p { margin: 0 0 4px; }
+  .credit { font-size: 7.4px; color: #8a948c; margin-top: 2px; }
+  .page-break { break-before: page; page-break-before: always; padding-top: 2px; }
 </style>
 </head>
 <body>
-  <header>
-    <div>
-      <h1>初禾 FIRSTLEAF · 套餐说明（咨询用）</h1>
-      <div class="sub">格鲁吉亚代孕协调 · 公开参考起价 · 中文版 · 版本 2026-09-13</div>
+<div class="sheet">
+  <section class="hero" aria-label="封面">
+    <div class="hero-pane maternity">
+      <img src="pdf-assets/maternity-forest.jpg" alt=""/>
+      <div class="hero-veil"></div>
+      <div class="hero-title">
+        <h1>初禾 FIRSTLEAF · 套餐说明（咨询用）</h1>
+        <div class="sub">格鲁吉亚代孕协调 · 公开参考起价 · 中文版 · 版本 2026-09-13</div>
+      </div>
     </div>
-    <div class="brand-mark">一页带走</div>
-  </header>
+    <div class="hero-pane baby">
+      <img src="pdf-assets/baby-hands.jpg" alt=""/>
+      <div class="hero-veil"></div>
+      <div class="hero-badge">一页带走</div>
+    </div>
+  </section>
 
-  <h2>一、三档套餐</h2>
+  <h2><span class="ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M4 7h16v12H4z" stroke="#284e3c" stroke-width="2"/><path d="M8 7V5h8v2" stroke="#284e3c" stroke-width="2"/></svg></span>一、三档套餐</h2>
   <table>
     <thead><tr><th>档位</th><th>起价</th><th>包含要点</th></tr></thead>
     <tbody>
@@ -48,7 +137,7 @@
 
   <div class="two-col">
     <div>
-      <h2>二、检测与加项</h2>
+      <h2><span class="ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M12 3l2.2 4.5L19 8.2l-3.5 3.4.8 4.9L12 14.8 7.7 16.5l.8-4.9L5 8.2l4.8-.7L12 3z" stroke="#284e3c" stroke-width="1.6" fill="#cfe0c8"/></svg></span>二、检测与加项</h2>
       <ul>
         <li>中级/高级含 <strong>6 枚 PGS</strong>；超出按 <strong>$500 / 枚</strong> 另计</li>
         <li>「可移植胚胎安排」指合同约定范围内的移植协调，<strong>不保证</strong>着床、活产或性别结果</li>
@@ -56,7 +145,7 @@
       </ul>
     </div>
     <div>
-      <h2>三、通常不含</h2>
+      <h2><span class="ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8" stroke="#284e3c" stroke-width="2"/><path d="M8 12h8M12 8v8" stroke="#284e3c" stroke-width="2"/></svg></span>三、通常不含</h2>
       <ul>
         <li>国际机票、签证与个人旅游消费</li>
         <li>国内体检及个人原因的重复检查</li>
@@ -66,7 +155,26 @@
     </div>
   </div>
 
-  <h2>四、常见加价参考（发生时）</h2>
+  <div class="band">
+    <div class="band-photo"><img src="pdf-assets/newborn-soft.jpg" alt=""/></div>
+    <div class="band-photo"><img src="pdf-assets/baby-sleep.jpg" alt=""/></div>
+  </div>
+
+  <div class="page-break"></div>
+
+  <div class="gallery" aria-label="氛围图">
+    <figure>
+      <img src="pdf-assets/baby-sleep.jpg" alt=""/>
+    </figure>
+    <figure>
+      <img src="pdf-assets/parent-child.jpg" alt=""/>
+    </figure>
+    <figure>
+      <img src="pdf-assets/maternity-forest.jpg" alt=""/>
+    </figure>
+  </div>
+
+  <h2><span class="ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M4 18V6h3l2 4 2-4h3v12h-3v-7l-2 3-2-3v7H4z" fill="#284e3c"/></svg></span>四、常见加价参考（发生时）</h2>
   <ul>
     <li>双胎 / 多胎补偿：约 <strong>$4,000–$6,000</strong></li>
     <li>剖宫产相关：约 <strong>$2,000–$4,000</strong></li>
@@ -74,7 +182,7 @@
   </ul>
   <p class="note">常见参考区间，因医院与周数差异大；是否发生、最终金额以医院账单与书面确认为准。</p>
 
-  <h2>五、付款节点示意（中级 $72,000）</h2>
+  <h2><span class="ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M5 6h14v12H5z" stroke="#284e3c" stroke-width="2"/><path d="M8 10h8M8 14h5" stroke="#284e3c" stroke-width="2"/></svg></span>五、付款节点示意（中级 $72,000）</h2>
   <table>
     <thead><tr><th>节点</th><th>金额</th><th>约占比</th></tr></thead>
     <tbody>
@@ -90,6 +198,8 @@
   <div class="foot">
     <p><strong>价格供参考，以签约合同为准。</strong> 版本 2026-09-13。网站标价不构成要约；是否含税、发票与当地费用以书面报价和签约合同为准。人民币「约」金额随汇率浮动，仅供参考。</p>
     <p>初禾提供格鲁吉亚代孕相关协调，不是医疗机构或律师事务所。本页信息不构成医疗/法律意见。</p>
+    <p class="credit">配图：Unsplash（可商用）· 氛围图，不代表个案结果，不暗示包成功</p>
   </div>
+</div>
 </body>
 </html>
