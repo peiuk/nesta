@@ -12,6 +12,10 @@ declare namespace Cloudflare {
     SESSION_SECRET?: string;
     RESEND_API_KEY?: string;
     EMAIL_FROM?: string;
+    GOOGLE_CLIENT_ID?: string;
+    GOOGLE_CLIENT_SECRET?: string;
+    GMAIL_REFRESH_TOKEN?: string;
+    GMAIL_USER?: string;
   }
 }
 

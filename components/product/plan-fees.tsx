@@ -3,6 +3,7 @@ import {useState} from 'react';
 import {Button} from '@/components/ui/button';
 import {api,useResource,ErrorNotice,Empty,Panel,ActionForm,Modal,Field,Choice,formObject,type Data} from './common';
 import {useLocale} from './locale';
+import {defaultMilestones,normalizePaidMilestoneKeys} from '@/lib/case-plans';
 
 const TIER_LABEL:Record<string,[string,string]>={
  basic:['基础','Basic'],
@@ -82,7 +83,7 @@ function PlanForm({caseId,plan,onClose,onDone}:{caseId:string;plan:Data|null;onC
  return <Modal title={plan?t('更新方案','Update plan'):t('写入方案','Add plan')} description={t('客户只读可见。勿填写内部成本或未公开折扣。','Visible read-only to the client. Do not enter internal costs or unreleased discounts.')} onClose={onClose}>
   <ActionForm submitLabel={t('保存方案','Save plan')} onSubmit={async f=>{
    const body=formObject(f);
-   const paidKeys=String(body.paid_keys||'').split(',').map(s=>s.trim()).filter(Boolean);
+   const paidKeys=normalizePaidMilestoneKeys(f.getAll('paid_keys'));
    await api(`cases/${caseId}/plan`,{
     tier:body.tier,
     total_usd:Number(body.total_usd),
@@ -107,7 +108,14 @@ function PlanForm({caseId,plan,onClose,onDone}:{caseId:string;plan:Data|null;onC
    <Choice name="twin_status" label={t('双胎','Twins')} value={String(plan?.twin_status||'none')} options={Object.keys(ADDON_LABEL).map(k=>[k,L(ADDON_LABEL,k,t)] as [string,string])}/>
    <Choice name="csection_status" label={t('剖宫','C-section')} value={String(plan?.csection_status||'none')} options={Object.keys(ADDON_LABEL).map(k=>[k,L(ADDON_LABEL,k,t)] as [string,string])}/>
    <Choice name="nicu_status" label={t('NICU','NICU')} value={String(plan?.nicu_status||'none')} options={Object.keys(ADDON_LABEL).map(k=>[k,L(ADDON_LABEL,k,t)] as [string,string])}/>
-   <Field name="paid_keys" label={t('已付节点 key（逗号分隔，如 contract,cycle）','Paid milestone keys (comma-separated)')} value={((plan?.milestones as Data[])||[]).filter(m=>m.status==='paid').map(m=>String(m.key)).join(',')} />
+   <fieldset className="milestone-picker">
+    <legend>{t('已付款节点','Paid milestones')}</legend>
+    <p>{t('点击选择已经完成付款的节点，可多选。','Select every milestone that has been paid. You can choose more than one.')}</p>
+    <div className="milestone-options">{defaultMilestones(tier==='basic'||tier==='advanced'?tier:'mid').map(m=><label key={m.key}>
+     <input type="checkbox" name="paid_keys" value={m.key} defaultChecked={((plan?.milestones as Data[])||[]).some(saved=>saved.key===m.key&&saved.status==='paid')}/>
+     <span><strong>{t(m.label_zh,m.label_en)}</strong><small>{t('标记为已付','Mark as paid')}</small></span>
+    </label>)}</div>
+   </fieldset>
    <Field name="note" type="textarea" label={t('客户可见备注','Client-visible note')} value={String(plan?.note||'')} max={500}/>
    <Field name="reason" type="textarea" label={t('审计原因','Audit reason')} max={500}/>
   </ActionForm>

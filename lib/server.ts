@@ -6,10 +6,13 @@ import {directoryQuery} from './directory-query';
 import {listDonorPhotos,readDonorPhoto,uploadDonorPhotos,deleteDonorPhoto} from './donor-photos';
 import {emailSignInAvailable} from './auth-options';
 import {readClientHighlights} from './client-highlights';
-import {defaultMilestones,isAddon,isTier,publicPlan,TIER_PGS,TIER_TOTAL} from './case-plans';
+import {defaultMilestones,isAddon,isTier,normalizePaidMilestoneKeys,publicPlan,TIER_PGS,TIER_TOTAL} from './case-plans';
 import {submitEggRequest,decideEggRequest,withdrawEggRequest,listEggRequests,type SelectionStore} from './egg-requests';
 import {canReadReport,canManageCase,canReviewReport,canPublishReport,canUseDirectory,validMutation,validDate,validateUpload} from './policy';
+import {assertPartnerKind,canBindPartner,normalizePartnerId} from './partners';
+import {DOCUMENT_KINDS,assertDocumentKind,assertDocumentStatus,normalizeStatusDate,projectDocument,sortDocuments,documentSeedRows,type DocumentRow} from './documents';
 import {normalizeEmail,emailProfileId,generateOtpCode,hashSecret,verifySecret,parseSessionCookie,sessionCookieValue,clearSessionCookie,OTP_TTL_MS,SESSION_TTL_MS,OTP_MAX_ATTEMPTS,OTP_RESEND_MS} from './email-auth';
+import {sendMail,MailError} from './mail';
 export type Profile={id:string;email:string;name:string;role:string;status:string;language:string;jurisdiction:string;interest:string;registered_at:string|null;created_at:string};
 export type AuthContext={profile:Profile;sign_in:'chatgpt'|'email'};
 export type Row=Record<string,any>;
@@ -24,7 +27,18 @@ export const statement=(sql:string,...p:any[])=>db().prepare(sql).bind(...p);
 const selectionStore:SelectionStore={first:one,all,batch:async items=>(await db().batch(items.map(s=>statement(s.sql,...s.params)))).map(r=>({changes:r.meta.changes||0}))};
 const photoStorage={put:(key:string,bytes:Uint8Array,mime:string)=>env.FILES.put(key,bytes,{httpMetadata:{contentType:mime}}),delete:(key:string)=>env.FILES.delete(key)};
 export function auditStatement(actor:Profile,action:string,target:string,reason:string){return statement('INSERT INTO audit (id,actor_id,action,target,reason,created_at) VALUES (?,?,?,?,?,?)',id(),actor.id,action,target,reason,now())}
-function isOwnerEmail(email:string){return !!env.ADMIN_EMAIL&&email===env.ADMIN_EMAIL.trim().toLowerCase()}
+function documentInserts(caseId:string,ts:string){
+ return documentSeedRows(caseId,ts).map(r=>statement('INSERT OR IGNORE INTO case_documents (case_id,kind,status,status_date,notes,updated_at,updated_by) VALUES (?,?,?,?,?,?,?)',r.case_id,r.kind,r.status,r.status_date,r.notes,r.updated_at,r.updated_by));
+}
+async function caseDocumentsPayload(caseId:string,includeInternal:boolean){
+ let rows=await all<DocumentRow>('SELECT kind,status,status_date,notes,updated_at FROM case_documents WHERE case_id=?',caseId);
+ if(rows.length<DOCUMENT_KINDS.length){
+  await db().batch(documentInserts(caseId,now()));
+  rows=await all<DocumentRow>('SELECT kind,status,status_date,notes,updated_at FROM case_documents WHERE case_id=?',caseId);
+ }
+ return sortDocuments(rows).map(r=>projectDocument(r,includeInternal));
+}
+function isOwnerEmail(email:string){return (env.ADMIN_EMAIL||'').split(',').map(s=>s.trim().toLowerCase()).filter(Boolean).includes(email)}
 function cookieSecure(request:Request){return new URL(request.url).protocol==='https:'}
 function pepper(){const s=env.SESSION_SECRET;if(!s)fail(503,'SERVICE_UNAVAILABLE');return s}
 async function ensureOwner(profile:Profile,email:string){
@@ -76,14 +90,12 @@ export const response=(data:unknown,status=200,extra?:HeadersInit)=>{const heade
 export const stages=['assessment','treatment','transfer','pregnancy','birth','paperwork','paused','loss','closed'];
 
 async function sendOtpEmail(to:string,code:string){
- if(env.RESEND_API_KEY&&env.EMAIL_FROM){
-  const res=await fetch('https://api.resend.com/emails',{method:'POST',headers:{Authorization:`Bearer ${env.RESEND_API_KEY}`,'Content-Type':'application/json'},body:JSON.stringify({from:env.EMAIL_FROM,to:[to],subject:'Firstleaf login code',text:`Your Firstleaf login code is ${code}. It expires in 10 minutes. Private pilot — test data only.`})});
-  if(!res.ok)fail(503,'SERVICE_UNAVAILABLE');
-  return;
+ try{
+  await sendMail(env,{to,subject:'Nesta login code',text:`Your Nesta login code is ${code}. It expires in 10 minutes. Private pilot — test data only.`});
+ }catch(e){
+  if(e instanceof MailError)fail(e.status,e.code);
+  throw e;
  }
- const origin=env.SITE_ORIGIN||'';
- if(origin&&!/localhost|127\.0\.0\.1/.test(origin))fail(503,'SERVICE_UNAVAILABLE');
- console.info('[firstleaf-otp]',to,code);
 }
 
 export async function handleAuth(path:string[],request:Request){
@@ -106,7 +118,7 @@ export async function handleAuth(path:string[],request:Request){
   const ip=(request.headers.get('cf-connecting-ip')||request.headers.get('x-forwarded-for')||'').slice(0,80);
   await statement('INSERT INTO email_otps (email,code_hash,salt,expires_at,attempts,created_at,request_ip) VALUES (?,?,?,?,0,?,?) ON CONFLICT(email) DO UPDATE SET code_hash=excluded.code_hash,salt=excluded.salt,expires_at=excluded.expires_at,attempts=0,created_at=excluded.created_at,request_ip=excluded.request_ip',email,hash,salt,new Date(Date.now()+OTP_TTL_MS).toISOString(),now(),ip).run();
   await sendOtpEmail(email,code);
-  await statement('INSERT INTO audit (id,actor_id,action,target,reason,created_at) VALUES (?,?,?,?,?,?)',id(),'system','auth.email.request',email,'OTP issued').run();
+  await statement('INSERT INTO audit (id,actor_id,action,target,reason,created_at) VALUES (?,?,?,?,?,?)',id(),'system','auth.email.request',email,'OTP issued',now()).run();
   return response({ok:true});
  }
  if(path[0]==='email'&&path[1]==='verify'){
@@ -131,7 +143,7 @@ export async function handleAuth(path:string[],request:Request){
   if(!profile)fail(503,'SERVICE_UNAVAILABLE');
   const sessionId=id();const token=hexToken();const hashed=await hashSecret(token,secret);
   await statement('INSERT INTO auth_sessions (id,user_id,token_hash,salt,expires_at,created_at) VALUES (?,?,?,?,?,?)',sessionId,profile.id,hashed.hash,hashed.salt,new Date(Date.now()+SESSION_TTL_MS).toISOString(),now()).run();
-  await statement('INSERT INTO audit (id,actor_id,action,target,reason,created_at) VALUES (?,?,?,?,?,?)',id(),profile.id,'auth.email.verify',profile.id,'Email OTP verified').run();
+  await statement('INSERT INTO audit (id,actor_id,action,target,reason,created_at) VALUES (?,?,?,?,?,?)',id(),profile.id,'auth.email.verify',profile.id,'Email OTP verified',now()).run();
   return response({ok:true},200,{'Set-Cookie':sessionCookieValue(sessionId,token,secure)});
  }
  fail(404,'NOT_FOUND');
@@ -155,13 +167,23 @@ export async function read(path:string[],auth:AuthContext,request:Request){
  if(path[0]==='egg-requests'&&path.length===1)return response({requests:await listEggRequests(selectionStore,a)});
  if(path.length===1&&path[0]==='admin-operations'){admin(a);return response(await readAdminOperations(a,{one,all}))}
  if(path[0]==='overview'){
-  const cases=await all('SELECT c.*,m.role AS membership_role FROM cases c JOIN case_members m ON m.case_id=c.id WHERE m.user_id=? ORDER BY c.updated_at DESC LIMIT 200',a.id);
+  const casesRaw=await all('SELECT c.*,m.role AS membership_role FROM cases c JOIN case_members m ON m.case_id=c.id WHERE m.user_id=? ORDER BY c.updated_at DESC LIMIT 200',a.id);
+  // Portal overview: never expose partner FK ids.
+  const cases=casesRaw.map(c=>{const{ivf_partner_id,postpartum_partner_id,...safe}=c;return safe});
   const grants=await all('SELECT scope,expires_at,revoked_at FROM directory_grants WHERE user_id=?',a.id);
   return response({cases,grants,...(a.role==='client'?await readClientHighlights(a,{all,one}):{})});
  }
  if(path[0]==='people'){admin(a);return response({people:await all('SELECT * FROM profiles ORDER BY created_at DESC LIMIT 300')})}
  if(path[0]==='audit'){admin(a);return response({audit:await all('SELECT a.*,p.name AS actor_name FROM audit a LEFT JOIN profiles p ON p.id=a.actor_id ORDER BY a.created_at DESC LIMIT 100')})}
  if(path[0]==='grants'){admin(a);return response({grants:await all('SELECT g.*,p.name,p.email FROM directory_grants g JOIN profiles p ON p.id=g.user_id ORDER BY p.name')})}
+ if(path[0]==='partners'&&path.length===1){
+  admin(a);
+  const sp=new URL(request.url).searchParams,clauses:string[]=[],params:any[]=[];
+  const kindRaw=sp.get('kind');if(kindRaw){let kind:string;try{kind=assertPartnerKind(kindRaw)}catch{fail(400,'PARTNER_KIND_INVALID')}clauses.push('kind=?');params.push(kind)}
+  const statusRaw=sp.get('status')||'all';if(statusRaw!=='all'){clauses.push('status=?');params.push(choice(statusRaw,['active','inactive']))}
+  const where=clauses.length?`WHERE ${clauses.join(' AND ')}`:'';
+  return response({partners:await all(`SELECT * FROM partners ${where} ORDER BY name LIMIT 300`,...params)});
+ }
  if(path[0]==='directory'){
   const kind=choice(new URL(request.url).searchParams.get('kind')||'egg',['egg','sperm']);
   if(a.role!=='admin'){const grant=await one('SELECT * FROM directory_grants WHERE user_id=? AND scope=?',a.id,kind);if(!canUseDirectory(a,grant as any,kind))fail(403,'DIRECTORY_LOCKED')}
@@ -176,7 +198,14 @@ export async function read(path:string[],auth:AuthContext,request:Request){
   const members=await all(`SELECT p.id,p.name,m.role,p.status ${role==='client'?'':',p.email'} FROM case_members m JOIN profiles p ON p.id=m.user_id WHERE m.case_id=? ${role==='client'?"AND (m.user_id=? OR m.role='coordinator')":''}`,caseId,...(role==='client'?[a.id]:[]));
   const questions=await all(`SELECT q.*,p.name AS author_name FROM questions q JOIN profiles p ON p.id=q.author_id WHERE q.case_id=? ${role==='client'?'AND q.author_id=?':''} ORDER BY q.created_at DESC LIMIT 100`,caseId,...(role==='client'?[a.id]:[]));
   const events=await all('SELECT e.*,p.name AS author_name FROM events e JOIN profiles p ON p.id=e.created_by WHERE e.case_id=? ORDER BY e.event_date DESC,e.created_at DESC LIMIT 200',caseId);
-  return response({case:c,membership:role,can_manage:canManageCase(a,role),members,reports,events,questions});
+  const manage=canManageCase(a,role);
+  const casePayload=a.role==='admin'?c:(()=>{const{ivf_partner_id,postpartum_partner_id,...safe}=c;return safe})();
+  const payload:Row={case:casePayload,membership:role,can_manage:manage,members,reports,events,questions,documents:await caseDocumentsPayload(caseId,manage)};
+  if(a.role==='admin'){
+   const partnerSummary=async(pid:unknown)=>{if(!pid)return null;const p=await one('SELECT id,name,status FROM partners WHERE id=?',pid);return p?{id:p.id,name:p.name,status:p.status}:null};
+   payload.partners={ivf:await partnerSummary(c.ivf_partner_id),postpartum:await partnerSummary(c.postpartum_partner_id)};
+  }
+  return response(payload);
  }
  if(path[0]==='plans'){
   // Client: plans for cases they belong to. Staff: only via case detail.
@@ -234,6 +263,22 @@ export async function write(path:string[],a:Profile,request:Request){
   admin(a);const b=await json(request),userId=text(b.user_id),scope=choice(b.scope,['egg','sperm']),reason=text(b.reason,500);const person=await one<Profile>('SELECT * FROM profiles WHERE id=?',userId);if(!person)fail(404,'NOT_FOUND');if(b.revoke===true){await db().batch([statement('UPDATE directory_grants SET revoked_at=? WHERE user_id=? AND scope=?',now(),userId,scope),auditStatement(a,'directory.revoke',userId,`${scope}: ${reason}`)]);return response({ok:true})}if(person.status!=='approved')fail(400,'APPROVAL_REQUIRED');const expires=date(b.expires_at)+'T23:59:59.999Z';if(Date.parse(expires)<=Date.now()||Date.parse(expires)>Date.now()+366*86400000)fail(400,'INVALID_DATE');
   await db().batch([statement('INSERT INTO directory_grants (user_id,scope,expires_at,revoked_at,reason,granted_by) VALUES (?,?,?,NULL,?,?) ON CONFLICT(user_id,scope) DO UPDATE SET expires_at=excluded.expires_at,revoked_at=NULL,reason=excluded.reason,granted_by=excluded.granted_by',userId,scope,expires,reason,a.id),auditStatement(a,'directory.grant',userId,`${scope} / ${expires}: ${reason}`)]);return response({ok:true});
  }
+ if(path[0]==='partners'&&path.length===1){
+  admin(a);const b=await json(request);let kind:string;try{kind=assertPartnerKind(text(b.kind))}catch{fail(400,'PARTNER_KIND_INVALID')}
+  const partnerId=id(),name=text(b.name,150),contact=text(b.contact_name||'',80,false),phone=text(b.phone||'',40,false),email=text(b.email||'',120,false),notes=text(b.notes||'',1500,false),ts=now();
+  await db().batch([statement('INSERT INTO partners (id,kind,name,contact_name,phone,email,notes,status,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?)',partnerId,kind,name,contact,phone,email,notes,'active',ts,ts),auditStatement(a,'partner.create',partnerId,name)]);return response({id:partnerId});
+ }
+ if(path[0]==='partners'&&path.length===2){
+  admin(a);const b=await json(request);const partner=await one('SELECT * FROM partners WHERE id=?',path[1]);if(!partner)fail(404,'NOT_FOUND');
+  const name=b.name!==undefined?text(b.name,150):partner.name;
+  const contact=b.contact_name!==undefined?text(b.contact_name||'',80,false):partner.contact_name;
+  const phone=b.phone!==undefined?text(b.phone||'',40,false):partner.phone;
+  const email=b.email!==undefined?text(b.email||'',120,false):partner.email;
+  const notes=b.notes!==undefined?text(b.notes||'',1500,false):partner.notes;
+  const status=b.status!==undefined?choice(b.status,['active','inactive']):partner.status;
+  const reason=text(b.reason,500),ts=now();
+  await db().batch([statement('UPDATE partners SET name=?,contact_name=?,phone=?,email=?,notes=?,status=?,updated_at=? WHERE id=?',name,contact,phone,email,notes,status,ts,path[1]),auditStatement(a,'partner.update',path[1],reason)]);return response({ok:true});
+ }
  if(path[0]==='donors'&&path.length===1){
   admin(a);const b=await json(request),donorId=id(),code=text(b.code,40),kind=choice(b.kind,['egg','sperm']),age=number(b.age,18,65),height=b.height?number(b.height,100,230):null,group=text(b.blood_group||'',20,false),source=text(b.source,150),zh=text(b.summary_zh,1500),en=text(b.summary_en,1500),verified=date(b.verified_at),consent=text(b.consent_ref,250);const exists=await one('SELECT id FROM donors WHERE code=?',code);if(exists)fail(409,'DUPLICATE_CODE');
   await db().batch([statement('INSERT INTO donors (id,code,kind,age,height,blood_group,source,summary_zh,summary_en,verified_at,consent_ref,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)',donorId,code,kind,age,height,group,source,zh,en,verified,consent,now()),auditStatement(a,'donor.create',donorId,consent)]);return response({id:donorId});
@@ -255,10 +300,40 @@ export async function write(path:string[],a:Profile,request:Request){
  }
  if(path[0]==='cases'&&path.length===1){
   admin(a);const b=await json(request),caseId=id(),title=text(b.title,120),customerId=text(b.customer_id),reason=text(b.reason,500);const customer=await one<Profile>('SELECT * FROM profiles WHERE id=?',customerId);if(!customer||customer.role!=='client'||customer.status!=='approved')fail(400,'APPROVAL_REQUIRED');const code=`FL-${new Date().getUTCFullYear()}-${caseId.slice(0,8).toUpperCase()}`,created=now();
-  await db().batch([statement('INSERT INTO cases (id,code,title,created_by,created_at,updated_at) VALUES (?,?,?,?,?,?)',caseId,code,title,a.id,created,created),statement('INSERT INTO case_members (case_id,user_id,role,created_at) VALUES (?,?,?,?)',caseId,customerId,'client',created),statement('INSERT INTO case_members (case_id,user_id,role,created_at) VALUES (?,?,?,?)',caseId,a.id,'coordinator',created),auditStatement(a,'case.create',caseId,reason)]);return response({id:caseId});
+  await db().batch([statement('INSERT INTO cases (id,code,title,created_by,created_at,updated_at) VALUES (?,?,?,?,?,?)',caseId,code,title,a.id,created,created),statement('INSERT INTO case_members (case_id,user_id,role,created_at) VALUES (?,?,?,?)',caseId,customerId,'client',created),statement('INSERT INTO case_members (case_id,user_id,role,created_at) VALUES (?,?,?,?)',caseId,a.id,'coordinator',created),...documentInserts(caseId,created),auditStatement(a,'case.create',caseId,reason)]);return response({id:caseId});
  }
  if(path[0]==='cases'&&path.length===3&&path[2]==='members'){
   admin(a);const b=await json(request),caseId=path[1],userId=text(b.user_id),reason=text(b.reason,500);if(!await one('SELECT id FROM cases WHERE id=?',caseId))fail(404,'NOT_FOUND');if(b.remove===true){await db().batch([statement('DELETE FROM case_members WHERE case_id=? AND user_id=?',caseId,userId),statement('DELETE FROM report_recipients WHERE user_id=? AND report_id IN (SELECT id FROM reports WHERE case_id=?)',userId,caseId),auditStatement(a,'member.remove',caseId,`${userId}: ${reason}`)]);return response({ok:true})}const target=await one<Profile>('SELECT * FROM profiles WHERE id=?',userId);if(!target||target.status!=='approved')fail(400,'APPROVAL_REQUIRED');const role=target.role==='admin'?'coordinator':choice(target.role,['client','coordinator','reviewer']);await db().batch([statement('INSERT INTO case_members (case_id,user_id,role,created_at) VALUES (?,?,?,?) ON CONFLICT(case_id,user_id) DO UPDATE SET role=excluded.role',caseId,userId,role,now()),auditStatement(a,'member.assign',caseId,`${userId}/${role}: ${reason}`)]);return response({ok:true});
+ }
+ if(path[0]==='cases'&&path.length===3&&path[2]==='partners'){
+  admin(a);const b=await json(request),caseId=path[1];
+  const current=await one<{ivf_partner_id:string|null;postpartum_partner_id:string|null}>('SELECT ivf_partner_id,postpartum_partner_id FROM cases WHERE id=?',caseId);
+  if(!current)fail(404,'NOT_FOUND');
+  const reason=text(b.reason,500),sets:string[]=[],params:any[]=[];
+  let finalIvf=current.ivf_partner_id,finalPostpartum=current.postpartum_partner_id;
+  for(const slot of ['ivf','postpartum'] as const){
+   const key=`${slot}_partner_id`;if(!(key in b))continue;
+   const pid=normalizePartnerId(b[key]);
+   const currentId=slot==='ivf'?current.ivf_partner_id:current.postpartum_partner_id;
+   if(pid&&pid!==currentId){const partner=await one<{id:string;kind:string;status:string}>('SELECT id,kind,status FROM partners WHERE id=?',pid);if(!partner)fail(404,'NOT_FOUND');const check=canBindPartner(partner,slot);if(!check.ok)fail(400,check.code)}
+   sets.push(`${key}=?`);params.push(pid);
+   if(slot==='ivf')finalIvf=pid;else finalPostpartum=pid;
+  }
+  if(!sets.length)fail(400,'INVALID_INPUT');
+  const ts=now();sets.push('updated_at=?');params.push(ts,caseId);
+  const auditDetail=`ivf=${finalIvf??'null'}, postpartum=${finalPostpartum??'null'}: ${reason}`;
+  await db().batch([statement(`UPDATE cases SET ${sets.join(',')} WHERE id=?`,...params),auditStatement(a,'case.partners',caseId,auditDetail)]);return response({ok:true});
+ }
+ if(path[0]==='cases'&&path.length===3&&path[2]==='documents'){
+  await manager(a,path[1]);
+  const b=await json(request);
+  let kind:string;try{kind=assertDocumentKind(text(b.kind))}catch{fail(400,'DOCUMENT_KIND_INVALID')}
+  let status:string;try{status=assertDocumentStatus(text(b.status))}catch{fail(400,'DOCUMENT_STATUS_INVALID')}
+  let statusDate:string|null;try{statusDate=normalizeStatusDate(b.status_date)}catch{fail(400,'INVALID_DATE')}
+  const notes=text(b.notes||'',1500,false),reason=text(b.reason,500),ts=now();
+  const existing=await one('SELECT kind FROM case_documents WHERE case_id=? AND kind=?',path[1],kind);if(!existing)fail(404,'NOT_FOUND');
+  await db().batch([statement('UPDATE case_documents SET status=?,status_date=?,notes=?,updated_at=?,updated_by=? WHERE case_id=? AND kind=?',status,statusDate,notes,ts,a.id,path[1],kind),auditStatement(a,'document.update',path[1],`${kind}/${status}/${statusDate??'null'}: ${reason}`)]);
+  return response({ok:true});
  }
  if(path[0]==='cases'&&path.length===3&&path[2]==='plan'){
   await manager(a,path[1]);
@@ -276,7 +351,7 @@ export async function write(path:string[],a:Profile,request:Request){
   const nicu=isAddon(b.nicu_status)?b.nicu_status:'none';
   const note=text(b.note||'',500,false);
   const reason=text(b.reason,500);
-  const paidKeys=Array.isArray(b.paid_keys)?b.paid_keys.map((x:any)=>String(x).slice(0,40)):String(b.paid_keys||'').split(',').map(x=>x.trim()).filter(Boolean);
+  const paidKeys=normalizePaidMilestoneKeys(b.paid_keys);
   const milestones=defaultMilestones(tier,paidKeys);
   // If custom total, rescale milestone amounts to sum to total
   const sum=milestones.reduce((s,m)=>s+m.amount_usd,0)||1;

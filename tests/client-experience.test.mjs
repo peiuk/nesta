@@ -9,6 +9,8 @@ test('email sign in requires sending credentials and a session secret',()=>{
  assert.equal(emailSignInAvailable({}),false);
  assert.equal(emailSignInAvailable({RESEND_API_KEY:'key',EMAIL_FROM:'from'}),false);
  assert.equal(emailSignInAvailable({RESEND_API_KEY:'key',EMAIL_FROM:'from',SESSION_SECRET:'secret'}),true);
+ assert.equal(emailSignInAvailable({GOOGLE_CLIENT_ID:'id',GOOGLE_CLIENT_SECRET:'sec',GMAIL_REFRESH_TOKEN:'rt',GMAIL_USER:'a@b.c',SESSION_SECRET:'secret'}),true);
+ assert.equal(emailSignInAvailable({GOOGLE_CLIENT_ID:'id',GOOGLE_CLIENT_SECRET:'sec',GMAIL_REFRESH_TOKEN:'rt',GMAIL_USER:'a@b.c'}),false);
 });
 test('customer homepage only returns own published recipient reports and upcoming assigned appointments',async()=>{
  const db=new DatabaseSync(':memory:');

@@ -1,1 +1,5 @@
-export function emailSignInAvailable(env:{RESEND_API_KEY?:string;EMAIL_FROM?:string;SESSION_SECRET?:string}){return Boolean(env.RESEND_API_KEY?.trim()&&env.EMAIL_FROM?.trim()&&env.SESSION_SECRET?.trim())}
+import {gmailConfigured,resendConfigured,type MailEnv} from './mail.ts';
+
+export function emailSignInAvailable(env:MailEnv&{SESSION_SECRET?:string}){
+ return Boolean(env.SESSION_SECRET?.trim()&&(gmailConfigured(env)||resendConfigured(env)))
+}

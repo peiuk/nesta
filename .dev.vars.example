@@ -1,0 +1,18 @@
+# Local secrets — copy to .dev.vars (gitignored). Never commit real keys.
+
+# Prefer Gmail OAuth send (Gmail API + refresh token). See docs/gmail-oauth-setup.md
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+GMAIL_REFRESH_TOKEN=
+# Authorized mailbox (must match the Google account that granted gmail.send)
+GMAIL_USER=
+# From display used by Resend, and fallback From if GMAIL_USER empty
+# e.g. Nesta <you@gmail.com> or Nesta <noreply@yourdomain.com>
+EMAIL_FROM=Nesta <onboarding@resend.dev>
+
+# Resend fallback when Gmail OAuth env is incomplete
+RESEND_API_KEY=
+
+SESSION_SECRET=
+ADMIN_EMAIL=
+SITE_ORIGIN=http://localhost:5173

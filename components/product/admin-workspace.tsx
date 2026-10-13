@@ -1,7 +1,7 @@
 'use client';
 
 import {useEffect,useState} from 'react';
-import {ArrowRight,Building2,CalendarDays,CheckCheck,FileCheck2,FolderOpen,LayoutDashboard,Leaf,LogOut,MessageSquare,RefreshCw,ShieldCheck,Users} from 'lucide-react';
+import {ArrowRight,Building2,CalendarDays,CheckCheck,FileCheck2,FolderOpen,LayoutDashboard,Leaf,LogOut,MessageSquare,RefreshCw,ShieldCheck,Users,X} from 'lucide-react';
 import {Button} from '@/components/ui/button';
 import {Input} from '@/components/ui/input';
 import {Select,SelectContent,SelectItem,SelectTrigger,SelectValue} from '@/components/ui/select';
@@ -29,6 +29,22 @@ const sections=[
 type View=typeof sections[number]['id'];
 type Route={view:View;caseId?:string};
 const rows=(data:Data,key:string)=>(data[key]||[]) as Data[];
+const navigationGroups=[
+ {zh:'日常工作',en:'Daily work',views:['overview','people','cases','reports','questions']},
+ {zh:'资料与匹配',en:'Directory & matching',views:['directory','partners','egg-requests']},
+ {zh:'权限与记录',en:'Access & records',views:['grants','audit']},
+];
+const descriptions:Partial<Record<View,[string,string]>>={
+ overview:['集中处理审批、报告和客户跟进。','Approvals, reports and client follow-ups in one place.'],
+ people:['审核客户档案，管理团队角色与账户状态。','Review client profiles, team roles and account status.'],
+ cases:['查看服务阶段，跟进预约与案件进度。','Track service stages, appointments and case progress.'],
+ reports:['查看你参与案件的报告，跟进复核与发布。','Review and publish reports from your assigned cases.'],
+ directory:['维护供者档案、照片与可申请状态。','Manage donor records, photos and availability.'],
+ 'egg-requests':['查看客户选择，审核并跟进申请。','Review client selections and follow up on requests.'],
+ grants:['管理客户的资料库权限与有效期。','Manage directory permissions and expiry dates.'],
+ questions:['回复你参与案件中的客户留言。','Reply to messages from your assigned cases.'],
+ audit:['追溯账户、授权与资料变更。','Trace changes to accounts, access and records.'],
+};
 
 export function AdminPortal({signInHref}:{signInHref:string}){
  const {t}=useLocale();const {data,error,loading}=useResource('me');
@@ -62,14 +78,14 @@ function AdminWorkspace({profile,signIn}:{profile:Data;signIn:string}){
  const section=sections.find(s=>s.id===route.view)!;
  const data=operations.data||{};
  return <SidebarProvider className="admin-workspace">
+  <a className="admin-skip-link" href="#admin-main" onClick={e=>{e.preventDefault();document.getElementById('admin-main')?.focus()}}>{t('跳至主要内容','Skip to main content')}</a>
   <AdminNavigation profile={profile} view={route.view} go={go} counts={data.counts||{}}/>
   <SidebarInset className="admin-inset">
-   <header className="admin-topbar"><div className="row-actions"><SidebarTrigger aria-label={t('展开或收起菜单','Toggle navigation')}/><span className="admin-breadcrumb">{t('管理后台','Administration')}<span>/</span><strong>{t(section.zh,section.en)}</strong></span></div><div className="row-actions"><LanguageButton/><Button variant="ghost" size="sm" onClick={signOut}><LogOut size={16}/>{t('退出','Sign out')}</Button></div></header>
-   <main id="admin-main" className="admin-main">
+   <header className="admin-topbar"><div className="admin-topbar-start"><SidebarTrigger aria-label={t('展开或收起菜单','Toggle navigation')}/><span className="admin-breadcrumb"><span className="admin-breadcrumb-root">{t('管理后台','Administration')}<span aria-hidden="true">/</span></span><strong>{t(section.zh,section.en)}</strong></span></div><div className="admin-topbar-actions"><LanguageButton/><Button variant="ghost" size="sm" onClick={signOut} aria-label={t('退出登录','Sign out')}><LogOut size={16}/><span className="admin-signout-label">{t('退出','Sign out')}</span></Button></div></header>
+   <main id="admin-main" className="admin-main" tabIndex={-1}>
     <ErrorNotice code={signOutError}/>
-    <div className="admin-pilot"><ShieldCheck size={16}/>{t('私密试用 · 仅使用测试资料','Private pilot · Test data only')}</div>
     {route.caseId?<CaseDetail key={route.caseId} caseId={route.caseId} profile={profile} back={()=>go('cases')}/>:<>
-     <div className="page-title"><div><h1>{t(section.zh,section.en)}</h1><p>{route.view==='overview'?t('今天需要处理的客户、案件与随访。','Clients, cases and follow-ups that need your attention.'):route.view==='reports'||route.view==='questions'?t('仅显示你已参与案件中的资料。','Records from your assigned cases only.'):t('初禾服务管理','Firstleaf care operations')}</p></div><Button variant="outline" size="sm" onClick={refresh} disabled={operations.loading}><RefreshCw size={15}/>{t('刷新','Refresh')}</Button></div>
+     <div className="page-title"><div><h1>{t(section.zh,section.en)}</h1><p>{t(...(descriptions[route.view]||['奈斯服务管理','Nesta care operations']))}</p></div><Button className="admin-refresh" variant="outline" size="sm" onClick={refresh} disabled={operations.loading}><RefreshCw size={15} className={operations.loading?'animate-spin':undefined}/>{t('刷新','Refresh')}</Button></div>
      {['overview','reports','questions'].includes(route.view)&&<>
       {operations.loading?<div className="loading" role="status">{t('正在载入工作记录…','Loading work records…')}</div>:operations.error?<ErrorNotice code={operations.error}/>:<>
        {route.view==='overview'&&<Dashboard data={data} go={go} openCase={openCase} refresh={refresh}/>}
@@ -91,14 +107,14 @@ function AdminWorkspace({profile,signIn}:{profile:Data;signIn:string}){
 }
 
 function AdminNavigation({profile,view,go,counts}:{profile:Data;view:View;go:(v:View)=>void;counts:Data}){
- const {t}=useLocale();const {setOpenMobile}=useSidebar();
+ const {t}=useLocale();const {setOpenMobile,isMobile}=useSidebar();
  const badges:Partial<Record<View,number>>={people:Number(counts.pending_profiles||0),reports:Number(counts.ready_reports||0),questions:Number(counts.unanswered||0),'egg-requests':Number(counts.pending_egg_requests||0)};
  return <Sidebar className="admin-sidebar">
-  <SidebarHeader className="admin-brand"><Brand/><span>{t('服务管理中心','CARE OPERATIONS')}</span></SidebarHeader>
-  <SidebarContent><SidebarGroup><SidebarGroupLabel>{t('日常工作','WORKSPACE')}</SidebarGroupLabel><SidebarMenu>
-   {sections.map(s=><SidebarMenuItem key={s.id}><SidebarMenuButton isActive={view===s.id} className="admin-nav-button" onClick={()=>{go(s.id);setOpenMobile(false)}} aria-current={view===s.id?'page':undefined}><s.icon/><span>{t(s.zh,s.en)}</span>{Boolean(badges[s.id])&&<span className="admin-nav-count">{badges[s.id]}</span>}</SidebarMenuButton></SidebarMenuItem>)}
-  </SidebarMenu></SidebarGroup></SidebarContent>
-  <SidebarFooter className="admin-sidebar-footer"><a href="/portal" className="quiet-link">{t('进入服务空间','Open care space')}<ArrowRight size={15}/></a><div className="admin-identity"><span className="admin-avatar">{String(profile.name||'A').slice(0,1).toUpperCase()}</span><div><strong>{t('管理员','Administrator')}</strong><span>{String(profile.email)}</span></div></div></SidebarFooter>
+  <SidebarHeader className="admin-brand"><Brand/><span>{t('服务管理中心','CARE OPERATIONS')}</span>{isMobile&&<Button className="admin-menu-close" size="icon" variant="ghost" onClick={()=>setOpenMobile(false)} aria-label={t('关闭菜单','Close navigation')}><X size={20}/></Button>}</SidebarHeader>
+  <SidebarContent className="admin-nav-content"><nav aria-label={t('后台导航','Administration navigation')}>{navigationGroups.map(group=><SidebarGroup key={group.en}><SidebarGroupLabel>{t(group.zh,group.en)}</SidebarGroupLabel><SidebarMenu>
+   {sections.filter(s=>group.views.includes(s.id)).map(s=><SidebarMenuItem key={s.id}><SidebarMenuButton isActive={view===s.id} className="admin-nav-button" onClick={()=>{go(s.id);setOpenMobile(false)}} aria-current={view===s.id?'page':undefined}><s.icon/><span>{t(s.zh,s.en)}</span>{Boolean(badges[s.id])&&<span className="admin-nav-count">{badges[s.id]}</span>}</SidebarMenuButton></SidebarMenuItem>)}
+  </SidebarMenu></SidebarGroup>)}</nav></SidebarContent>
+  <SidebarFooter className="admin-sidebar-footer"><a href="/portal" className="quiet-link">{t('进入服务空间','Open care space')}<ArrowRight size={15}/></a><div className="admin-identity"><span className="admin-avatar">{String(profile.name||'A').slice(0,1).toUpperCase()}</span><div><strong>{t('管理员','Administrator')}</strong><span>{String(profile.email)}</span></div></div><div className="admin-pilot"><ShieldCheck size={14}/><span>{t('私密试用 · 仅使用测试资料','Private pilot · Test data only')}</span></div></SidebarFooter>
  </Sidebar>;
 }
 
@@ -106,12 +122,14 @@ function Dashboard({data,go,openCase,refresh}:{data:Data;go:(v:View)=>void;openC
  const {t}=useLocale();const label=useLabels();const counts=data.counts||{};
  const metrics=[
   {title:t('待审批客户','Awaiting approval'),value:counts.pending_profiles,to:'people' as View,icon:Users,note:t('已提交基本档案','Submitted profiles')},
+  {title:t('待审批选卵','Egg requests'),value:counts.pending_egg_requests,to:'egg-requests' as View,icon:Leaf,note:t('客户已提交选择','Submitted selections')},
   {title:t('进行中案件','Open cases'),value:counts.active_cases,to:'cases' as View,icon:FolderOpen,note:t('未归档的服务案件','Cases not archived')},
   {title:t('待发布报告','Reports to publish'),value:counts.ready_reports,to:'reports' as View,icon:FileCheck2,note:t('已完成独立复核','Independent review complete')},
   {title:t('待回复留言','Unanswered messages'),value:counts.unanswered,to:'questions' as View,icon:MessageSquare,note:t('你参与的案件','Your assigned cases')},
  ];
  return <>
-  <div className="admin-metrics">{metrics.map(m=><button key={m.to} className="admin-metric" onClick={()=>go(m.to)}><span><m.icon size={19}/>{m.title}<ArrowRight size={16}/></span><strong>{Number(m.value||0)}</strong><small>{m.note}</small></button>)}</div>
+  <div className="admin-metrics">{metrics.map(m=><button key={m.to} className="admin-metric" data-attention={m.to!=='cases'&&Number(m.value||0)>0} onClick={()=>go(m.to)}><span><span className="admin-metric-icon"><m.icon size={18}/></span>{m.title}<ArrowRight size={15}/></span><strong>{Number(m.value||0)}</strong><small>{m.note}</small></button>)}</div>
+  <div className="admin-taskbar"><span>{t('快捷操作','Quick actions')}</span><div className="row-actions"><NewCase refresh={refresh}/><Button variant="outline" onClick={()=>go('cases')}><FileCheck2 size={16}/>{t('上传报告','Upload report')}</Button><Button variant="outline" onClick={()=>go('directory')}><Leaf size={16}/>{t('供者资料','Donor records')}</Button><Button variant="outline" onClick={()=>go('grants')}><ShieldCheck size={16}/>{t('客户授权','Client access')}</Button></div></div>
   <div className="admin-dashboard-grid"><div>
    <Panel title={t('客户待审批','Client approvals')} action={<Button variant="ghost" size="sm" onClick={()=>go('people')}>{t('查看全部','View all')}<ArrowRight size={15}/></Button>}>
     {rows(data,'pending').length?rows(data,'pending').map(p=><div className="admin-list-row" key={String(p.id)}><div><h3>{String(p.name)}</h3><p>{String(p.email)}</p><small>{String(p.created_at).slice(0,10)}</small></div><PersonForm person={p} refresh={refresh}/></div>):<Empty title={t('暂无待审批档案','No profiles awaiting approval')}>{t('客户完成注册并提交档案后，会出现在这里。','Clients appear here after submitting their registration profile.')}</Empty>}
@@ -124,7 +142,6 @@ function Dashboard({data,go,openCase,refresh}:{data:Data;go:(v:View)=>void;openC
     {rows(data,'activity').length?rows(data,'activity').map(a=><div className="admin-activity" key={String(a.id)}><CheckCheck size={16}/><div><strong>{String(a.actor_name||t('系统','System'))}</strong><p>{String(a.action)}</p></div><time>{String(a.created_at).slice(0,16).replace('T',' ')}</time></div>):<p>{t('操作完成后，记录会显示在这里。','Completed actions will appear here.')}</p>}
    </Panel>
   </div><div>
-   <Panel title={t('开始处理','Start a task')}><div className="admin-quick-actions"><NewCase refresh={refresh}/><Button variant="outline" onClick={()=>go('egg-requests')}>{t('待审批选卵申请','Egg requests to review')} · {Number(counts.pending_egg_requests||0)}</Button><Button variant="outline" onClick={()=>go('directory')}>{t('维护供者资料','Manage donor profiles')}</Button><Button variant="outline" onClick={()=>go('grants')}>{t('管理客户授权','Manage client access')}</Button></div></Panel>
    <Panel title={t('未来 7 天预约','Appointments · next 7 days')}>
     {rows(data,'appointments').length?rows(data,'appointments').map(e=><button key={String(e.id)} className="admin-appointment" onClick={()=>openCase(String(e.case_id))}><CalendarDays size={20}/><div><time>{String(e.event_date)}</time><strong>{String(e.title)}</strong><small>{String(e.case_code)}</small></div><ArrowRight size={15}/></button>):<p>{t('你参与的案件暂无近期预约。','No upcoming appointments in your assigned cases.')}</p>}
    </Panel>

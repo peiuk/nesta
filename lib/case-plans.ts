@@ -14,6 +14,14 @@ const MID_SPLIT=[
  {key:'birth',label_zh:'出生后约定工作日内',label_en:'After birth',amount_usd:20000},
 ];
 
+const MILESTONE_KEYS=MID_SPLIT.map(m=>m.key);
+
+export function normalizePaidMilestoneKeys(values:unknown):string[]{
+ const source=Array.isArray(values)?values:String(values||'').split(',');
+ const selected=new Set(source.map(value=>String(value).trim()).filter(Boolean));
+ return MILESTONE_KEYS.filter(key=>selected.has(key));
+}
+
 export function isTier(v:unknown):v is Tier{return v==='basic'||v==='mid'||v==='advanced'}
 export function isAddon(v:unknown):v is AddonStatus{return v==='none'||v==='quoted'||v==='included'||v==='occurred'}
 

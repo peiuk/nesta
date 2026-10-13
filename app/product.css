@@ -150,3 +150,69 @@ html{scroll-behavior:smooth}body{font-family:var(--font-geist-sans);font-size:16
 
 .panel-card{border:1px solid var(--border);border-radius:14px;padding:18px;background:rgba(255,255,255,.55)}.stack.gap-6{display:grid;gap:24px}.stack.gap-4{display:grid;gap:16px}
 
+/* A clear service introduction with a separate family photograph. */
+.home-shell .home-hero-family{display:block;min-height:0;padding:0;background:#203e32}
+.home-shell .home-hero-family .site-header{position:relative;top:auto;padding:22px max(5vw,22px)}
+.family-hero-layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.12fr);align-items:center;gap:clamp(32px,5vw,76px);max-width:1500px;margin:auto;padding:40px max(5vw,22px) 72px}
+.home-shell .home-hero-family .hero-copy{max-width:560px;padding:0;min-width:0}
+.home-shell .home-hero-family h1{font-size:clamp(2rem,3.5vw,3.2rem);line-height:1.3;letter-spacing:0;text-wrap:balance;margin-bottom:24px}
+.home-hero-family .hero-copy p{font-size:1rem;line-height:1.85;max-width:480px;margin-bottom:30px}
+.home-hero-family .hero-copy small{display:block;max-width:440px;font-size:.8125rem;line-height:1.7;color:#c4d2c7}
+.family-hero-photo{margin:0;min-width:0;border-radius:100px 20px 20px 20px;overflow:hidden;background:#345345;aspect-ratio:4/3}
+.family-hero-photo img{display:block;width:100%;height:100%;object-fit:cover;object-position:center}
+@media(max-width:900px){.family-hero-layout{grid-template-columns:1fr;gap:32px;padding-top:28px;padding-bottom:40px}.home-shell .home-hero-family .hero-copy{max-width:620px}.family-hero-photo{max-width:680px;width:100%;border-radius:60px 16px 16px 16px}.home-shell .home-hero-family h1{font-size:clamp(2rem,5vw,2.75rem);max-width:580px}}
+@media(max-width:650px){.home-shell .home-hero-family .site-header{padding:20px 22px 12px}.family-hero-layout{padding:28px 22px 32px;gap:28px}.home-shell .home-hero-family h1{font-size:2rem;margin-bottom:18px}.home-hero-family .hero-copy p{margin-bottom:24px}.home-hero-family .hero-actions .primary-link{min-width:172px}.family-hero-photo{border-radius:44px 14px 14px 14px}}
+
+/* Keep native file selection clear, keyboard accessible, and easy to tap. */
+.field input[type="file"] {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  height: auto;
+  min-height: 60px;
+  padding: 7px;
+  border: 1px solid #90aa9d;
+  border-radius: 12px;
+  background: #fff;
+  color: #354c42;
+  font-size: .875rem;
+  line-height: 1.5;
+  cursor: pointer;
+}
+.field input[type="file"]::file-selector-button {
+  display: inline-block;
+  height: auto;
+  min-height: 44px;
+  margin: 0 14px 0 0;
+  padding: 10px 20px;
+  border: 1px solid #254c3b;
+  border-radius: 8px;
+  background: #254c3b;
+  color: #fff;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color .15s, border-color .15s;
+}
+.field input[type="file"]:not(:disabled):hover::file-selector-button {
+  background: #173a2b;
+  border-color: #173a2b;
+}
+.field input[type="file"]:focus-visible {
+  outline: 3px solid #4b7965;
+  outline-offset: 3px;
+}
+.field input[type="file"]:disabled {
+  cursor: not-allowed;
+  opacity: .6;
+}
+.field input[type="file"]:disabled::file-selector-button {
+  cursor: not-allowed;
+}
+@media (max-width: 480px) {
+  .field input[type="file"]::file-selector-button {
+    padding-inline: 14px;
+    margin-right: 10px;
+  }
+}
+.milestone-picker{border:0;margin:4px 0 18px;padding:0}.milestone-picker legend{font-size:.9rem;font-weight:600}.milestone-picker>p{font-size:.8rem;color:var(--muted-foreground);margin:6px 0 11px}.milestone-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.milestone-options label{position:relative;display:flex;align-items:center;gap:11px;min-height:58px;padding:11px 13px;border:1px solid var(--border);border-radius:10px;background:var(--card);cursor:pointer;transition:border-color .15s,background-color .15s,box-shadow .15s}.milestone-options label:hover{border-color:#719180;background:#f7faf7}.milestone-options label:has(input:checked){border-color:#2d5a46;background:#edf5f0;box-shadow:inset 0 0 0 1px #2d5a46}.milestone-options input{width:18px;height:18px;accent-color:#2d5a46;flex-shrink:0}.milestone-options label:has(input:focus-visible){outline:3px solid #83a796;outline-offset:2px}.milestone-options span{display:grid;gap:2px}.milestone-options strong{font-size:.875rem;font-weight:600}.milestone-options small{font-size:.75rem;color:var(--muted-foreground)}@media(max-width:540px){.milestone-options{grid-template-columns:1fr}}
