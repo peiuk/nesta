@@ -4,6 +4,7 @@ import {ArrowUpRight,ArrowRight,Download,FileText,ShieldCheck,FileHeart,Messages
 import './home.css';
 import {Brand} from '@/components/product/brand';
 import {LanguageButton,useLocale} from '@/components/product/locale';
+import {PartnerLeaderMed} from '@/components/product/partner-leadermed';
 
 const CONTACT_PHONE='+44 7778 888938';
 const CONTACT_PHONE_TEL='+447778889388';
@@ -26,6 +27,7 @@ export default function Home(){
   <header className="site-header"><Brand/><nav>
    <a className="nav-desk" href="#options">{t('服务','Services')}</a>
    <a className="nav-desk" href="#journey">{t('流程','Process')}</a>
+   <a className="nav-desk" href="#partner-leadermed">{t('合作医院','Partner clinic')}</a>
    <a className="nav-desk" href="#packages">{t('费用','Fees')}</a>
    <LanguageButton/>
    <a className="primary-link" href="/portal">{t('客户登录','Client sign-in')}<ArrowUpRight size={17}/></a>
@@ -60,9 +62,10 @@ export default function Home(){
      <p>{t('我们协调合作方安排与进度记录；诊疗由医疗机构负责，具体休养与认证以合作方及当地要求为准。','We coordinate partner arrangements and progress records. Clinical care stays with medical providers; postpartum and certification details follow partners and local requirements.')}</p>
     </div>
     <div className="network-grid">
-     {[[t('合作 IVF 诊所','Partner IVF clinics'),t('与合作诊所协调评估与治疗安排，报告与阶段按权限同步到你的案件空间。','Coordinate assessment and treatment arrangements with partner clinics. Reports and stages sync to your case space by permission.')],[t('月子中心协作','Postpartum care partners'),t('衔接产后休养与行程安排，重要节点记入服务进度，便于双语跟进。','Handoff postpartum rest and travel plans. Key milestones stay on your care timeline for bilingual follow-up.')],[t('公证与海牙认证','Notarisation & Apostille'),t('跟进出生、亲权等相关证件的公证与海牙认证进度，材料与状态可追溯。','Track notarisation and Apostille progress for birth and parentage documents, with a clear record of materials and status.')]].map((x,i)=><article key={i}><span>0{i+1}</span><h3>{x[0]}</h3><p>{x[1]}</p></article>)}
+     {[[t('合作 IVF 诊所','Partner IVF clinics'),t('官方合作诊所为第比利斯 LeaderMed。奈斯协调评估与治疗安排；报告与阶段按权限同步到案件空间。诊疗由诊所负责。','The named partner clinic is LeaderMed in Tbilisi. Nesta coordinates assessment and treatment arrangements; reports and stages sync to the case space by permission. Clinical care stays with the clinic.')],[t('月子中心协作','Postpartum care partners'),t('衔接产后休养与行程安排，重要节点记入服务进度，便于双语跟进。','Handoff postpartum rest and travel plans. Key milestones stay on your care timeline for bilingual follow-up.')],[t('公证与海牙认证','Notarisation & Apostille'),t('跟进出生、亲权等相关证件的公证与海牙认证进度，材料与状态可追溯。','Track notarisation and Apostille progress for birth and parentage documents, with a clear record of materials and status.')]].map((x,i)=><article key={i}><span>0{i+1}</span><h3>{x[0]}</h3><p>{x[1]}</p>{i===0?<a className="network-more" href="#partner-leadermed">{t('查看合作医院 LeaderMed','See partner clinic LeaderMed')}<ArrowUpRight size={14}/></a>:null}</article>)}
     </div>
    </section>
+   <PartnerLeaderMed/>
 
    <section id="packages" className="packages-section">
     <div className="section-intro">
