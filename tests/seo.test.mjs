@@ -12,6 +12,8 @@ test('robots allows the public site, skips the api, and points at the sitemap',(
  const text=seo.robotsTxt('https://nesta.example');
  assert.match(text,/Allow: \//);
  assert.match(text,/Disallow: \/api\//);
+ assert.match(text,/Disallow: \/portal/);
+ assert.match(text,/Disallow: \/admin/);
  assert.match(text,/Sitemap: https:\/\/nesta\.example\/sitemap\.xml/);
 });
 
@@ -24,6 +26,19 @@ test('sitemap lists each public page once',()=>{
  assert.equal(xml.match(/<loc>/g).length,seo.PUBLIC_PAGES.length);
  assert.equal(xml.includes('/privacy'),false);
  assert.equal(xml.includes('/portal'),false);
+ assert.match(xml,/lastmod>2026-11-04</);
+});
+
+test('public pages expose breadcrumb and webpage structured data',()=>{
+ const crumbs=seo.breadcrumbJsonLd('https://nesta.example','/fees');
+ assert.equal(crumbs.itemListElement.length,2);
+ assert.equal(crumbs.itemListElement[1].item,'https://nesta.example/fees');
+ const page=seo.webPageJsonLd('https://nesta.example','/fees');
+ assert.equal(page.inLanguage,'zh-CN');
+ assert.match(page.name,/费用|格鲁吉亚/);
+ const offers=seo.feeOfferJsonLd('https://nesta.example',[{name:'推荐无忧',price:520000,description:'人民币'}]);
+ assert.equal(offers.itemListElement[0].priceCurrency,'CNY');
+ assert.equal(offers.itemListElement[0].price,'520000');
 });
 
 test('faq structured data uses the Chinese question and answer',()=>{

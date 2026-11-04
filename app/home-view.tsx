@@ -6,9 +6,10 @@ import {Brand} from '@/components/product/brand';
 import {LanguageButton,useLocale} from '@/components/product/locale';
 import {PartnerLeaderMed} from '@/components/product/partner-leadermed';
 import {CONTACT_EMAIL,CONTACT_PHONE,CONTACT_PHONE_TEL} from '@/lib/public-contact';
+import {formatPackageMainPrice,formatPackageMainPriceCaption,PACKAGE_DISCLAIMER,PACKAGE_EXPEDITE,PACKAGE_EXTRAS,PACKAGE_INCLUSIONS,PACKAGE_SHEET_VERSION,PACKAGE_STRIP,PUBLIC_PACKAGES} from '@/lib/public-packages';
 
 export default function Home(){
- const {t}=useLocale();
+ const {t,lang}=useLocale();
  const journeyRef=useRef<HTMLElement>(null);
  useEffect(()=>{
   const root=journeyRef.current;if(!root)return;
@@ -69,7 +70,7 @@ export default function Home(){
      <p>{t('我们协调合作方安排与进度记录；诊疗由医疗机构负责，具体休养与认证以合作方及当地要求为准。','We coordinate partner arrangements and progress records. Clinical care stays with medical providers; postpartum and certification details follow partners and local requirements.')}</p>
     </div>
     <div className="network-grid">
-     {[[t('合作 IVF 诊所','Partner IVF clinics'),t('官方合作诊所为第比利斯 LeaderMed。奈斯协调评估与治疗安排；报告与阶段按权限同步到案件空间。诊疗由诊所负责。','The named partner clinic is LeaderMed in Tbilisi. Nesta coordinates assessment and treatment arrangements; reports and stages sync to the case space by permission. Clinical care stays with the clinic.')],[t('月子中心协作','Postpartum care partners'),t('衔接产后休养与行程安排，重要节点记入服务进度，便于双语跟进。','Handoff postpartum rest and travel plans. Key milestones stay on your care timeline for bilingual follow-up.')],[t('公证与海牙认证','Notarisation & Apostille'),t('跟进出生、亲权等相关证件的公证与海牙认证进度，材料与状态可追溯。','Track notarisation and Apostille progress for birth and parentage documents, with a clear record of materials and status.')]].map((x,i)=><article key={i}><span>0{i+1}</span><h3>{x[0]}</h3><p>{x[1]}</p>{i===0?<a className="network-more" href="/clinic">{t('查看合作医院 LeaderMed','See partner clinic LeaderMed')}<ArrowUpRight size={14}/></a>:null}</article>)}
+     {[[t('LeaderMed 独家合作','Exclusive LeaderMed partner'),t('奈斯是第比利斯 LeaderMed 医院的独家合作伙伴，协调评估与治疗安排。诊疗由医院负责。','Nesta is the exclusive partner of LeaderMed hospital in Tbilisi, and coordinates assessment and treatment arrangements. Clinical care stays with the hospital.')],[t('专业月子中心','Professional postpartum centre'),t('配套月子中心为专业机构，持牌儿科医生实行 24 小时值班。休养与行程节点记入服务进度。','The accompanying postpartum centre is a professional facility, with licensed paediatricians on 24-hour duty. Rest and travel milestones stay on the care timeline.')],[t('公证与海牙认证','Notarisation & Apostille'),t('跟进出生、亲权等相关证件的公证与海牙认证进度，材料与状态可追溯。','Track notarisation and Apostille progress for birth and parentage documents, with a clear record of materials and status.')]].map((x,i)=><article key={i}><span>0{i+1}</span><h3>{x[0]}</h3><p>{x[1]}</p>{i===0?<a className="network-more" href="/clinic">{t('查看合作医院 LeaderMed','See partner clinic LeaderMed')}<ArrowUpRight size={14}/></a>:null}</article>)}
     </div>
    </section>
    <PartnerLeaderMed/>
@@ -77,63 +78,36 @@ export default function Home(){
    <section id="packages" className="packages-section">
     <div className="section-intro">
      <div><div className="eyebrow">04 / PLANS & FEES</div><h2>{t('三种方案，清楚选择。','Three programmes. A clear choice.')}</h2></div>
-     <p>{t('套餐价格、费用明细与办理流程，根据个人情况选择适合的方案。以下按套餐资料整理，具体范围以所选套餐、合同及医疗评估为准。','Compare programme prices, included services and the process. Details follow the package sheet; scope depends on your selected programme, contract and clinical assessment.')}</p>
+     <p>{t('套餐价格、费用明细与办理流程（与下方原图一致）。三档主价为人民币，不做美元换算；另计项按原图以美元标注。具体范围以所选套餐、合同及医疗评估为准。','Programme prices, inclusions and process match the sheet below. The three main prices are in RMB (Chinese yuan) exactly as on the sheet — not converted to US dollars. Listed extras stay in USD where the sheet shows USD. Scope follows your programme, contract and clinical assessment.')}</p>
     </div>
+    <p className="package-strip">{PACKAGE_STRIP.map(item=>t(...item)).join(' · ')}</p>
     <div className="packages-grid">
-     {[
-      {tag:t('A / 自卵自精','A / Own eggs & sperm'),title:t('医疗协助','Medical assistance'),price:t('40万','USD 55,000'),edition:t('常规版','Standard'),highlight:t('爱心版（MM或GG）+5,000美元','Care edition (MM or GG): +USD 5,000'),points:[t('一次促排 + 三次移植','One stimulation cycle + three transfers'),t('PGS报告后两个月内安排移植','Transfer arranged within two months of the PGS report'),t('不含接娃期间住宿','Accommodation during baby collection excluded'),t('不含DNA亲子鉴定','DNA parentage testing excluded')]},
-      {tag:t('B / 自精供卵','B / Own sperm & donor eggs'),title:t('推荐无忧','Recommended care'),price:t('52万','USD 72,000'),edition:t('自精供卵方案','Donor-egg programme'),highlight:t('优选性别','Preferred sex selection'),points:[t('包含4个PGS检测','Includes four PGS tests'),t('不限次数促排及移植','Unlimited stimulation cycles and transfers'),t('PGS报告后两个月内安排移植','Transfer arranged within two months of the PGS report'),t('含DNA亲子鉴定','Includes DNA parentage testing'),t('含宝宝健康保障条款','Includes baby health protection terms')]},
-      {tag:t('C / 自精供卵','C / Own sperm & donor eggs'),title:t('成功优选','Success selection'),price:t('58万','USD 80,000'),edition:t('常规版 · 63万升级大包版','Standard · USD 87,000 upgraded package'),highlight:t('单胎男宝保障','Singleton boy protection terms'),points:[t('全部胚胎PGS筛查','PGS screening for all embryos'),t('不限次数促排及移植','Unlimited stimulation cycles and transfers'),t('PGS报告后一个月内安排移植','Transfer arranged within one month of the PGS report'),t('升级版具体差异另行确认','Upgrade differences to be confirmed separately'),t('含DNA亲子鉴定','Includes DNA parentage testing'),t('含宝宝健康保障条款','Includes baby health protection terms')]},
-     ].map((pkg,i)=><article key={pkg.tag} className={i===1?'is-featured':undefined}>
-      <span className="pkg-tag">{pkg.tag}</span><h3>{pkg.title}</h3>
-      <div className="pkg-price"><strong>{pkg.price}</strong><small>{pkg.edition}</small></div>
-      <p className="package-highlight">{pkg.highlight}</p>
-      <ul>{pkg.points.map(pt=><li key={pt}>{pt}</li>)}</ul>
+     {PUBLIC_PACKAGES.map(pkg=><article key={pkg.id} className={pkg.featured?'is-featured':undefined}>
+      <span className="pkg-tag">{t(...pkg.tag)}</span><h3>{t(...pkg.title)}</h3>
+      <div className="pkg-price"><strong>{formatPackageMainPrice(pkg.totalCny,lang)}</strong><small className="pkg-currency">{lang==='en'?`${formatPackageMainPriceCaption(lang)} · `:''}{t(...pkg.edition)}</small></div>
+      <p className="package-highlight">{t(...pkg.highlight)}</p>
+      <ul>{pkg.points.map(pt=><li key={pt[0]}>{t(...pt)}</li>)}</ul>
       <a href="#contact" className="quiet-link">{t('咨询此套餐','Discuss this programme')}<ArrowUpRight size={16}/></a>
      </article>)}
     </div>
-    <p className="package-terms"><ShieldCheck size={20} aria-hidden="true"/>{t('保障范围及履约条件以合同及医疗评估为准；医疗结果存在个体差异。套餐金额按原图展示，币种及具体条件请在书面报价中确认。','Protection scope and performance conditions follow the contract and clinical assessment; medical outcomes vary. Package amounts follow the original sheet; confirm the currency and specific terms in your written quote.')} <a href="/faq">{t('常见问题','Common questions')}</a></p>
+    <p className="package-terms"><ShieldCheck size={20} aria-hidden="true"/>{t(...PACKAGE_DISCLAIMER)} <a href="/faq">{t('常见问题','Common questions')}</a></p>
     <div className="package-inclusions">
-     <div className="section-intro"><div><div className="eyebrow">INCLUDED SERVICES</div><h3>{t('费用包含明细','What the fees include')}</h3></div><p>{t('以下按照资料整理，具体范围对应所选套餐。','As listed in the package sheet; the precise scope follows your selected programme.')}</p></div>
+     <div className="section-intro"><div><div className="eyebrow">INCLUDED SERVICES</div><h3>{t('费用包含明细','What the fees include')}</h3></div><p>{t('具体范围对应所选套餐。','The precise scope follows the selected programme.')}</p></div>
      <ol className="package-inclusion-list">
-      {[
-       [t('接机服务','Airport pickup'),''],
-       [t('办理当地手机卡','Local SIM card assistance'),''],
-       [t('全程30天住宿，可自由分配','30 days of accommodation, flexibly allocated'),t('A方案不含接娃期间住宿','A excludes accommodation during baby collection')],
-       [t('全套文件公证、海牙认证及法务服务','Document notarisation, Apostille and legal services'),''],
-       [t('医疗陪诊及翻译服务','Medical appointment accompaniment and interpreting'),''],
-       [t('取卵及相关医疗费用','Egg retrieval and related medical fees'),''],
-       [t('精子及胚胎储存1年','One year of sperm and embryo storage'),''],
-       [t('胚胎PGS筛查','Embryo PGS screening'),t('具体范围以合同为准','Exact scope follows the contract')],
-       [t('移植服务','Embryo transfer services'),t('次数及安排按所选套餐','Number and scheduling follow the selected programme')],
-       [t('代孕者补偿金、医疗费及营养费','Surrogate compensation, medical and nutrition expenses'),''],
-       [t('流产、子宫切除及死亡相关补偿','Compensation related to miscarriage, hysterectomy and death'),t('补偿对象、金额及触发条件以合同为准','Recipients, amounts and qualifying conditions follow the contract')],
-       [t('新生儿分娩、体检及护理','Delivery, newborn examinations and care'),''],
-       [t('新生儿乙肝疫苗、卡介苗','Newborn hepatitis B and BCG vaccines'),''],
-       [t('出生证及护照办理','Birth certificate and passport processing'),t('DNA亲子鉴定：B、C包含，A不包含','DNA parentage testing: included in B and C; excluded from A')],
-      ].map(([title,note],i)=><li key={title}><span className="inclusion-number">{String(i+1).padStart(2,'0')}</span><div><strong>{title}</strong>{note&&<p>{note}</p>}</div></li>)}
+      {PACKAGE_INCLUSIONS.map((item,i)=><li key={item.title[0]}><span className="inclusion-number">{String(i+1).padStart(2,'0')}</span><div><strong>{t(...item.title)}</strong>{item.note&&<p>{t(...item.note)}</p>}</div></li>)}
      </ol>
     </div>
     <div className="package-extras">
-     <div className="section-intro"><div><div className="eyebrow">ADDITIONAL FEES</div><h3>{t('额外收费 · 不包含在上述套餐内','Additional fees · outside the packages')}</h3></div><p>{t('以下为可选项目，按适用条件另计。','Optional items charged separately where applicable.')}</p></div>
+     <div className="section-intro"><div><div className="eyebrow">ADDITIONAL FEES</div><h3>{t('额外收费 · 不包含在上述套餐内','Additional fees · outside the packages')}</h3></div><p>{t('按适用条件另计。','Charged separately where they apply.')}</p></div>
      <dl className="package-extra-list">
-      {[
-       [t('双胎','Twins'),t('3,000美元','USD 3,000')],
-       [t('剖腹产','Caesarean section'),t('2,000美元','USD 2,000')],
-       [t('额外PGS检查','Additional PGS tests'),t('500美元 / 颗','USD 500 / embryo')],
-       [t('NICU费用','NICU expenses'),t('约300美元 / 天','Approx. USD 300 / day')],
-       [t('梅毒','Syphilis'),t('3,000美元','USD 3,000')],
-       [t('HIV','HIV'),t('5,000美元','USD 5,000')],
-       [t('自卵方案：二次促排 + 移植','Own-egg programme: second stimulation cycle + transfer'),t('12,000美元','USD 12,000')],
-       [t('其他特殊医疗及附加服务','Other specialised medical and additional services'),t('另行咨询','Enquire separately')],
-      ].map(([title,price])=><div key={title}><dt>{title}</dt><dd>{price}</dd></div>)}
+      {PACKAGE_EXTRAS.map(item=><div key={item.title[0]}><dt>{t(...item.title)}</dt><dd>{t(...item.price)}</dd></div>)}
      </dl>
-     <aside className="package-expedite"><h4>{t('加速包 · 5,000美元','Expedited package · USD 5,000')}</h4><p>{t('约定12个月内出生；未达约定退还加速包费用。起算时间、适用条件及退款规则以书面合同为准。','Birth within the agreed 12-month period; the expedited-package fee is refunded if the agreed condition is not met. Start date, eligibility and refund rules follow the written contract.')}</p></aside>
-     <p className="packages-note">{t('原图“$”币种、计费单位及具体条件另行确认。','Confirm the currency represented by “$”, billing units and specific conditions in the original sheet.')}</p>
+     <aside className="package-expedite"><h4>{t(...PACKAGE_EXPEDITE.title)}</h4><p>{t(...PACKAGE_EXPEDITE.body)}</p></aside>
+     <p className="packages-note">{t('另计项中原图“$”为美元；套餐主价为人民币。计费单位及具体条件以书面报价为准。','“$” on listed extras means US dollars. Main programme prices are RMB. Billing units and specific terms follow your written quote.')}</p>
     </div>
     <aside className="packages-download-card" aria-label={t('套餐资料下载','Package sheet download')}>
      <div className="packages-download-icon" aria-hidden="true"><FileText size={22}/></div>
-     <div className="packages-download-copy"><h3>{t('套餐原图，一页查看','The original package sheet')}</h3><p>{t('三种套餐、费用明细与办理流程，保存后随时对照。','Save the three programmes, fee details and process for reference.')}</p><span className="packages-download-meta">{t('中文 · JPG','Chinese · JPG')}</span></div>
+     <div className="packages-download-copy"><h3>{t('套餐原图，一页查看','The original package sheet')}</h3><p>{t('三种套餐、费用明细与办理流程，保存后随时对照。','Save the three programmes, fee details and process for reference.')}</p><span className="packages-download-meta">{t(`中文 · JPG · ${PACKAGE_SHEET_VERSION}`,`Chinese · JPG · ${PACKAGE_SHEET_VERSION}`)}</span></div>
      <a className="primary-link packages-download-btn" href="/nesta-packages.jpg" download>{t('下载套餐原图','Download package sheet')}<Download size={16}/></a>
     </aside>
    </section>

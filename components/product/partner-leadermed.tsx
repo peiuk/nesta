@@ -48,10 +48,10 @@ export function PartnerLeaderMed(){
   <div className="section-intro">
    <div>
     <div className="eyebrow">OFFICIAL PARTNER</div>
-    <h2 id="partner-leadermed-title">{t('第比利斯合作医院，LeaderMed。','LeaderMed, our partner clinic in Tbilisi.')}</h2>
+    <h2 id="partner-leadermed-title">{t('LeaderMed 医院独家合作伙伴。','Exclusive partner of LeaderMed hospital.')}</h2>
    </div>
   </div>
-  <p className="partner-lead">{t('奈斯与第比利斯 LeaderMed 诊所官方合作，协调评估与治疗安排；具体诊疗由合作医疗机构负责。','Nesta partners with LeaderMed Clinic in Tbilisi for assessment and treatment coordination; clinical care remains with the medical provider.')}</p>
+  <p className="partner-lead">{t('奈斯是第比利斯 LeaderMed 医院的独家合作伙伴，协调评估与治疗安排。配套月子中心为专业机构，持牌儿科医生实行 24 小时值班。诊疗由医疗机构负责。','Nesta is the exclusive partner of LeaderMed hospital in Tbilisi, and coordinates assessment and treatment arrangements. The accompanying postpartum centre is a professional facility, with licensed paediatricians on 24-hour duty. Clinical care stays with the medical provider.')}</p>
   <div className="partner-layout">
    <figure className="partner-hero">
     <img src="/partners/leadermed/street.jpg" width={1600} height={844} alt={t('LeaderMed 沿街外观','Street exterior of LeaderMed')}/>
@@ -122,6 +122,6 @@ export function PartnerLeaderMed(){
   </div>
   <p className="partner-note">{t('环境照片取自诊所公开页面，用于了解场所，不是就诊者影像。','Facility photos are from the clinic’s public pages, to show the setting. They are not images of patients.')}</p>
   <p className="partner-note">{t('诊所位于第比利斯 Nodar Bokhua 街。国际家庭的行程与陪诊对接由奈斯协调；到院方式按行前安排确定。','The clinic is on Nodar Bokhua Street in Tbilisi. Nesta coordinates travel and accompaniment for international families; how you arrive is set in the pre-travel plan.')}</p>
-  <p className="partner-boundary">{t('奈斯是代孕协调方，负责沟通、行程与进度记录。LeaderMed 是合作医疗机构，诊疗、医学判断与临床结果由其负责。本页不承诺活产或成功率，也不转载诊所价格。','Nesta is the surrogacy coordinator, responsible for communication, travel and progress records. LeaderMed is the partner medical provider and remains responsible for clinical care, medical judgement and clinical outcomes. This page does not promise a live birth or a success rate, and it does not republish the clinic’s price list.')}</p>
+  <p className="partner-boundary">{t('奈斯是代孕协调方，负责沟通、行程与进度记录。LeaderMed 是合作医疗机构，诊疗、医学判断与临床结果由其负责。','Nesta is the surrogacy coordinator, responsible for communication, travel and progress records. LeaderMed is the partner medical provider and remains responsible for clinical care, medical judgement and clinical outcomes.')}</p>
  </section>;
 }

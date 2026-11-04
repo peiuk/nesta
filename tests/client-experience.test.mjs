@@ -4,6 +4,13 @@ import {DatabaseSync} from 'node:sqlite';
 import {readFileSync} from 'node:fs';
 import {readClientHighlights} from '../lib/client-highlights.ts';
 import {emailSignInAvailable} from '../lib/auth-options.ts';
+import {formatPackageMainPrice} from '../lib/public-packages.ts';
+
+test('public programme prices use RMB on English, not USD equivalents',()=>{
+ assert.equal(formatPackageMainPrice(520_000,'zh'),'52万');
+ assert.equal(formatPackageMainPrice(520_000,'en'),'RMB 520,000');
+ assert.doesNotMatch(formatPackageMainPrice(520_000,'en'),/USD/i);
+});
 
 test('email sign in requires sending credentials and a session secret',()=>{
  assert.equal(emailSignInAvailable({}),false);
@@ -11,6 +18,8 @@ test('email sign in requires sending credentials and a session secret',()=>{
  assert.equal(emailSignInAvailable({RESEND_API_KEY:'key',EMAIL_FROM:'from',SESSION_SECRET:'secret'}),true);
  assert.equal(emailSignInAvailable({GOOGLE_CLIENT_ID:'id',GOOGLE_CLIENT_SECRET:'sec',GMAIL_REFRESH_TOKEN:'rt',GMAIL_USER:'a@b.c',SESSION_SECRET:'secret'}),true);
  assert.equal(emailSignInAvailable({GOOGLE_CLIENT_ID:'id',GOOGLE_CLIENT_SECRET:'sec',GMAIL_REFRESH_TOKEN:'rt',GMAIL_USER:'a@b.c'}),false);
+ assert.equal(emailSignInAvailable({SESSION_SECRET:'secret',SITE_ORIGIN:'http://localhost:3000'}),true);
+ assert.equal(emailSignInAvailable({SESSION_SECRET:'secret',SITE_ORIGIN:'https://example.com'}),false);
 });
 test('customer homepage only returns own published recipient reports and upcoming assigned appointments',async()=>{
  const db=new DatabaseSync(':memory:');
