@@ -11,6 +11,8 @@ const sql2=readFileSync(join(root,'drizzle/0002_donor_status_reason.sql'),'utf8'
 const sql5=readFileSync(join(root,'drizzle/0005_case_plans.sql'),'utf8');
 const sql6=readFileSync(join(root,'drizzle/0006_partners.sql'),'utf8');
 const sql7=readFileSync(join(root,'drizzle/0007_case_documents.sql'),'utf8');
+const sql8=readFileSync(join(root,'drizzle/0008_case_payments.sql'),'utf8');
+const sql9=readFileSync(join(root,'drizzle/0009_faq_entries.sql'),'utf8');
 const journal=JSON.parse(readFileSync(join(root,'drizzle/meta/_journal.json'),'utf8'));
 
 const tables=[
@@ -20,7 +22,7 @@ const tables=[
 
 test('migration journal points at prepared schemas',()=>{
  assert.equal(journal.dialect,'sqlite');
- assert.equal(journal.entries.length,8);
+ assert.equal(journal.entries.length,10);
  assert.equal(journal.entries[0].tag,'0000_swift_jamie_braddock');
  assert.equal(journal.entries[1].tag,'0001_email_auth');
  assert.equal(journal.entries[2].tag,'0002_donor_status_reason');
@@ -29,6 +31,24 @@ test('migration journal points at prepared schemas',()=>{
  assert.equal(journal.entries[5].tag,'0005_case_plans');
  assert.equal(journal.entries[6].tag,'0006_partners');
  assert.equal(journal.entries[7].tag,'0007_case_documents');
+ assert.equal(journal.entries[8].tag,'0008_case_payments');
+ assert.equal(journal.entries[9].tag,'0009_faq_entries');
+});
+
+test('faq migration stores bilingual questions separately from client messages',()=>{
+ assert.match(sql9,/CREATE TABLE `faq_entries`/);
+ assert.match(sql9,/`question_zh` text NOT NULL/);
+ assert.match(sql9,/`question_en` text NOT NULL/);
+ assert.match(sql9,/`hidden` integer/);
+ assert.match(sql9,/CREATE INDEX `idx_faq_entries_position`/);
+});
+
+test('payments migration records receipts separately from plan milestones',()=>{
+ assert.match(sql8,/CREATE TABLE `case_payments`/);
+ assert.match(sql8,/`paid_on` text NOT NULL/);
+ assert.match(sql8,/`voucher` text/);
+ assert.match(sql8,/ALTER TABLE `case_plans` ADD `currency`/);
+ assert.match(sql8,/ALTER TABLE `case_plans` ADD `package_version`/);
 });
 
 test('case plans migration creates case_plans table',()=>{

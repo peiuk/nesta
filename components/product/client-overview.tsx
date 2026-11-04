@@ -4,6 +4,7 @@ import {Button} from '@/components/ui/button';
 import {useLocale} from './locale';
 import {Panel,Empty,Status,useLabels,type Data} from './common';
 import {canUseDirectory} from '@/lib/policy';
+import {FilePreview} from './file-preview';
 
 export function ClientOverview({profile,data,open,go}:{profile:Data;data:Data;open:(id:string)=>void;go:(view:'directory'|'requests')=>void}){
  const {t}=useLocale();const label=useLabels();const cases=(data.cases||[]) as Data[],reports=(data.recent_reports||[]) as Data[],appointments=(data.appointments||[]) as Data[];
@@ -28,7 +29,7 @@ export function ClientOverview({profile,data,open,go}:{profile:Data;data:Data;op
     {cases.length?cases.map(c=><button key={String(c.id)} className="client-case" onClick={()=>open(String(c.id))}><div><h3>{String(c.title)}</h3><p>{String(c.code)} · {t('周期','Cycle')} {String(c.cycle)}</p><small>{t('最近更新','Updated')} {String(c.updated_at).slice(0,10)}</small></div><div><Status value={String(c.stage)}/><span>{t('查看进度与文件','View progress & files')} <ArrowRight size={14}/></span></div></button>):<Empty title={t('案件尚未建立','Your case has not been created yet')}>{t('服务团队建立案件后，进度、报告和沟通记录会集中显示在这里。','Once the team creates your case, its progress, reports and conversations appear here.')}</Empty>}
    </Panel>
    <Panel title={t('最新已发布报告 · 最近 5 份','Latest published reports · last 5')}>
-    {reports.length?reports.map(r=><article key={String(r.id)} className="client-report"><h3>{String(r.title)}</h3><p className="metadata">{String(r.case_code)} · {t('周期','Cycle')} {String(r.cycle)} · {t('报告日期','Report date')} {String(r.report_date)}</p><p className="metadata">{t('发布时间','Published')} {String(r.published_at||'').slice(0,16).replace('T',' ')}</p><div className="row-actions mt-3"><a className="quiet-link" href={`/api/files/${String(r.id)}/original`} target="_blank" rel="noreferrer">{t('下载原件','Download original')}</a>{Boolean(r.has_translation)&&<a className="quiet-link" href={`/api/files/${String(r.id)}/translation`} target="_blank" rel="noreferrer">{t('下载译件','Download translation')}</a>}<Button variant="ghost" onClick={()=>open(String(r.case_id))}>{t('查看全部案件文件','All case files')}</Button></div></article>):<Empty title={t('暂无已发布报告','No published reports yet')}>{t('报告完成复核并向你发布后，会出现在这里。','Reports appear here once reviewed and published to you.')}</Empty>}
+    {reports.length?reports.map(r=><article key={String(r.id)} className="client-report"><h3>{String(r.title)}</h3><p className="metadata">{String(r.case_code)} · {t('周期','Cycle')} {String(r.cycle)} · {t('报告日期','Report date')} {String(r.report_date)}</p><p className="metadata">{t('发布时间','Published')} {String(r.published_at||'').slice(0,16).replace('T',' ')}</p><div className="row-actions mt-3"><FilePreview href={`/api/files/${String(r.id)}/original`} label={t('查看原件','View original')}/>{Boolean(r.has_translation)&&<FilePreview href={`/api/files/${String(r.id)}/translation`} label={t('查看译稿','View translation')}/>}<Button variant="ghost" onClick={()=>open(String(r.case_id))}>{t('查看全部案件文件','All case files')}</Button></div></article>):<Empty title={t('暂无已发布报告','No published reports yet')}>{t('报告完成复核并向你发布后，会出现在这里。','Reports appear here once reviewed and published to you.')}</Empty>}
    </Panel>
   </div><div>
    <Panel title={t('即将到来的预约','Upcoming appointments')}>

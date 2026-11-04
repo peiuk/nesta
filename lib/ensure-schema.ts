@@ -7,7 +7,10 @@ import migration4 from '../drizzle/0004_donor_photos.sql?raw';
 import migration5 from '../drizzle/0005_case_plans.sql?raw';
 import migration6 from '../drizzle/0006_partners.sql?raw';
 import migration7 from '../drizzle/0007_case_documents.sql?raw';
+import migration8 from '../drizzle/0008_case_payments.sql?raw';
+import migration9 from '../drizzle/0009_faq_entries.sql?raw';
 import {DOCUMENT_KINDS} from './documents';
+import {DEFAULT_FAQ} from './faq';
 
 let ready:Promise<void>|null=null;
 
@@ -23,6 +26,16 @@ async function applyIfMissing(table:string,sql:string){
  await env.DB.batch(parts.map(s=>env.DB.prepare(s)));
 }
 
+async function seedFaqIfEmpty(){
+ const existing=await env.DB.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='faq_entries'").first();
+ if(!existing)return;
+ const count=await env.DB.prepare('SELECT COUNT(*) AS count FROM faq_entries').first<{count:number}>();
+ if(Number(count?.count))return;
+ const ts=new Date().toISOString();
+ await env.DB.batch(DEFAULT_FAQ.map((item,index)=>
+  env.DB.prepare('INSERT INTO faq_entries (id,question_zh,question_en,answer_zh,answer_en,position,hidden,updated_at) VALUES (?,?,?,?,?,?,0,?)').bind(item.id,item.question_zh,item.question_en,item.answer_zh,item.answer_en,index+1,ts)
+ ));
+}
 async function seedMissingCaseDocuments(){
  const existing=await env.DB.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='case_documents'").first();
  if(!existing)return;
@@ -52,7 +65,13 @@ export async function ensureSchema(){
   await applyColumnIfMissing('cases','ivf_partner_id','ALTER TABLE `cases` ADD `ivf_partner_id` text REFERENCES `partners`(`id`);');
   await applyColumnIfMissing('cases','postpartum_partner_id','ALTER TABLE `cases` ADD `postpartum_partner_id` text REFERENCES `partners`(`id`);');
   await applyIfMissing('case_documents',migration7);
+  await applyIfMissing('case_payments',migration8);
+  await applyIfMissing('faq_entries',migration9);
+  await applyColumnIfMissing('case_plans','currency',"ALTER TABLE `case_plans` ADD `currency` text DEFAULT 'USD' NOT NULL;");
+  await applyColumnIfMissing('case_plans','package_version',"ALTER TABLE `case_plans` ADD `package_version` text DEFAULT 'legacy-2026-09' NOT NULL;");
+  await applyColumnIfMissing('case_plans','pgs_scope',"ALTER TABLE `case_plans` ADD `pgs_scope` text DEFAULT 'count' NOT NULL;");
   await seedMissingCaseDocuments();
+  await seedFaqIfEmpty();
  })().catch(error=>{ready=null;throw error});
  await ready;
 }

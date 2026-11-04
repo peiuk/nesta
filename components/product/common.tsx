@@ -31,11 +31,11 @@ export const labels:Record<string,[string,string]>={admin:['管理员','Administ
 export function useLabels(){const {t}=useLocale();return (value:string)=>labels[value]?t(...labels[value]):value}
 export function Status({value}:{value:string}){const label=useLabels();return <Badge variant={['pending','draft','paused','unavailable','inactive','not_started','blocked','in_progress'].includes(value)?'outline':'secondary'} className="text-xs px-2.5 py-1">{label(value)}</Badge>}
 export function Field({label,name,type='text',value,required=true,max=250,children}:{label:string;name:string;type?:string;value?:string|number;required?:boolean;max?:number;children?:ReactNode}){return <label className="field"><span>{label}</span>{children||(type==='textarea'?<Textarea name={name} defaultValue={value} required={required} maxLength={max}/>:<Input name={name} type={type} defaultValue={value} required={required} maxLength={max}/> )}</label>}
-export function Choice({label,name,options,value}:{label:string;name:string;options:Array<[string,string]>;value?:string}){
+export function Choice({label,name,options,value,onChange}:{label:string;name:string;options:Array<[string,string]>;value?:string;onChange?:(value:string)=>void}){
  const initial=value??options[0]?.[0]??'';
  const [current,setCurrent]=useState(initial);
  const title=options.find(([key])=>key===current)?.[1]??current;
- return <div className="field"><span id={'label-'+name}>{label}</span><Select name={name} defaultValue={initial||undefined} onValueChange={v=>{if(v!=null)setCurrent(String(v))}}><SelectTrigger className="w-full min-h-11" aria-labelledby={'label-'+name}><SelectValue placeholder={label}>{title||label}</SelectValue></SelectTrigger><SelectContent>{options.map(x=><SelectItem key={x[0]} value={x[0]}>{x[1]}</SelectItem>)}</SelectContent></Select></div>
+ return <div className="field"><span id={'label-'+name}>{label}</span><Select name={name} defaultValue={initial||undefined} onValueChange={v=>{if(v!=null){const next=String(v);setCurrent(next);onChange?.(next)}}}><SelectTrigger className="w-full min-h-11" aria-labelledby={'label-'+name}><SelectValue placeholder={label}>{title||label}</SelectValue></SelectTrigger><SelectContent>{options.map(x=><SelectItem key={x[0]} value={x[0]}>{x[1]}</SelectItem>)}</SelectContent></Select></div>
 }
 export function FilterSelect({label,value,onChange,options}:{label:string;value:string;onChange:(value:string)=>void;options:Array<[string,string]>}){
  const title=options.find(([key])=>key===value)?.[1]??value;

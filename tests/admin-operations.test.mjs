@@ -46,6 +46,9 @@ test('medical metadata and messages remain limited to assigned cases; storage ke
   assert.equal(revoked.questions.length,0);
   assert.equal(revoked.appointments.length,0);
   assert.equal(revoked.counts.ready_reports,0);
+  assert.equal(revoked.counts.my_open_cases,0);
+  assert.deepEqual(revoked.drafts_missing_reviewer,[]);
+  assert.deepEqual(revoked.unassigned.map(c=>c.id),['assigned','private']);
  }finally{db.close()}
 });
 test('non-admin and suspended actors are rejected before database queries',async()=>{
@@ -58,6 +61,24 @@ test('empty database has zero counts and empty queues',async()=>{
   for(const table of ['case_members','reports','questions','events','directory_grants','cases','profiles'])db.exec('DELETE FROM '+table);
   const data=await readAdminOperations(actor,query,now);
   assert.ok(Object.values(data.counts).every(n=>n===0));
-  for(const key of ['pending','reports','questions','appointments','expiring','activity'])assert.deepEqual(data[key],[]);
+  for(const key of ['pending','reports','questions','appointments','expiring','activity','unassigned','drafts_missing_reviewer'])assert.deepEqual(data[key],[]);
+ }finally{db.close()}
+});
+test('open-case count splits membership from the full list, and drafts without an approved reviewer are named',async()=>{
+ const {db,query,run}=fixture();try{
+  const data=await readAdminOperations(actor,query,now);
+  assert.equal(data.counts.active_cases,2);
+  assert.equal(data.counts.my_open_cases,1);
+  assert.deepEqual(data.unassigned.map(c=>c.id),['private']);
+  assert.deepEqual(data.drafts_missing_reviewer.map(r=>r.id),['draft']);
+  assert.equal(JSON.stringify(data.unassigned).includes('PRIVATE_STORAGE_KEY'),false);
+  run('INSERT INTO profiles (id,email,name,role,status,created_at) VALUES (?,?,?,?,?,?)','reviewer','reviewer@test.invalid','reviewer','reviewer','pending',now);
+  run('INSERT INTO case_members VALUES (?,?,?,?)','assigned','reviewer','reviewer',now);
+  const pendingReviewer=await readAdminOperations(actor,query,now);
+  assert.deepEqual(pendingReviewer.drafts_missing_reviewer.map(r=>r.id),['draft']);
+  run("UPDATE profiles SET status='approved' WHERE id=?",'reviewer');
+  const covered=await readAdminOperations(actor,query,now);
+  assert.deepEqual(covered.drafts_missing_reviewer,[]);
+  assert.deepEqual(covered.unassigned.map(c=>c.id),['private']);
  }finally{db.close()}
 });

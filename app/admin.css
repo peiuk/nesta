@@ -134,7 +134,7 @@
 .admin-main .table-wrap tbody tr:hover{background:#f8faf5}
 .admin-main .table-wrap td:last-child{min-width:120px}
 .admin-main [data-slot=badge]{font-size:.75rem;line-height:1.5;white-space:nowrap}
-.admin-metrics{grid-template-columns:repeat(5,minmax(0,1fr));gap:14px;margin-bottom:20px}
+.admin-metrics{grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-bottom:20px}
 .admin-metric{display:flex;flex-direction:column;border-color:#dfe6d9;background:#fff;padding:18px;transition:border-color .16s,box-shadow .16s;min-width:0}
 .admin-metric:hover{background:#fff;border-color:#91aa7f;box-shadow:0 4px 14px #203e3209}
 .admin-metric[data-attention=true]{border-top:3px solid #a3ba8f;padding-top:16px}

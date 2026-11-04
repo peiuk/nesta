@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {canReadReport,canReviewReport,canPublishReport,canManageCase,canUseDirectory,hasDirectoryAccess,validateUpload,validDate,validMutation} from '../lib/policy.ts';
+import {canReadReport,canReviewReport,canPublishReport,canManageCase,canUseDirectory,hasDirectoryAccess,validateUpload,validDate,validMutation,accountChangeEffects,grantIsActive,canPostQuestion} from '../lib/policy.ts';
 const client={id:'alice',role:'client',status:'approved'};
 const reviewer={id:'reviewer',role:'reviewer',status:'approved'};
 const manager={id:'manager',role:'coordinator',status:'approved'};
@@ -19,6 +19,28 @@ test('uploads reject extension/MIME mismatches, empty and oversized files',()=>{
 test('date validation rejects rollover dates',()=>{assert.equal(validDate('2026-02-28'),true);assert.equal(validDate('2026-02-30'),false)});
 test('invalid calendar input is rejected without throwing',()=>{for(const date of ['2026-13-01','2026-00-01','2026-01-99','not-a-date'])assert.equal(validDate(date),false)});
 test('writes reject cross-origin and missing application request headers',()=>{assert.equal(validMutation('https://a.test','https://a.test','firstleaf','same-origin'),true);assert.equal(validMutation('https://b.test','https://a.test','firstleaf','cross-site'),false);assert.equal(validMutation(null,'https://a.test',null,null),false)});
+test('a grant is active only before expiry and before revocation',()=>{
+ const now=Date.parse('2026-09-08T00:00:00.000Z');
+ assert.equal(grantIsActive({revoked_at:null,expires_at:'2026-09-10T23:59:59.999Z'},now),true);
+ assert.equal(grantIsActive({revoked_at:null,expires_at:'2026-09-07T23:59:59.999Z'},now),false);
+ assert.equal(grantIsActive({revoked_at:'2026-09-01T00:00:00.000Z',expires_at:'2026-09-10T23:59:59.999Z'},now),false);
+});
+test('only an approved client member can post a case question',()=>{
+ const client={role:'client',status:'approved'};
+ assert.equal(canPostQuestion(client,'client'),true);
+ assert.equal(canPostQuestion({role:'admin',status:'approved'},'coordinator'),false);
+ assert.equal(canPostQuestion({role:'coordinator',status:'approved'},'coordinator'),false);
+ assert.equal(canPostQuestion({role:'reviewer',status:'approved'},'reviewer'),false);
+ assert.equal(canPostQuestion(client,null),false);
+ assert.equal(canPostQuestion({role:'client',status:'pending'},'client'),false);
+});
+test('role change drops memberships and grants; leaving approved drops grants only',()=>{
+ const approved={role:'client',status:'approved'};
+ assert.deepEqual(accountChangeEffects(approved,{role:'coordinator',status:'approved'}),{dropMemberships:true,revokeGrants:true});
+ assert.deepEqual(accountChangeEffects(approved,{role:'client',status:'suspended'}),{dropMemberships:false,revokeGrants:true});
+ assert.deepEqual(accountChangeEffects(approved,approved),{dropMemberships:false,revokeGrants:false});
+ assert.deepEqual(accountChangeEffects({role:'client',status:'pending'},{role:'client',status:'pending'}),{dropMemberships:false,revokeGrants:true});
+});
 test('directory navigation appears only with at least one live grant',()=>{
  const live={scope:'egg',expires_at:'2026-10-01T00:00:00Z',revoked_at:null};
  const now='2026-09-06T00:00:00Z';

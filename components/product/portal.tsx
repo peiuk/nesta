@@ -1,6 +1,6 @@
 'use client';
 import {useEffect,useState,useRef,type ReactNode} from 'react';
-import {ArrowLeft,Download,Heart,LogOut,Upload} from 'lucide-react';
+import {ArrowLeft,Heart,LogOut,Upload} from 'lucide-react';
 import {Button} from '@/components/ui/button';
 import {Input} from '@/components/ui/input';
 import {Table,TableHeader,TableBody,TableRow,TableHead,TableCell} from '@/components/ui/table';
@@ -8,7 +8,7 @@ import {Brand} from './brand';
 import {LanguageButton,useLocale} from './locale';
 import {Registration,SignIn} from './registration';
 import {api,useResource,ErrorNotice,Empty,Panel,Status,Field,Choice,FilterSelect,ActionForm,Modal,formObject,useLabels,type Data} from './common';
-import {canUseDirectory,hasDirectoryAccess} from '@/lib/policy';
+import {accountChangeEffects,canUseDirectory,grantIsActive,hasDirectoryAccess} from '@/lib/policy';
 import {filterDonors,validAgeRange} from '@/lib/directory-filters';
 import {filterCases} from '@/lib/case-filters';
 import {EggRequests,SubmitEggRequest,SelectionStatus} from './egg-requests';
@@ -16,6 +16,7 @@ import {ClientOverview} from './client-overview';
 import {DonorDetails,DonorComparison} from './donor-details';
 import {DonorCover,DonorPhotoManager} from './donor-photos';
 import {groupReports} from '@/lib/report-groups';
+import {FilePreview} from './file-preview';
 import {ClientPlanFees,CasePlanPanel} from './plan-fees';
 
 export const STAGES=['assessment','treatment','transfer','pregnancy','birth','paperwork','paused','loss','closed'];
@@ -123,16 +124,17 @@ export function NewCase({refresh}:{refresh:()=>void}){
 }
 
 export function CaseDetail({caseId,profile,back}:{caseId:string;profile:Data;back:()=>void}){
- const {t}=useLocale();const label=useLabels();const [version,setVersion]=useState(0);
+ const {t}=useLocale();const label=useLabels();const [version,setVersion]=useState(0);const [joining,setJoining]=useState(false);const [joinError,setJoinError]=useState('');
  const refresh=()=>setVersion(v=>v+1);
  const {data,error,loading}=useResource('cases/'+caseId,version);
  if(loading)return <div className="loading">{t('正在载入…','Loading…')}</div>;
  if(error||!data)return <><Button variant="ghost" size="sm" onClick={back}><ArrowLeft size={16}/>{t('返回概览','Back to overview')}</Button><ErrorNotice code={error||'SERVICE_UNAVAILABLE'}/></>;
  const record=data.case as Data;const manage=data.can_manage===true;const membership=String(data.membership||'');
+ async function join(){setJoining(true);setJoinError('');try{await api(`cases/${caseId}/members`,{user_id:String(profile.id),reason:t('管理员加入为协调员','Administrator joined as coordinator'),remove:false});refresh()}catch(e){setJoinError(e instanceof Error?e.message:'SERVICE_UNAVAILABLE')}finally{setJoining(false)}}
  const members=(data.members||[]) as Data[];const events=(data.events||[]) as Data[];const questions=(data.questions||[]) as Data[];
  return <>
   <Button variant="ghost" size="sm" onClick={back}><ArrowLeft size={16}/>{t('返回概览','Back to overview')}</Button>
-  <div className="stage-banner"><div><small>{String(record.code)}</small><h2>{String(record.title)}</h2><p>{label(String(record.stage))} · {t('周期','Cycle')} {String(record.cycle)} · {t('我的身份','My role')}: {label(membership)}</p></div>{manage&&<StageForm caseId={caseId} record={record} refresh={refresh}/>}</div>
+  <div className="stage-banner"><div><small>{String(record.code)}</small><h2>{String(record.title)}</h2><p>{label(String(record.stage))} · {t('周期','Cycle')} {String(record.cycle)} · {t('我的身份','My role')}: {membership?label(membership):t('未加入','Not assigned')}</p>{profile.role==='admin'&&!membership&&<Button size="sm" disabled={joining} onClick={join}>{joining?t('加入中…','Joining…'):t('加入为协调员','Join as coordinator')}</Button>}<ErrorNotice code={joinError}/></div>{manage&&<StageForm caseId={caseId} record={record} refresh={refresh}/>}</div>
   <div className="split">
    <div>
     <CasePlanPanel caseId={caseId} canManage={manage} refresh={refresh}/>
@@ -149,7 +151,7 @@ export function CaseDetail({caseId,profile,back}:{caseId:string;profile:Data;bac
     </Panel>
     {profile.role==='admin'&&<CasePartnersPanel caseId={caseId} summary={(data.partners||null) as Data|null} refresh={refresh}/>}
     <Panel title={t('沟通记录','Conversations')}>
-     <QuestionForm caseId={caseId} refresh={refresh}/>
+     {profile.role==='client'&&membership==='client'?<QuestionForm caseId={caseId} refresh={refresh}/>:null}
      {questions.length?<div className="stack">{questions.map(q=><div key={String(q.id)} className="question"><div className="metadata">{String(q.author_name)} · {String(q.created_at).slice(0,10)}</div><p>{String(q.body)}</p>{q.reply?<div className="answer"><p>{String(q.reply)}</p></div>:manage?<ReplyForm questionId={String(q.id)} refresh={refresh}/>:<div className="metadata">{t('协调员会尽快回复。','Your coordinator will reply.')}</div>}</div>)}</div>
       :<Empty title={t('还没有提问','No questions yet')}/>}
     </Panel>
@@ -445,15 +447,23 @@ export function PeopleTab(){
 
 export function PersonForm({person,refresh}:{person:Data;refresh:()=>void}){
  const {t}=useLocale();const label=useLabels();const [open,setOpen]=useState(false);
+ const saved={role:String(person.role),status:String(person.status)};
+ const [role,setRole]=useState(saved.role);const [status,setStatus]=useState(saved.status);
+ const effects=accountChangeEffects(saved,{role,status});
+ const cases=effects.dropMemberships?Number(person.membership_count||0):0;
+ const grants=effects.revokeGrants?Number(person.active_grant_count||0):0;
+ const clears=cases>0||grants>0;
+ const impact=[cases?t(`将移除 ${cases} 个案件身份`,`Will remove ${cases} case memberships`):'',grants?t(`将撤销 ${grants} 条资料库授权`,`Will revoke ${grants} directory grants`):''].filter(Boolean).join(t('，',', '));
  return <>
-  <Button variant="secondary" size="sm" onClick={()=>setOpen(true)}>{t('更改','Change')}</Button>
+  <Button variant="secondary" size="sm" onClick={()=>{setRole(saved.role);setStatus(saved.status);setOpen(true)}}>{t('更改','Change')}</Button>
   {open&&<Modal title={`${t('更改账户','Change account')} · ${String(person.name)}`} description={t('角色与状态变更会记入审计。','Role and status changes are recorded in the audit log.')} onClose={()=>setOpen(false)}>
    <div className="notice"><p>{String(person.email)}</p>{person.jurisdiction&&<p>{t('居住地','Residence')}: {String(person.jurisdiction)} · {String(person.language)==='en'?'English':'中文'}</p>}{person.interest&&<p className="whitespace-pre-wrap">{String(person.interest)}</p>}</div>
    <ActionForm submitLabel={t('保存','Save')} onSubmit={f=>api('people/'+String(person.id),formObject(f))} onDone={()=>{setOpen(false);refresh()}}>
     <div className="form-grid">
-     <Choice name="role" label={t('角色','Role')} value={String(person.role)} options={['client','coordinator','reviewer'].map(r=>[r,label(r)] as [string,string])}/>
-     <Choice name="status" label={t('状态','Status')} value={String(person.status)} options={['pending','approved','suspended'].map(s=>[s,label(s)] as [string,string])}/>
+     <Choice name="role" label={t('角色','Role')} value={role} onChange={setRole} options={['client','coordinator','reviewer'].map(r=>[r,label(r)] as [string,string])}/>
+     <Choice name="status" label={t('状态','Status')} value={status} onChange={setStatus} options={['pending','approved','suspended'].map(s=>[s,label(s)] as [string,string])}/>
     </div>
+    {clears&&<div className="notice"><p>{impact}</p><label className="row-actions"><input name="confirm_clear" type="checkbox" required/>{t('确认清除','Confirm clearing')}</label></div>}
     <Field name="reason" type="textarea" label={t('理由（记入审计）','Reason (recorded in audit)')} max={500}/>
    </ActionForm>
   </Modal>}
@@ -461,47 +471,54 @@ export function PersonForm({person,refresh}:{person:Data;refresh:()=>void}){
 }
 
 export function GrantsTab(){
- const {t}=useLocale();const label=useLabels();const [version,setVersion]=useState(0);const [now]=useState(()=>Date.now());
+ const {t}=useLocale();const label=useLabels();const [version,setVersion]=useState(0);const [now]=useState(()=>Date.now());const [activeOnly,setActiveOnly]=useState(true);
  const refresh=()=>setVersion(v=>v+1);
  const {data,error,loading}=useResource('grants',version);
  const grants=(data?.grants||[]) as Data[];
+ const visible=grants.filter(g=>!activeOnly||grantIsActive({revoked_at:g.revoked_at?String(g.revoked_at):null,expires_at:String(g.expires_at)},now));
  if(loading)return <div className="loading">{t('正在载入…','Loading…')}</div>;
  if(error)return <ErrorNotice code={error}/>;
- return <Panel title={t('资料库授权','Directory grants')} action={<GrantForm refresh={refresh}/>}>
-  {grants.length?<div className="table-wrap"><Table>
-   <TableHeader><TableRow><TableHead>{t('账户','Account')}</TableHead><TableHead>{t('范围','Scope')}</TableHead><TableHead>{t('到期','Expires')}</TableHead><TableHead>{t('状态','State')}</TableHead><TableHead>{t('理由','Reason')}</TableHead></TableRow></TableHeader>
-   <TableBody>{grants.map(g=><TableRow key={`${String(g.user_id)}-${String(g.scope)}`}>
-    <TableCell>{String(g.name)}</TableCell><TableCell>{label(String(g.scope))}</TableCell><TableCell>{String(g.expires_at).slice(0,10)}</TableCell>
-    <TableCell>{g.revoked_at?t('已撤销','Revoked'):Date.parse(String(g.expires_at))>now?t('有效','Active'):t('已过期','Expired')}</TableCell>
-    <TableCell className="whitespace-normal">{String(g.reason)}</TableCell>
-   </TableRow>)}</TableBody>
-  </Table></div>:<Empty title={t('还没有授权记录','No grants yet')}/>}
+ return <Panel title={t('资料库授权','Directory grants')} action={<div className="row-actions"><Button variant={activeOnly?'secondary':'outline'} size="sm" aria-pressed={activeOnly} onClick={()=>setActiveOnly(v=>!v)}>{activeOnly?t('只看有效','Active only'):t('显示全部','Show all')}</Button><GrantForm refresh={refresh}/></div>}>
+  {grants.length&&visible.length?<div className="table-wrap"><Table>
+   <TableHeader><TableRow><TableHead>{t('账户','Account')}</TableHead><TableHead>{t('范围','Scope')}</TableHead><TableHead>{t('到期','Expires')}</TableHead><TableHead>{t('状态','State')}</TableHead><TableHead>{t('理由','Reason')}</TableHead><TableHead>{t('操作','Actions')}</TableHead></TableRow></TableHeader>
+   <TableBody>{visible.map(g=>{
+    const userLabel=`${String(g.name)} · ${String(g.email||'')}`;
+    const active=grantIsActive({revoked_at:g.revoked_at?String(g.revoked_at):null,expires_at:String(g.expires_at)},now);
+    return <TableRow key={`${String(g.user_id)}-${String(g.scope)}`}>
+     <TableCell>{String(g.name)}</TableCell><TableCell>{label(String(g.scope))}</TableCell><TableCell>{String(g.expires_at).slice(0,10)}</TableCell>
+     <TableCell>{g.revoked_at?t('已撤销','Revoked'):active?t('有效','Active'):t('已过期','Expired')}</TableCell>
+     <TableCell className="whitespace-normal">{String(g.reason)}</TableCell>
+     <TableCell><div className="row-actions"><GrantForm refresh={refresh} userId={String(g.user_id)} userLabel={userLabel} scope={String(g.scope)} allowRevoke={false} triggerLabel={t('续期','Renew')}/>{!g.revoked_at&&<GrantForm refresh={refresh} userId={String(g.user_id)} userLabel={userLabel} scope={String(g.scope)} initialAction="revoke" triggerLabel={t('撤销','Revoke')}/>}</div></TableCell>
+    </TableRow>;
+   })}</TableBody>
+  </Table></div>:grants.length?<Empty title={t('没有有效授权','No active grants')}><Button variant="outline" onClick={()=>setActiveOnly(false)}>{t('显示全部','Show all')}</Button></Empty>:<Empty title={t('还没有授权记录','No grants yet')}/>}
  </Panel>;
 }
 
-function GrantForm({refresh,userId,userLabel,allowRevoke=true,triggerLabel}:{refresh:()=>void;userId?:string;userLabel?:string;allowRevoke?:boolean;triggerLabel?:string}){
- const {t}=useLocale();const label=useLabels();const [open,setOpen]=useState(false);const [action,setAction]=useState('grant');const prefilled=Boolean(userId);
+function GrantForm({refresh,userId,userLabel,allowRevoke=true,triggerLabel,scope,initialAction}:{refresh:()=>void;userId?:string;userLabel?:string;allowRevoke?:boolean;triggerLabel?:string;scope?:string;initialAction?:'grant'|'revoke'}){
+ const {t}=useLocale();const label=useLabels();const [open,setOpen]=useState(false);const [action,setAction]=useState(initialAction??'grant');const prefilled=Boolean(userId);
  const people=useResource(open&&!prefilled?'people':null);
  const candidates=((people.data?.people||[]) as Data[]).filter(p=>p.status==='approved');
- const effectiveAction=allowRevoke?action:'grant';const ready=prefilled||(!people.loading&&!people.error&&candidates.length>0);
+ const effectiveAction=initialAction??(allowRevoke?action:'grant');const ready=prefilled||(!people.loading&&!people.error&&candidates.length>0);
  return <>
-  <Button size="sm" onClick={()=>{setAction('grant');setOpen(true)}}>{triggerLabel??t('发放或撤销','Grant or revoke')}</Button>
-  {open&&<Modal title={t('资料库授权','Directory access')} description={t('到期日须在未来一年内；撤销时到期日不生效。','Expiry must fall within one year. Expiry is ignored when revoking.')} onClose={()=>setOpen(false)}>
+  <Button size="sm" variant={initialAction==='revoke'?'outline':'default'} onClick={()=>{setAction(initialAction??'grant');setOpen(true)}}>{triggerLabel??t('发放或撤销','Grant or revoke')}</Button>
+  {open&&<Modal title={initialAction==='revoke'?t('撤销授权','Revoke access'):t('资料库授权','Directory access')} description={t('到期日须在未来一年内；撤销时到期日不生效。','Expiry must fall within one year. Expiry is ignored when revoking.')} onClose={()=>setOpen(false)}>
    {!prefilled&&(people.loading?<div className="loading">{t('正在载入…','Loading…')}</div>:people.error?<ErrorNotice code={people.error}/>:candidates.length===0?<Empty title={t('没有可选账户','No approved accounts')}>{t('请先在管理页批准账户。','Approve an account in Administration first.')}</Empty>:null)}
    {ready&&<ActionForm submitLabel={t('保存','Save')} onSubmit={f=>api('grants',{user_id:f.get('user_id'),scope:f.get('scope'),expires_at:f.get('expires_at'),reason:f.get('reason'),revoke:f.get('action')==='revoke'})} onDone={()=>{setOpen(false);refresh()}}>
     {prefilled?<>
      <input type="hidden" name="user_id" value={userId}/>
      <label className="field"><span>{t('账户','Account')}</span><div>{userLabel}</div></label>
-    </>
-    :<Choice name="user_id" label={t('账户','Account')} options={candidates.map(p=>[String(p.id),`${String(p.name)} · ${String(p.email)}`] as [string,string])}/>}
+    </>:
+    <Choice name="user_id" label={t('账户','Account')} options={candidates.map(p=>[String(p.id),`${String(p.name)} · ${String(p.email)}`] as [string,string])}/>}
      <div className="form-grid">
-      <Choice name="scope" label={t('范围','Scope')} options={[['egg',label('egg')],['sperm',label('sperm')]]}/>
-      {allowRevoke
-       ?<label className="field"><span>{t('操作','Action')}</span><select name="action" className="min-h-11 w-full rounded-md border border-input bg-transparent px-3 text-sm" value={action} onChange={e=>setAction(e.target.value)}><option value="grant">{t('发放','Grant')}</option><option value="revoke">{t('撤销','Revoke')}</option></select></label>
+      {scope?<input type="hidden" name="scope" value={scope}/>:<Choice name="scope" label={t('范围','Scope')} options={[['egg',label('egg')],['sperm',label('sperm')]]}/>}
+      {initialAction?<input type="hidden" name="action" value={initialAction}/>:allowRevoke
+       ?<label className="field"><span>{t('操作','Action')}</span><select name="action" className="min-h-11 w-full rounded-md border border-input bg-transparent px-3 text-sm" value={action} onChange={e=>setAction(e.target.value==='revoke'?'revoke':'grant')}><option value="grant">{t('发放','Grant')}</option><option value="revoke">{t('撤销','Revoke')}</option></select></label>
        :<input type="hidden" name="action" value="grant"/>
       }
      </div>
-     <Field name="expires_at" type="date" label={t('到期日','Expiry date')} required={effectiveAction!=='revoke'}/>
+     {scope&&<label className="field"><span>{t('范围','Scope')}</span><div>{label(scope)}</div></label>}
+     {effectiveAction!=='revoke'&&<Field name="expires_at" type="date" label={t('到期日','Expiry date')}/>}
      <Field name="reason" type="textarea" label={t('理由（记入审计）','Reason (recorded in audit)')} max={500}/>
     </ActionForm>}
   </Modal>}
@@ -516,18 +533,18 @@ export function CasesTab({profile,open,refresh,version}:{profile:Data;open:(id:s
  const cases=filterCases(allCases,{query,stage,assignedOnly});
  const hasFilters=Boolean(query.trim()||stage!=='all'||assignedOnly);
  const resetFilters=()=>{setQuery('');setStage('all');setAssignedOnly(false)};
- async function joinAndOpen(caseId:string){
+ async function join(caseId:string){
   if(busyId)return;setBusyId(caseId);setActionError('');
   try{
-   await api(`cases/${caseId}/members`,{user_id:String(profile.id),reason:t('管理员自行加入案件以便查看详情','Administrator self-assigned to open case detail'),remove:false});
-   refresh();open(caseId);
+   await api(`cases/${caseId}/members`,{user_id:String(profile.id),reason:t('管理员加入为协调员','Administrator joined as coordinator'),remove:false});
+   refresh();
   }catch(e){setActionError(e instanceof Error?e.message:'SERVICE_UNAVAILABLE')}finally{setBusyId('')}
  }
  if(loading)return <div className="loading">{t('正在载入…','Loading…')}</div>;
  if(error)return <ErrorNotice code={error}/>;
  return <Panel title={t('案件列表 · 最近 200 个','Case list · latest 200')} action={<NewCase refresh={refresh}/>}>
   <ErrorNotice code={actionError}/>
-  <div className="notice">{t('未参与的案件可一键加入为协调员后查看详情。','For cases you are not on, join as coordinator in one step to open the detail view.')}</div>
+  <div className="notice">{t('未参与的案件可以直接查看。加入为协调员后才能上传和发布报告。','Cases you are not on can be opened directly. Join as coordinator to upload and publish reports.')}</div>
   <div className="row-actions mb-4 gap-3"><Input className="min-h-11 min-w-48 flex-1" value={query} onChange={e=>setQuery(e.target.value)} placeholder={t('搜索案件编号或名称','Search case code or title')} aria-label={t('搜索案件','Search cases')}/><FilterSelect value={stage} onChange={setStage} label={t('案件阶段','Case stage')} options={[["all",t('全部阶段','All stages')],...STAGES.map(s=>[s,label(s)] as [string,string])]}/><Button variant={assignedOnly?'secondary':'outline'} className="min-h-11" aria-pressed={assignedOnly} onClick={()=>setAssignedOnly(v=>!v)}>{t('仅我参与的案件','Assigned to me')}</Button>{hasFilters&&<Button variant="ghost" onClick={resetFilters}>{t('清空筛选','Clear filters')}</Button>}</div>
   <p className="metadata mb-4" role="status">{t(`显示 ${cases.length} / ${allCases.length} 个案件`,`Showing ${cases.length} of ${allCases.length} cases`)}</p>
   {cases.length?<div className="table-wrap"><Table>
@@ -536,7 +553,7 @@ export function CasesTab({profile,open,refresh,version}:{profile:Data;open:(id:s
     <TableCell>{String(c.code)}</TableCell><TableCell className="whitespace-normal">{String(c.title)}</TableCell><TableCell><Status value={String(c.stage)}/></TableCell>
     <TableCell>{c.membership_role
      ?<Button type="button" variant="link" className="h-auto p-0" onClick={()=>open(String(c.id))}>{label(String(c.membership_role))}</Button>
-     :<Button type="button" variant="secondary" size="sm" disabled={busyId===String(c.id)} onClick={()=>joinAndOpen(String(c.id))}>{busyId===String(c.id)?t('加入中…','Joining…'):t('加入并打开','Join & open')}</Button>}</TableCell>
+     :<div className="row-actions"><Button type="button" variant="link" className="h-auto p-0" onClick={()=>open(String(c.id))}>{t('查看','View')}</Button><Button type="button" variant="secondary" size="sm" disabled={busyId===String(c.id)} onClick={()=>join(String(c.id))}>{busyId===String(c.id)?t('加入中…','Joining…'):t('加入为协调员','Join as coordinator')}</Button></div>}</TableCell>
     <TableCell>{String(c.updated_at).slice(0,10)}</TableCell>
    </TableRow>)}</TableBody>
   </Table></div>:<Empty title={allCases.length?t('没有匹配的案件','No matching cases'):t('还没有案件','No cases yet')}>{hasFilters?<Button variant="outline" onClick={resetFilters}>{t('清空筛选','Clear filters')}</Button>:t('先批准客户账户，再建立第一个案件。','Approve a client account, then create your first case.')}</Empty>}
@@ -544,28 +561,29 @@ export function CasesTab({profile,open,refresh,version}:{profile:Data;open:(id:s
 }
 
 export function AuditTab(){
- const {t}=useLocale();const [actionQ,setActionQ]=useState('');const [from,setFrom]=useState('');const [to,setTo]=useState('');
- const {data,error,loading}=useResource('audit');
- const rows=((data?.audit||[]) as Data[]).filter(r=>{
-  if(actionQ.trim()&&!String(r.action).toLowerCase().includes(actionQ.trim().toLowerCase()))return false;
-  const day=String(r.created_at).slice(0,10);
-  if(from&&day<from)return false;
-  if(to&&day>to)return false;
-  return true;
- });
- if(loading)return <div className="loading">{t('正在载入…','Loading…')}</div>;
- if(error)return <ErrorNotice code={error}/>;
- return <Panel title={t('审计记录（最近 100 条）','Audit log (latest 100)')}>
-  <div className="row-actions mb-4 flex-wrap gap-3">
-   <input className="min-h-11 min-w-[160px] flex-1 rounded-md border border-input bg-transparent px-3 text-sm" value={actionQ} onChange={e=>setActionQ(e.target.value)} placeholder={t('按动作筛选','Filter by action')} aria-label={t('按动作筛选','Filter by action')}/>
-   <label className="metadata flex items-center gap-2">{t('从','From')}<input type="date" className="min-h-11 rounded-md border border-input bg-transparent px-3 text-sm" value={from} onChange={e=>setFrom(e.target.value)}/></label>
-   <label className="metadata flex items-center gap-2">{t('至','To')}<input type="date" className="min-h-11 rounded-md border border-input bg-transparent px-3 text-sm" value={to} onChange={e=>setTo(e.target.value)}/></label>
-  </div>
-  {rows.length?<div className="table-wrap"><Table>
+ const {t}=useLocale();
+ const [draft,setDraft]=useState({action:'',actor:'',target:'',from:'',to:''});
+ const [applied,setApplied]=useState(draft);
+ const params=new URLSearchParams();
+ for(const [key,value] of Object.entries(applied))if(value)params.set(key,value);
+ const query=params.toString();
+ const {data,error,loading}=useResource('audit'+(query?'?'+query:''));
+ const rows=(data?.audit||[]) as Data[];
+ const set=(key:keyof typeof draft)=>(value:string)=>setDraft(current=>({...current,[key]:value}));
+ return <Panel title={t('审计记录（最多 100 条匹配）','Audit log (up to 100 matches)')}>
+  <form className="row-actions mb-4 flex-wrap gap-3" onSubmit={e=>{e.preventDefault();setApplied(draft)}}>
+   <input className="min-h-11 min-w-[140px] flex-1 rounded-md border border-input bg-transparent px-3 text-sm" value={draft.actor} onChange={e=>set('actor')(e.target.value)} placeholder={t('操作人','Actor')} aria-label={t('操作人','Actor')}/>
+   <input className="min-h-11 min-w-[140px] flex-1 rounded-md border border-input bg-transparent px-3 text-sm" value={draft.action} onChange={e=>set('action')(e.target.value)} placeholder={t('动作','Action')} aria-label={t('动作','Action')}/>
+   <input className="min-h-11 min-w-[140px] flex-1 rounded-md border border-input bg-transparent px-3 text-sm" value={draft.target} onChange={e=>set('target')(e.target.value)} placeholder={t('对象','Target')} aria-label={t('对象','Target')}/>
+   <label className="metadata flex items-center gap-2">{t('从','From')}<input type="date" className="min-h-11 rounded-md border border-input bg-transparent px-3 text-sm" value={draft.from} onChange={e=>set('from')(e.target.value)}/></label>
+   <label className="metadata flex items-center gap-2">{t('至','To')}<input type="date" className="min-h-11 rounded-md border border-input bg-transparent px-3 text-sm" value={draft.to} onChange={e=>set('to')(e.target.value)}/></label>
+   <Button type="submit">{t('查询','Search')}</Button>
+  </form>
+  {loading?<div className="loading">{t('正在载入…','Loading…')}</div>:error?<ErrorNotice code={error}/>:rows.length?<div className="table-wrap"><Table>
    <TableHeader><TableRow><TableHead>{t('时间','Time')}</TableHead><TableHead>{t('操作人','Actor')}</TableHead><TableHead>{t('动作','Action')}</TableHead><TableHead>{t('对象','Target')}</TableHead><TableHead>{t('理由','Reason')}</TableHead></TableRow></TableHeader>
    <TableBody>{rows.map(r=><TableRow key={String(r.id)}>
     <TableCell>{String(r.created_at).slice(0,19).replace('T',' ')}</TableCell><TableCell>{String(r.actor_name||r.actor_id)}</TableCell><TableCell>{String(r.action)}</TableCell>
-    <TableCell className="font-mono text-xs">{String(r.target)}</TableCell><TableCell className="whitespace-normal">{String(r.reason)}</TableCell>
+    <TableCell>{String(r.target_label||r.target)}</TableCell><TableCell className="whitespace-normal">{String(r.reason)}</TableCell>
    </TableRow>)}</TableBody>
   </Table></div>:<Empty title={t('没有匹配的记录','No matching entries')}/>}
  </Panel>;
@@ -583,14 +601,14 @@ function ReportPanel({data,caseId,refresh}:{data:Data;caseId:string;refresh:()=>
    {r.published_at&&<p className="metadata">{t('发布时间','Published')} {String(r.published_at).slice(0,16).replace('T',' ')}</p>}
    {r.review_note?<div className="report-review">{t('复核意见','Review note')}: {String(r.review_note)}</div>:null}
    <div className="row-actions">
-    <a className="quiet-link" href={`/api/files/${String(r.id)}/original`} target="_blank" rel="noreferrer"><Download size={16}/>{t('原件','Original')}</a>
-    {r.has_translation?<a className="quiet-link" href={`/api/files/${String(r.id)}/translation`} target="_blank" rel="noreferrer"><Download size={16}/>{t('译稿','Translation')}</a>:null}
+    <FilePreview href={`/api/files/${String(r.id)}/original`} label={t('查看原件','View original')}/>
+    {r.has_translation?<FilePreview href={`/api/files/${String(r.id)}/translation`} label={t('查看译稿','View translation')}/>:null}
     {r.can_review?<ReportAction report={r} action="review" refresh={refresh}/>:null}
     {r.can_publish?<ReportAction report={r} action="publish" refresh={refresh}/>:null}
     {manage&&['draft','reviewed','published'].includes(String(r.status))?<ReportAction report={r} action="withdraw" refresh={refresh}/>:null}
    </div>
   </div><Status value={String(r.status)}/></div>)}</section>)}</div>
-   :<Empty title={t('还没有报告','No reports yet')}>{t('协调员上传并完成独立复核后，已发布报告会显示在这里。','Published reports appear here after upload and independent review.')}</Empty>}
+   :<Empty title={data.reports_withheld?t('报告需加入后查看','Reports stay hidden until you join'):t('还没有报告','No reports yet')}>{data.reports_withheld?t('你还不是这个案件的协调员，报告和文件不会列出。','You are not this case coordinator, so reports and files are not listed.'):t('协调员上传并完成独立复核后，已发布报告会显示在这里。','Published reports appear here after upload and independent review.')}</Empty>}
  </Panel>;
 }
 

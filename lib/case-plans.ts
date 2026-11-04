@@ -1,10 +1,24 @@
 export type AddonStatus='none'|'quoted'|'included'|'occurred';
 export type PayStatus='pending'|'paid';
-export type Tier='basic'|'mid'|'advanced';
+export type Tier='a'|'b'|'c'|'c_plus'|'basic'|'mid'|'advanced';
+export type PgsScope='count'|'all'|'contract';
 export type Milestone={key:string;label_zh:string;label_en:string;amount_usd:number;status:PayStatus;paid_at?:string|null};
+export type PlanSpec={tier:Tier;total:number;currency:'CNY'|'USD';version:string;pgs:number;pgsScope:PgsScope};
 
-export const TIER_TOTAL:Record<Tier,number>={basic:58000,mid:72000,advanced:84000};
-export const TIER_PGS:Record<Tier,number>={basic:0,mid:6,advanced:6};
+const CATALOG:Record<Tier,PlanSpec>={
+ a:{tier:'a',total:400000,currency:'CNY',version:'abc-2026-10',pgs:0,pgsScope:'contract'},
+ b:{tier:'b',total:520000,currency:'CNY',version:'abc-2026-10',pgs:4,pgsScope:'count'},
+ c:{tier:'c',total:580000,currency:'CNY',version:'abc-2026-10',pgs:0,pgsScope:'all'},
+ c_plus:{tier:'c_plus',total:630000,currency:'CNY',version:'abc-2026-10',pgs:0,pgsScope:'all'},
+ basic:{tier:'basic',total:58000,currency:'USD',version:'legacy-2026-09',pgs:0,pgsScope:'count'},
+ mid:{tier:'mid',total:72000,currency:'USD',version:'legacy-2026-09',pgs:6,pgsScope:'count'},
+ advanced:{tier:'advanced',total:84000,currency:'USD',version:'legacy-2026-09',pgs:6,pgsScope:'count'},
+};
+
+export const TIER_TOTAL:Record<'basic'|'mid'|'advanced',number>={basic:58000,mid:72000,advanced:84000};
+export const TIER_PGS:Record<'basic'|'mid'|'advanced',number>={basic:0,mid:6,advanced:6};
+
+export function packageSpec(tier:Tier):PlanSpec{return CATALOG[tier]}
 
 const MID_SPLIT=[
  {key:'contract',label_zh:'签约启动',label_en:'Contract start',amount_usd:10000},
@@ -22,17 +36,52 @@ export function normalizePaidMilestoneKeys(values:unknown):string[]{
  return MILESTONE_KEYS.filter(key=>selected.has(key));
 }
 
-export function isTier(v:unknown):v is Tier{return v==='basic'||v==='mid'||v==='advanced'}
+export function isTier(v:unknown):v is Tier{return typeof v==='string'&&v in CATALOG}
 export function isAddon(v:unknown):v is AddonStatus{return v==='none'||v==='quoted'||v==='included'||v==='occurred'}
 
-export function defaultMilestones(tier:Tier,paidKeys:string[]=[]):Milestone[]{
- const total=TIER_TOTAL[tier];
- const paid=new Set(paidKeys);
- return MID_SPLIT.map(m=>{
-  const amount_usd=Math.round(m.amount_usd*(total/72000));
-  const status:PayStatus=paid.has(m.key)?'paid':'pending';
-  return {...m,amount_usd,status,paid_at:status==='paid'?new Date().toISOString():null};
+export function scheduleMilestones(previous:Milestone[],total:number):Milestone[]{
+ const prevByKey=new Map(previous.map(m=>[m.key,m]));
+ const paid=previous.filter(m=>m.status==='paid');
+ const paidSum=paid.reduce((s,m)=>s+m.amount_usd,0);
+ if(paidSum>total)throw new Error('PAID_EXCEEDS_TOTAL');
+ // ponytail: unpaid nodes keep the 2026-09 five-step weights; replace when A/B/C has its own schedule.
+ const pendingTemplate=MID_SPLIT.filter(m=>prevByKey.get(m.key)?.status!=='paid');
+ const weight=pendingTemplate.reduce((s,m)=>s+m.amount_usd,0)||1;
+ const remain=total-paidSum;
+ let acc=0;
+ const pendingAmounts=new Map<string,number>();
+ pendingTemplate.forEach((m,i)=>{
+  if(i===pendingTemplate.length-1)pendingAmounts.set(m.key,remain-acc);
+  else{const amount=Math.round(m.amount_usd/weight*remain);acc+=amount;pendingAmounts.set(m.key,amount)}
  });
+ const known=new Set(MILESTONE_KEYS);
+ return [
+  ...MID_SPLIT.map(m=>{
+   const prev=prevByKey.get(m.key);
+   if(prev?.status==='paid')return {...m,amount_usd:prev.amount_usd,status:'paid' as const,paid_at:prev.paid_at??null};
+   return {...m,amount_usd:pendingAmounts.get(m.key)??0,status:'pending' as const,paid_at:null};
+  }),
+  ...paid.filter(m=>!known.has(m.key)).map(m=>({...m,paid_at:m.paid_at??null})),
+ ];
+}
+
+export function planDraft(input:{tier:Tier;total:number;previous:Milestone[];pgsIncluded?:number;pgsExtra?:number}){
+ const spec=packageSpec(input.tier);
+ return {
+  tier:input.tier,
+  total:input.total,
+  currency:spec.currency,
+  package_version:spec.version,
+  pgs_included:input.pgsIncluded??spec.pgs,
+  pgs_scope:spec.pgsScope,
+  pgs_extra:input.pgsExtra??500,
+  milestones:scheduleMilestones(input.previous,input.total),
+ };
+}
+
+export function defaultMilestones(tier:Tier,paidKeys:string[]=[]):Milestone[]{
+ const paid=new Set(paidKeys);
+ return scheduleMilestones([],packageSpec(tier).total).map(m=>paid.has(m.key)?{...m,status:'paid' as const,paid_at:null}:m);
 }
 
 export function parseMilestones(raw:string):Milestone[]{
@@ -54,14 +103,21 @@ export function publicPlan(row:any){
  if(!row)return null;
  let milestones:Milestone[];
  try{milestones=parseMilestones(String(row.milestones_json))}catch{milestones=[]}
- const paid=milestones.filter(m=>m.status==='paid').reduce((s,m)=>s+m.amount_usd,0);
- const pending=milestones.filter(m=>m.status==='pending').reduce((s,m)=>s+m.amount_usd,0);
+ const legacyPaid=milestones.filter(m=>m.status==='paid').reduce((s,m)=>s+m.amount_usd,0);
+ const receipts=Array.isArray(row.receipts)?row.receipts.map((r:any)=>({id:r.id?String(r.id):'',amount:Number(r.amount)||0,currency:String(r.currency||''),paid_on:String(r.paid_on||''),voucher:String(r.voucher||''),note:String(r.note||'')})):[];
+ const spec=isTier(row.tier)?packageSpec(row.tier):null;
+ const currency=row.currency||spec?.currency||'USD';
+ const receiptPaid=receipts.filter((r:any)=>r.currency===currency).reduce((s:number,r:any)=>s+r.amount,0);
+ const total=Number(row.total_usd);
  return {
   case_id:row.case_id,
   case_code:row.case_code,
   case_title:row.case_title,
   tier:row.tier,
-  total_usd:Number(row.total_usd),
+  currency,
+  package_version:row.package_version||spec?.version||'legacy-2026-09',
+  pgs_scope:row.pgs_scope||spec?.pgsScope||'count',
+  total_usd:total,
   pgs_included:Number(row.pgs_included),
   pgs_extra_usd:Number(row.pgs_extra_usd),
   egg_status:row.egg_status,
@@ -71,8 +127,9 @@ export function publicPlan(row:any){
   nicu_status:row.nicu_status,
   note:row.note||'',
   milestones,
-  paid_usd:paid,
-  pending_usd:pending,
+  receipts,
+  paid_usd:legacyPaid+receiptPaid,
+  pending_usd:Math.max(0,total-(legacyPaid+receiptPaid)),
   updated_at:row.updated_at,
  };
 }
