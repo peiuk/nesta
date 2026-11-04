@@ -3,10 +3,12 @@ import {useEffect,useRef} from 'react';
 import {ArrowUpRight,ArrowRight,Download,FileText,ShieldCheck,FileHeart,MessagesSquare,Phone,Mail} from 'lucide-react';
 import './home.css';
 import {Brand} from '@/components/product/brand';
-import {LanguageButton,useLocale} from '@/components/product/locale';
+import {useLocale} from '@/components/product/locale';
+import {PackageFeeDisclosures} from '@/components/product/package-fee-disclosures';
 import {PartnerLeaderMed} from '@/components/product/partner-leadermed';
+import {PublicSiteHeader} from '@/components/product/public-site-header';
 import {CONTACT_EMAIL,CONTACT_PHONE,CONTACT_PHONE_TEL} from '@/lib/public-contact';
-import {formatPackageMainPrice,formatPackageMainPriceCaption,PACKAGE_DISCLAIMER,PACKAGE_EXPEDITE,PACKAGE_EXTRAS,PACKAGE_INCLUSIONS,PACKAGE_SHEET_VERSION,PACKAGE_STRIP,PUBLIC_PACKAGES} from '@/lib/public-packages';
+import {formatPackageMainPrice,formatPackageMainPriceCaption,PACKAGE_DISCLAIMER,PACKAGE_SHEET_VERSION,PACKAGE_STRIP,PUBLIC_PACKAGES} from '@/lib/public-packages';
 
 export default function Home(){
  const {t,lang}=useLocale();
@@ -22,15 +24,7 @@ export default function Home(){
  return <div className="home-shell home-editorial">
   <main>
    <section className="home-hero home-hero-family">
-  <header className="site-header"><Brand/><nav>
-   <a className="nav-desk" href="/services">{t('服务','Services')}</a>
-   <a className="nav-desk" href="/process">{t('流程','Process')}</a>
-   <a className="nav-desk" href="/fees">{t('费用','Fees')}</a>
-   <a className="nav-desk" href="/clinic">{t('诊所','Clinic')}</a>
-   <a className="nav-desk" href="/faq">{t('问答','Questions')}</a>
-   <LanguageButton/>
-   <a className="primary-link" href="/portal">{t('客户登录','Client sign-in')}<ArrowUpRight size={17}/></a>
-  </nav></header>
+  <PublicSiteHeader className="site-header"/>
     <div className="family-hero-layout">
     <div className="hero-copy">
      <div className="hero-eyebrow hero-rise"><span aria-hidden="true"/>{t('格鲁吉亚代孕服务协调','SURROGACY COORDINATION · GEORGIA')}</div>
@@ -73,7 +67,7 @@ export default function Home(){
      {[[t('LeaderMed 独家合作','Exclusive LeaderMed partner'),t('奈斯是第比利斯 LeaderMed 医院的独家合作伙伴，协调评估与治疗安排。诊疗由医院负责。','Nesta is the exclusive partner of LeaderMed hospital in Tbilisi, and coordinates assessment and treatment arrangements. Clinical care stays with the hospital.')],[t('专业月子中心','Professional postpartum centre'),t('配套月子中心为专业机构，持牌儿科医生实行 24 小时值班。休养与行程节点记入服务进度。','The accompanying postpartum centre is a professional facility, with licensed paediatricians on 24-hour duty. Rest and travel milestones stay on the care timeline.')],[t('公证与海牙认证','Notarisation & Apostille'),t('跟进出生、亲权等相关证件的公证与海牙认证进度，材料与状态可追溯。','Track notarisation and Apostille progress for birth and parentage documents, with a clear record of materials and status.')]].map((x,i)=><article key={i}><span>0{i+1}</span><h3>{x[0]}</h3><p>{x[1]}</p>{i===0?<a className="network-more" href="/clinic">{t('查看合作医院 LeaderMed','See partner clinic LeaderMed')}<ArrowUpRight size={14}/></a>:null}</article>)}
     </div>
    </section>
-   <PartnerLeaderMed/>
+   <PartnerLeaderMed compact/>
 
    <section id="packages" className="packages-section">
     <div className="section-intro">
@@ -91,20 +85,7 @@ export default function Home(){
      </article>)}
     </div>
     <p className="package-terms"><ShieldCheck size={20} aria-hidden="true"/>{t(...PACKAGE_DISCLAIMER)} <a href="/faq">{t('常见问题','Common questions')}</a></p>
-    <div className="package-inclusions">
-     <div className="section-intro"><div><div className="eyebrow">INCLUDED SERVICES</div><h3>{t('费用包含明细','What the fees include')}</h3></div><p>{t('具体范围对应所选套餐。','The precise scope follows the selected programme.')}</p></div>
-     <ol className="package-inclusion-list">
-      {PACKAGE_INCLUSIONS.map((item,i)=><li key={item.title[0]}><span className="inclusion-number">{String(i+1).padStart(2,'0')}</span><div><strong>{t(...item.title)}</strong>{item.note&&<p>{t(...item.note)}</p>}</div></li>)}
-     </ol>
-    </div>
-    <div className="package-extras">
-     <div className="section-intro"><div><div className="eyebrow">ADDITIONAL FEES</div><h3>{t('额外收费 · 不包含在上述套餐内','Additional fees · outside the packages')}</h3></div><p>{t('按适用条件另计。','Charged separately where they apply.')}</p></div>
-     <dl className="package-extra-list">
-      {PACKAGE_EXTRAS.map(item=><div key={item.title[0]}><dt>{t(...item.title)}</dt><dd>{t(...item.price)}</dd></div>)}
-     </dl>
-     <aside className="package-expedite"><h4>{t(...PACKAGE_EXPEDITE.title)}</h4><p>{t(...PACKAGE_EXPEDITE.body)}</p></aside>
-     <p className="packages-note">{t('另计项中原图“$”为美元；套餐主价为人民币。计费单位及具体条件以书面报价为准。','“$” on listed extras means US dollars. Main programme prices are RMB. Billing units and specific terms follow your written quote.')}</p>
-    </div>
+    <PackageFeeDisclosures showCurrencyNote/>
     <aside className="packages-download-card" aria-label={t('套餐资料下载','Package sheet download')}>
      <div className="packages-download-icon" aria-hidden="true"><FileText size={22}/></div>
      <div className="packages-download-copy"><h3>{t('套餐原图，一页查看','The original package sheet')}</h3><p>{t('三种套餐、费用明细与办理流程，保存后随时对照。','Save the three programmes, fee details and process for reference.')}</p><span className="packages-download-meta">{t(`中文 · JPG · ${PACKAGE_SHEET_VERSION}`,`Chinese · JPG · ${PACKAGE_SHEET_VERSION}`)}</span></div>
@@ -128,7 +109,10 @@ export default function Home(){
      </div>
      <ol className="consultation-steps"><li>{t('电话或邮件沟通基本需求，无需先注册。','Contact us by phone or email; registration is not required.')}</li><li>{t('团队说明资料要求、服务流程与费用范围。','The team explains information needed, the process and fee scope.')}</li><li>{t('确认继续后建立档案，按审核结果开放服务空间。','Create a profile when ready; access is granted after review.')}</li></ol>
     </div>
-    <a href="/portal" className="primary-link on-dark">{t('建立我的档案','Create my profile')}<ArrowUpRight size={18}/></a>
+    <div className="cta-band-actions">
+     <a href={`tel:${CONTACT_PHONE_TEL}`} className="primary-link on-dark">{t('电话咨询','Call to consult')}<Phone size={18}/></a>
+     <a href="/portal" className="quiet-link on-dark cta-secondary">{t('已有意向？建立档案','Ready to continue? Create profile')}<ArrowUpRight size={16}/></a>
+    </div>
    </section>
   </main>
   <footer className="site-footer"><Brand/><span className="footer-links"><a href="/services">{t('服务','Services')}</a><a href="/process">{t('流程','Process')}</a><a href="/fees">{t('费用','Fees')}</a><a href="/clinic">{t('诊所','Clinic')}</a><a href="/faq">{t('问答','Questions')}</a><a href="/privacy">{t('隐私与试用说明','Privacy & pilot information')}</a></span></footer>

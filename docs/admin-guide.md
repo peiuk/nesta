@@ -1,6 +1,6 @@
 # 初禾后台 · 私密试用
 
-入口 `/admin`。使用已配置的管理员 ChatGPT 账户登录；后台不会提供角色模拟或绕过身份验证。现有邮箱会话也可访问后台，但邮件验证码服务尚未配置，后台登录页暂以 ChatGPT 为入口。
+入口 `/admin`。可使用已配置的管理员 ChatGPT 账户，或在登录页用 **ADMIN_EMAIL** 中登记的邮箱收取验证码（与 Portal 相同机制；本地开发需 `SESSION_SECRET` 与 `SITE_ORIGIN=http://localhost:3000`，验证码见控制台 `[firstleaf-otp]`）。后台不会提供角色模拟或绕过身份验证。
 
 ## 日常操作
 

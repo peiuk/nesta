@@ -10,7 +10,7 @@ import migration7 from '../drizzle/0007_case_documents.sql?raw';
 import migration8 from '../drizzle/0008_case_payments.sql?raw';
 import migration9 from '../drizzle/0009_faq_entries.sql?raw';
 import {DOCUMENT_KINDS} from './documents';
-import {DEFAULT_FAQ} from './faq';
+import {buildDefaultFaqSeedStatements} from './faq-sync';
 
 let ready:Promise<void>|null=null;
 
@@ -32,9 +32,7 @@ async function seedFaqIfEmpty(){
  const count=await env.DB.prepare('SELECT COUNT(*) AS count FROM faq_entries').first<{count:number}>();
  if(Number(count?.count))return;
  const ts=new Date().toISOString();
- await env.DB.batch(DEFAULT_FAQ.map((item,index)=>
-  env.DB.prepare('INSERT INTO faq_entries (id,question_zh,question_en,answer_zh,answer_en,position,hidden,updated_at) VALUES (?,?,?,?,?,?,0,?)').bind(item.id,item.question_zh,item.question_en,item.answer_zh,item.answer_en,index+1,ts)
- ));
+ await env.DB.batch(buildDefaultFaqSeedStatements(ts).map(row=>env.DB.prepare(row.sql).bind(...row.params)));
 }
 async function seedMissingCaseDocuments(){
  const existing=await env.DB.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='case_documents'").first();

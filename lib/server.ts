@@ -8,6 +8,7 @@ import {emailSignInAvailable} from './auth-options';
 import {readClientHighlights} from './client-highlights';
 import {isAddon,isTier,packageSpec,parseMilestones,planDraft,publicPlan,type Milestone} from './case-plans';
 import {moveFaq,visibleFaq,type FaqEntry} from './faq';
+import {buildDefaultFaqSyncStatements} from './faq-sync';
 import {submitEggRequest,decideEggRequest,withdrawEggRequest,listEggRequests,type SelectionStore} from './egg-requests';
 import {canReadReport,canManageCase,canReviewReport,canPublishReport,canUseDirectory,canPostQuestion,validMutation,validDate,validateUpload,accountChangeEffects} from './policy';
 import {readAudit} from './audit-log';
@@ -299,6 +300,11 @@ export async function write(path:string[],a:Profile,request:Request){
  if(path[0]==='grants'){
   admin(a);const b=await json(request),userId=text(b.user_id),scope=choice(b.scope,['egg','sperm']),reason=text(b.reason,500);const person=await one<Profile>('SELECT * FROM profiles WHERE id=?',userId);if(!person)fail(404,'NOT_FOUND');if(b.revoke===true){await db().batch([statement('UPDATE directory_grants SET revoked_at=? WHERE user_id=? AND scope=?',now(),userId,scope),auditStatement(a,'directory.revoke',userId,`${scope}: ${reason}`)]);return response({ok:true})}if(person.status!=='approved')fail(400,'APPROVAL_REQUIRED');const expires=date(b.expires_at)+'T23:59:59.999Z';if(Date.parse(expires)<=Date.now()||Date.parse(expires)>Date.now()+366*86400000)fail(400,'INVALID_DATE');
   await db().batch([statement('INSERT INTO directory_grants (user_id,scope,expires_at,revoked_at,reason,granted_by) VALUES (?,?,?,NULL,?,?) ON CONFLICT(user_id,scope) DO UPDATE SET expires_at=excluded.expires_at,revoked_at=NULL,reason=excluded.reason,granted_by=excluded.granted_by',userId,scope,expires,reason,a.id),auditStatement(a,'directory.grant',userId,`${scope} / ${expires}: ${reason}`)]);return response({ok:true});
+ }
+ if(path[0]==='site-faq'&&path.length===2&&path[1]==='sync-default'){
+  admin(a);await ensureSchema();const ts=now();const existing=await all<{id:string;position:number}>('SELECT id,position FROM faq_entries');const {statements,summary}=buildDefaultFaqSyncStatements({ts,actorId:a.id,existing:existing.map(row=>({id:String(row.id),position:Number(row.position)}))});
+  await db().batch([...statements.map(row=>statement(row.sql,...row.params)),auditStatement(a,'faq.sync_default','site-faq',`updated=${summary.updated},inserted=${summary.inserted}`)]);
+  return response({ok:true,...summary});
  }
  if(path[0]==='site-faq'&&path.length===1){
   admin(a);const b=await json(request);const fields=faqFields(b);const max=await one<{position:number}>('SELECT COALESCE(MAX(position),0) AS position FROM faq_entries');const faqId=id(),ts=now(),position=Number(max?.position||0)+1;

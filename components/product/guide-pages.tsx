@@ -3,7 +3,8 @@ import type {ReactNode} from 'react';
 import {PublicShell} from './public-shell';
 import {useLocale} from './locale';
 import {PartnerLeaderMed} from './partner-leadermed';
-import {formatPackageMainPrice,PACKAGE_DISCLAIMER,PACKAGE_EXPEDITE,PACKAGE_EXTRAS,PACKAGE_INCLUSIONS,PACKAGE_STRIP,PUBLIC_PACKAGES} from '@/lib/public-packages';
+import {PackageFeeDisclosures} from './package-fee-disclosures';
+import {formatPackageMainPrice,formatPackageMainPriceCaption,PACKAGE_DISCLAIMER,PACKAGE_STRIP,PUBLIC_PACKAGES} from '@/lib/public-packages';
 
 function Guide({path,crumb,title,lead,wide,children}:{path:'/services'|'/process'|'/fees'|'/clinic';crumb:[string,string];title:string;lead:string;wide?:boolean;children:ReactNode}){
  const {t}=useLocale();
@@ -62,21 +63,13 @@ export function FeesPage(){
    {PUBLIC_PACKAGES.map(pkg=><article key={pkg.id} className={pkg.featured?'is-featured':undefined}>
     <span className="pkg-tag">{t(...pkg.tag)}</span>
     <h2>{t(...pkg.title)}</h2>
-    <div className="pkg-price"><strong>{formatPackageMainPrice(pkg.totalCny,lang)}</strong><small>{t(...pkg.edition)}</small></div>
+    <div className="pkg-price"><strong>{formatPackageMainPrice(pkg.totalCny,lang)}</strong><small className="pkg-currency">{lang==='en'?`${formatPackageMainPriceCaption(lang)} · `:''}{t(...pkg.edition)}</small></div>
     <p className="package-highlight">{t(...pkg.highlight)}</p>
     <ul>{pkg.points.map(point=><li key={point[0]}>{t(...point)}</li>)}</ul>
     <a className="quiet-link" href="/#contact">{t('咨询此方案','Discuss this programme')}</a>
    </article>)}
   </div>
-  <section className="package-inclusions">
-   <h2>{t('费用包含明细','What the fees include')}</h2>
-   <ol className="package-inclusion-list">{PACKAGE_INCLUSIONS.map((item,i)=><li key={item.title[0]}><span className="inclusion-number">{String(i+1).padStart(2,'0')}</span><div><strong>{t(...item.title)}</strong>{item.note&&<p>{t(...item.note)}</p>}</div></li>)}</ol>
-  </section>
-  <section className="package-extras">
-   <h2>{t('额外收费','Additional fees')}</h2>
-   <dl className="package-extra-list">{PACKAGE_EXTRAS.map(item=><div key={item.title[0]}><dt>{t(...item.title)}</dt><dd>{t(...item.price)}</dd></div>)}</dl>
-   <aside className="package-expedite"><h3>{t(...PACKAGE_EXPEDITE.title)}</h3><p>{t(...PACKAGE_EXPEDITE.body)}</p></aside>
-  </section>
+  <PackageFeeDisclosures showCurrencyNote/>
   <p className="package-terms">{t(...PACKAGE_DISCLAIMER)}</p>
   <Related links={[['/#packages','首页套餐','Homepage programmes'],['/faq','常见问题','Common questions']]}/>
  </Guide>;

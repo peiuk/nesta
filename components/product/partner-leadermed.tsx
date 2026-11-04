@@ -13,7 +13,7 @@ const EMAIL='info@leadermed.ge';
 const MAPS='https://www.google.com/maps?q=41.7804391,44.7724438';
 const INSTAGRAM='https://www.instagram.com/leadermed_clinic/';
 
-export function PartnerLeaderMed(){
+export function PartnerLeaderMed({compact=false}:{compact?:boolean}){
  const {t}=useLocale();
  const doctors=[
   {name:'Maia Koiava',role:t('首席胚胎学家','Chief Embryologist'),note:'',src:'/partners/leadermed/maia-koiava.jpg',w:900,h:1200},
@@ -44,6 +44,34 @@ export function PartnerLeaderMed(){
   ['Lili Gvaramadze',t('产科-妇科医生、生殖医学','Obstetrician-gynaecologist, Reproductologist')],
   ['Zura Vashakidze',t('生殖医学、产科-妇科医生','Reproductologist, Obstetrician-Gynecologist')],
  ];
+ if(compact){
+  return <section id="partner-leadermed" className="partner-section partner-section-compact" aria-labelledby="partner-leadermed-title">
+   <div className="section-intro">
+    <div>
+     <div className="eyebrow">OFFICIAL PARTNER</div>
+     <h2 id="partner-leadermed-title">{t('LeaderMed 医院独家合作伙伴。','Exclusive partner of LeaderMed hospital.')}</h2>
+    </div>
+   </div>
+   <p className="partner-lead">{t('奈斯是第比利斯 LeaderMed 医院的独家合作伙伴，协调评估与治疗安排。配套月子中心为专业机构，持牌儿科医生实行 24 小时值班。诊疗由医疗机构负责。','Nesta is the exclusive partner of LeaderMed hospital in Tbilisi, and coordinates assessment and treatment arrangements. The accompanying postpartum centre is a professional facility, with licensed paediatricians on 24-hour duty. Clinical care stays with the medical provider.')}</p>
+   <div className="partner-layout partner-layout-compact">
+    <figure className="partner-hero">
+     <img src="/partners/leadermed/street.jpg" width={1600} height={844} alt={t('LeaderMed 沿街外观','Street exterior of LeaderMed')}/>
+     <figcaption>{t('沿街外观 · 取自诊所公开页面','Street exterior · from the clinic’s public site')}</figcaption>
+    </figure>
+    <div className="partner-facts">
+     <img className="partner-wordmark" src="/partners/leadermed/wordmark.png" width={3162} height={1004} alt="LeaderMed"/>
+     <h3>LeaderMed</h3>
+     <p className="partner-intro">{t('第比利斯 Nodar Bokhua 街 21 号。奈斯协调评估与治疗安排；诊疗由 LeaderMed 负责。','21 Nodar Bokhua St., Tbilisi. Nesta coordinates assessment and treatment arrangements; clinical care stays with LeaderMed.')}</p>
+     <ul className="partner-contacts">
+      <li><MapPin size={16} strokeWidth={1.6} aria-hidden="true"/><a href={MAPS} target="_blank" rel="noreferrer">{t('第比利斯 Nodar Bokhua 街 21 号','21 Nodar Bokhua St., Tbilisi')}</a></li>
+      <li><Phone size={16} strokeWidth={1.6} aria-hidden="true"/><a href={`tel:${PHONE_TEL}`}>{PHONE_LABEL}</a></li>
+     </ul>
+    </div>
+   </div>
+   <p className="partner-boundary">{t('奈斯是代孕协调方，负责沟通、行程与进度记录。LeaderMed 是合作医疗机构，诊疗、医学判断与临床结果由其负责。','Nesta is the surrogacy coordinator, responsible for communication, travel and progress records. LeaderMed is the partner medical provider and remains responsible for clinical care, medical judgement and clinical outcomes.')}</p>
+   <a className="network-more partner-clinic-link" href="/clinic">{t('查看合作医院完整介绍','Full partner clinic page')}<ArrowUpRight size={14}/></a>
+  </section>;
+ }
  return <section id="partner-leadermed" className="partner-section" aria-labelledby="partner-leadermed-title">
   <div className="section-intro">
    <div>

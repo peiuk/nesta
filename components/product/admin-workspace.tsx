@@ -185,9 +185,9 @@ function FaqTab(){
  async function move(id:string,direction:'up'|'down'){setMoveError('');try{await api('site-faq/'+id+'/move',{direction});refresh()}catch(e){setMoveError(e instanceof Error?e.message:'SERVICE_UNAVAILABLE')}}
  if(loading)return <div className="loading">{t('正在载入…','Loading…')}</div>;
  if(error)return <ErrorNotice code={error}/>;
- return <Panel title={t('官网公开问答','Public website questions')} action={<FaqForm refresh={refresh}/>}>
+ return <Panel title={t('官网公开问答','Public website questions')} action={<div className="row-actions"><SyncDefaultFaqButton refresh={refresh}/><FaqForm refresh={refresh}/></div>}>
   <ErrorNotice code={moveError}/>
-  <div className="notice">{t('隐藏后，首页问答不再显示这一条。上移、下移会立刻改变公开顺序。','Hiding a question removes it from the public page. Moving it up or down changes the public order immediately.')}</div>
+  <div className="notice">{t('隐藏后，首页问答不再显示这一条。上移、下移会立刻改变公开顺序。「同步默认模板」会用代码里的 12 条标准问答更新正文（含 LeaderMed、月子中心与 RMB 套餐说明），保留每条顺序与是否隐藏；不会删除你额外新增的问答。','Hiding a question removes it from the public page. Moving it up or down changes the public order immediately. “Sync default template” refreshes the twelve standard Q&A texts from code (LeaderMed, postpartum centre, RMB programmes). Order and visibility stay the same; extra questions you added are not removed.')}</div>
   <div className="table-wrap"><Table>
    <TableHeader><TableRow><TableHead>{t('问题','Question')}</TableHead><TableHead>{t('状态','Status')}</TableHead><TableHead>{t('操作','Actions')}</TableHead></TableRow></TableHeader>
    <TableBody>{items.length?items.map((item,index)=><TableRow key={String(item.id)}>
@@ -201,6 +201,18 @@ function FaqTab(){
    </TableRow>):<TableRow><TableCell colSpan={3}><Empty title={t('还没有问答','No questions yet')}>{t('新增一条后，公开的问题会出现在官网问答页。','A visible question appears on the website after you add it.')}</Empty></TableCell></TableRow>}</TableBody>
   </Table></div>
  </Panel>;
+}
+
+function SyncDefaultFaqButton({refresh}:{refresh:()=>void}){
+ const {t}=useLocale();const [open,setOpen]=useState(false);
+ return <>
+  <Button size="sm" variant="outline" onClick={()=>setOpen(true)}>{t('同步默认模板','Sync default template')}</Button>
+  {open&&<Modal title={t('同步官网默认问答','Sync default website Q&A')} description={t('将当前部署中的标准模板写回数据库，公开页会立即使用更新后的 LeaderMed、月子中心与套餐说明。','Writes the standard template from this deployment into the database. The public FAQ page will show the updated LeaderMed, postpartum and programme copy immediately.')} onClose={()=>setOpen(false)}>
+   <ActionForm submitLabel={t('确认同步','Confirm sync')} onSubmit={async()=>{await api('site-faq/sync-default',{})}} onDone={()=>{setOpen(false);refresh()}}>
+    <p className="metadata">{t('已有 faq-01 至 faq-12 等标准条目：只更新中英文问与答，不改顺序与隐藏状态。缺少的标准条目会追加到列表末尾。你在后台单独新增的问答不会被删除。','Existing standard ids (faq-01 … faq-12): questions and answers are updated; order and visibility are unchanged. Missing standard entries are appended. Custom questions you added are kept.')}</p>
+   </ActionForm>
+  </Modal>}
+ </>;
 }
 
 function FaqForm({item,refresh}:{item?:Data;refresh:()=>void}){

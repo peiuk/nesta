@@ -10,14 +10,15 @@ export function SignIn({href,returnTo='/portal'}:{href:string;returnTo?:'/portal
  const {t}=useLocale();
  const [phase,setPhase]=useState<'email'|'code'>('email');
  const [email,setEmail]=useState('');
- const options=useResource(returnTo==='/portal'?'auth/options':null);const emailEnabled=options.data?.email_enabled===true;
- return <main className="auth-page"><div className="flex justify-between items-center"><Brand/><LanguageButton/></div><section className="auth-card"><ShieldCheck size={30}/><h1>{returnTo==='/admin'?t('登录管理后台','Administration sign-in'):t('进入你的私密空间','Your private care space')}</h1><p>{returnTo==='/admin'?t('请使用已配置的管理员 ChatGPT 账户登录，验证后进入工作台。','Sign in with the configured administrator ChatGPT account to enter the workspace.'):t('登录后建立基本档案，服务团队审核后开放资料库和案件访问。','Create your profile after signing in. The service team reviews directory and case access.')}</p><a className="primary-link w-full" href={href} target="_top">{t('使用 ChatGPT 登录','Sign in with ChatGPT')}</a>
-  {returnTo!=='/admin'&&emailEnabled&&<>
+ const options=useResource('auth/options');const emailEnabled=options.data?.email_enabled===true;
+ const isAdmin=returnTo==='/admin';
+ return <main className="auth-page"><div className="flex justify-between items-center"><Brand/><LanguageButton/></div><section className="auth-card"><ShieldCheck size={30}/><h1>{isAdmin?t('登录管理后台','Administration sign-in'):t('进入你的私密空间','Your private care space')}</h1><p>{isAdmin?t('可使用管理员 ChatGPT 账户，或使用已在服务器登记的管理员邮箱收取验证码登录。','Sign in with the administrator ChatGPT account, or request a one-time code to a registered administrator email address.') :t('登录后建立基本档案，服务团队审核后开放资料库和案件访问。','Create your profile after signing in. The service team reviews directory and case access.')}</p><a className="primary-link w-full" href={href} target="_top">{t('使用 ChatGPT 登录','Sign in with ChatGPT')}</a>
+  {emailEnabled&&<>
   <div className="auth-divider"><span>{t('或使用邮箱验证码','Or use an email code')}</span></div>
   {phase==='email'
    ?<ActionForm submitLabel={t('发送验证码','Send code')} onDone={()=>setPhase('code')} onSubmit={async f=>{const value=String(f.get('email')||'');await api('auth/email/request',{email:value});setEmail(value)}}>
      <Field name="email" type="email" label={t('邮箱','Email')} max={254}/>
-     <p className="metadata">{t('不设密码。与 ChatGPT 使用同一邮箱将进入同一档案。','No password. The same email as ChatGPT signs into the same profile.')}</p>
+     <p className="metadata">{isAdmin?t('不设密码。仅登记为管理员的邮箱验证后可进入后台；其他邮箱登录后会提示无权限。','No password. Only registered administrator addresses can enter this workspace after verification; other addresses are signed in but denied access here.'):t('不设密码。与 ChatGPT 使用同一邮箱将进入同一档案。','No password. The same email as ChatGPT signs into the same profile.')}</p>
     </ActionForm>
    :<ActionForm submitLabel={t('登录','Sign in')} onDone={()=>{window.location.href=returnTo}} onSubmit={async f=>{await api('auth/email/verify',{email,code:String(f.get('code')||'')})}}>
      <p className="metadata">{t('验证码已发送至','Code sent to')} {email}</p>
