@@ -86,7 +86,7 @@ components:
 
 **Creative North Star: "The Georgian Garden Ledger"**
 
-Nesta reads like a family journey recorded in a calm, bilingual ledger—not a fertility startup landing page. Public surfaces use an editorial layout: warm paper backgrounds, deep garden ink type, gold-brown eyebrows, and numbered sections that feel documentary rather than promotional. The signed-in workspace keeps the same botanical palette but shifts to clearer panels, tables, and shadcn/Base UI controls so coordinators and clients can scan status quickly.
+Nesta reads like a family journey recorded in a calm, bilingual ledger—not a fertility startup landing page. Public surfaces use an editorial layout: warm paper backgrounds, deep garden ink type, gold-brown accents, and plainly labelled sections that feel documentary rather than promotional. The signed-in workspace keeps the same botanical palette but shifts to clearer panels, tables, and shadcn/Base UI controls so coordinators and clients can scan status quickly.
 
 Depth is **tonal-first**: sections change background (`#f8f7f2`, `#e8ede4`, `#fffdf8`, `#203e32` bands) and hairline borders before shadows appear. Shadows stay soft and sparse—hero care notes, option-card hover, download CTAs—not glassmorphism or heavy elevation stacks.
 
@@ -95,7 +95,7 @@ Depth is **tonal-first**: sections change background (`#f8f7f2`, `#e8ede4`, `#ff
 - Two faces, one palette: **`.home-editorial`** (Persuade/Read) vs **`.workspace`** / product tokens (Operate).
 - Display type in **Fraunces**; UI and long copy in **Source Sans 3** with **Microsoft YaHei** in the CJK stack.
 - Primary actions use filled deep green; secondary actions use underline links or quiet bordered buttons.
-- Section eyebrows use uppercase tracking and gold accent rules—not generic pill badges.
+- No section eyebrows (Hallmark polish): the h2 carries the section meaning; labels are sentence case, untracked—never generic pill badges.
 - Motion respects `prefers-reduced-motion`; scroll reveals are optional enhancement, not required to understand content.
 
 ## Colors
@@ -114,7 +114,7 @@ The palette is muted botanical green with warm paper neutrals and restrained gol
 
 ### Tertiary
 
-- **Harvest Gold** (`#a48955`): Eyebrow accents, timeline numerals, inclusion index color, CTA eyebrow on dark bands (`--home-gold`).
+- **Harvest Gold** (`#a48955`): Accent rules (decorative only; use `--home-gold-text` #7a6230 for text), timeline numerals, inclusion index color, CTA eyebrow on dark bands (`--home-gold`).
 
 ### Neutral
 
@@ -140,15 +140,15 @@ The palette is muted botanical green with warm paper neutrals and restrained gol
 
 ### Hierarchy
 
-- **Display** (500, `clamp(2.4rem, 4.4vw, 4.4rem)`, line-height ~1.28): Homepage hero (`home-editorial`); em emphasis in `#768367`, not italic neon.
+- **Display** (500, `clamp(2.4rem, 4.4vw, 4.4rem)`, line-height ~1.28): Homepage hero (`home-editorial`); no colour or italic change inside the heading.
 - **Headline** (500, section `clamp(1.65rem, 2.4vw, 2.5rem)`, line-height ~1.45): Section intros (`OUR SERVICES`, journey, packages).
 - **Title** (500–600, ~1.05–1.35rem): Card titles, panel headings, FAQ questions.
 - **Body** (400, 16px / 0.9–1.06rem editorial, line-height 1.65–1.95): Paragraphs; keep ~65–75ch on long guide copy where `.section-intro` already constrains width.
-- **Label** (600, 0.7–0.8rem, letter-spacing 0.13–0.16em, uppercase eyebrows): Section indices (`01 / OUR SERVICES`), package tags.
+- **Label** (500, 0.8–0.95rem, no letter-spacing, sentence case): hero kicker, package tags. No numbered section indices.
 
 ### Named Rules
 
-**The Eyebrow Rule.** Section labels are small caps with tracking and optional gold rule—never default shadcn `Badge` styling on public editorial pages.
+**The Label Rule.** No eyebrows above headings; any label is sentence case, untracked, at least 12px and 4.5:1 contrast—never default shadcn `Badge` styling on public editorial pages.
 
 **The Bilingual Pair Rule.** Chinese and English strings share the same hierarchy; do not shrink English to “secondary” gray unless it is genuinely metadata.
 

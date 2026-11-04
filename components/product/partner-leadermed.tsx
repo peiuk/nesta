@@ -48,7 +48,6 @@ export function PartnerLeaderMed({compact=false}:{compact?:boolean}){
   return <section id="partner-leadermed" className="partner-section partner-section-compact" aria-labelledby="partner-leadermed-title">
    <div className="section-intro">
     <div>
-     <div className="eyebrow">OFFICIAL PARTNER</div>
      <h2 id="partner-leadermed-title">{t('LeaderMed 医院独家合作伙伴。','Exclusive partner of LeaderMed hospital.')}</h2>
     </div>
    </div>
@@ -75,7 +74,6 @@ export function PartnerLeaderMed({compact=false}:{compact?:boolean}){
  return <section id="partner-leadermed" className="partner-section" aria-labelledby="partner-leadermed-title">
   <div className="section-intro">
    <div>
-    <div className="eyebrow">OFFICIAL PARTNER</div>
     <h2 id="partner-leadermed-title">{t('LeaderMed 医院独家合作伙伴。','Exclusive partner of LeaderMed hospital.')}</h2>
    </div>
   </div>

@@ -76,7 +76,7 @@
       },
       "label": {
         "displayName": "Eyebrow / Label",
-        "purpose": "Section indices and uppercase tracked labels."
+        "purpose": "Sentence-case, untracked labels (no section eyebrows)."
       }
     },
     "shadows": [
@@ -159,7 +159,7 @@
       "name": "Section Eyebrow",
       "kind": "custom",
       "refersTo": "label",
-      "description": "Editorial section index line with gold rule.",
+      "description": "Deprecated by Hallmark polish: not used on public pages; kept for reference.",
       "html": "<div class=\"ds-eyebrow\"><span aria-hidden=\"true\"></span>01 / OUR SERVICES</div>",
       "css": ".ds-eyebrow{display:flex;align-items:center;gap:14px;font-size:.7rem;letter-spacing:.16em;font-weight:600;color:#917d53;margin-bottom:18px;font-family:'Source Sans 3','Microsoft YaHei',sans-serif}.ds-eyebrow>span{width:30px;height:1px;background:#a48955;flex-shrink:0}"
     },
@@ -182,12 +182,12 @@
   ],
   "narrative": {
     "northStar": "The Georgian Garden Ledger",
-    "overview": "Nesta reads like a family journey recorded in a calm, bilingual ledger—not a fertility startup landing page. Public surfaces use an editorial layout: warm paper backgrounds, deep garden ink type, gold-brown eyebrows, and numbered sections that feel documentary rather than promotional. The signed-in workspace keeps the same botanical palette but shifts to clearer panels, tables, and shadcn/Base UI controls so coordinators and clients can scan status quickly.\n\nDepth is tonal-first: sections change background and hairline borders before shadows appear. Shadows stay soft and sparse—hero care notes, option-card hover, download CTAs—not glassmorphism or heavy elevation stacks.",
+    "overview": "Nesta reads like a family journey recorded in a calm, bilingual ledger—not a fertility startup landing page. Public surfaces use an editorial layout: warm paper backgrounds, deep garden ink type, gold-brown accents, and plainly labelled sections that feel documentary rather than promotional. The signed-in workspace keeps the same botanical palette but shifts to clearer panels, tables, and shadcn/Base UI controls so coordinators and clients can scan status quickly.\n\nDepth is tonal-first: sections change background and hairline borders before shadows appear. Shadows stay soft and sparse—hero care notes, option-card hover, download CTAs—not glassmorphism or heavy elevation stacks.",
     "keyCharacteristics": [
       "Two faces, one palette: .home-editorial (Persuade/Read) vs .workspace / product tokens (Operate).",
       "Display type in Fraunces; UI and long copy in Source Sans 3 with Microsoft YaHei in the CJK stack.",
       "Primary actions use filled deep green; secondary actions use underline links or quiet bordered buttons.",
-      "Section eyebrows use uppercase tracking and gold accent rules—not generic pill badges.",
+      "No section eyebrows: the h2 carries the meaning; labels are sentence case, untracked—not generic pill badges.",
       "Motion respects prefers-reduced-motion; scroll reveals are optional enhancement."
     ],
     "rules": [
@@ -202,8 +202,8 @@
         "section": "colors"
       },
       {
-        "name": "The Eyebrow Rule",
-        "body": "Section labels are small caps with tracking and optional gold rule—never default shadcn Badge styling on public editorial pages.",
+        "name": "The Label Rule",
+        "body": "No eyebrows above headings; labels are sentence case, untracked, 12px+ and 4.5:1 contrast—never default shadcn Badge styling on public editorial pages.",
         "section": "typography"
       },
       {
