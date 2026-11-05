@@ -9,6 +9,7 @@ import migration6 from '../drizzle/0006_partners.sql?raw';
 import migration7 from '../drizzle/0007_case_documents.sql?raw';
 import migration8 from '../drizzle/0008_case_payments.sql?raw';
 import migration9 from '../drizzle/0009_faq_entries.sql?raw';
+import {milestoneRewrites} from './case-plans';
 import {DOCUMENT_KINDS} from './documents';
 import {buildDefaultFaqSeedStatements} from './faq-sync';
 
@@ -43,6 +44,15 @@ async function seedMissingCaseDocuments(){
  ));
 }
 
+async function rewriteLegacyPaymentSchedules(){
+ const existing=await env.DB.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='case_plans'").first();
+ if(!existing)return;
+ const rows=await env.DB.prepare('SELECT case_id,tier,total_usd,milestones_json FROM case_plans').all<{case_id:string;tier:string;total_usd:number;milestones_json:string}>();
+ const updates=milestoneRewrites(rows.results||[]);
+ if(!updates.length)return;
+ await env.DB.batch(updates.map(row=>env.DB.prepare('UPDATE case_plans SET milestones_json=? WHERE case_id=?').bind(row.milestones_json,row.case_id)));
+}
+
 async function applyColumnIfMissing(table:string,column:string,sql:string){
  const rows=await env.DB.prepare(`PRAGMA table_info(${table})`).all<{name:string}>();
  if((rows.results||[]).some(r=>r.name===column))return;
@@ -70,6 +80,7 @@ export async function ensureSchema(){
   await applyColumnIfMissing('case_plans','pgs_scope',"ALTER TABLE `case_plans` ADD `pgs_scope` text DEFAULT 'count' NOT NULL;");
   await seedMissingCaseDocuments();
   await seedFaqIfEmpty();
+  await rewriteLegacyPaymentSchedules();
  })().catch(error=>{ready=null;throw error});
  await ready;
 }

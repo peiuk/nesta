@@ -81,7 +81,7 @@ function PlanCard({plan,lang,t}:{plan:Data;lang:string;t:(zh:string,en:string)=>
    {milestones.map(m=><tr key={String(m.key)}><td>{lang==='zh'?String(m.label_zh):String(m.label_en||m.label_zh)}</td><td>{money(Number(m.amount_usd),currency)}</td><td>{m.status==='paid'?`${t('已付','Paid')}${m.paid_at?` ${String(m.paid_at).slice(0,10)}`:''}`:t('待付','Pending')}</td></tr>)}
   </tbody></table></div>
   <p className="metadata mb-3">{t('每一期只在对应检查报告或交付完成后收取。双胎、剖腹产、NICU、额外 PGS 和加速包不计入这些比例。未见胎心不收胎心这一期；约定尝试用尽仍未妊娠时，这一期不收，已发生的孕母匹配费用另结。','Each installment is collected only after the matching checkup report or deliverable. Twins, caesarean, NICU, extra PGS and the expedite package sit outside these percentages. The heartbeat installment is not charged without a heartbeat; if agreed attempts are exhausted without pregnancy, that installment is not charged and surrogate matching costs already incurred are settled separately.')}</p>
-  {receipts.length&&milestones.some(m=>m.status==='paid')?<p className="metadata mb-3">{t('已收款含历史节点和收款记录。同一笔不要录两次。','Collected includes historical milestones and receipts. Do not record the same payment twice.')}</p>:null}
+  {receipts.length&&milestones.some(m=>m.status==='paid')?<p className="metadata mb-3">{t('已收款含已付节点和收款记录。同一笔不要录两次。','Collected includes paid milestones and receipts. Do not record the same payment twice.')}</p>:null}
   {receipts.length?<div className="table-wrap mb-4"><table className="packages-table"><thead><tr><th>{t('收款日期','Date')}</th><th>{t('金额','Amount')}</th><th>{t('凭证','Voucher')}</th></tr></thead><tbody>
    {receipts.map(r=><tr key={String(r.id||r.paid_on)}><td>{String(r.paid_on)}</td><td>{money(Number(r.amount),String(r.currency||currency))}</td><td>{String(r.voucher||'')}</td></tr>)}
   </tbody></table></div>:null}
@@ -104,7 +104,7 @@ function PlanForm({caseId,plan,onClose,onDone}:{caseId:string;plan:Data|null;onC
  const options:Array<[string,string]>=CURRENT_TIERS.map(key=>[key,L(TIER_LABEL,key,t)]);
  if(plan?.tier&&!CURRENT_TIERS.includes(plan.tier as typeof CURRENT_TIERS[number]))options.unshift([String(plan.tier),L(TIER_LABEL,String(plan.tier),t)]);
  const sameTier=String(plan?.tier||'')===tier;
- return <Modal title={plan?t('更新方案','Update plan'):t('写入方案','Add plan')} description={t('新方案用首页 A/B/C 和七个付款节点。已付金额和日期不改；未付余额按这些节点重分。','New plans use homepage A/B/C and the seven payment milestones. Paid amounts and dates stay as recorded; the unpaid balance is split across the unpaid nodes.')} onClose={onClose}>
+ return <Modal title={plan?t('更新方案','Update plan'):t('写入方案','Add plan')} description={t('保存后按套餐总价写入七个付款节点。不是这七个节点的旧付款表会被整表替换，已付标记不保留。已经是这七个节点时，已付金额和日期保留。','Saving writes the seven payment milestones from the package total. A stored schedule that is not those seven nodes is replaced outright, including paid flags. Paid amounts and dates stay when the schedule is already those seven nodes.')} onClose={onClose}>
   <ActionForm submitLabel={t('保存方案','Save plan')} onSubmit={async f=>{
    const body=formObject(f);
    await api(`cases/${caseId}/plan`,{
