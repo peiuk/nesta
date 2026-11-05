@@ -4,7 +4,7 @@ import * as plans from '../lib/case-plans.ts';
 
 test('normalizes checkbox values to unique supported payment milestone keys',()=>{
  assert.equal(typeof plans.normalizePaidMilestoneKeys,'function');
- assert.deepEqual(plans.normalizePaidMilestoneKeys(['week28','contract','week28','unknown','']),['contract','week28']);
+ assert.deepEqual(plans.normalizePaidMilestoneKeys(['preg24','intent','preg24','week28','unknown','']),['intent','preg24']);
 });
 
 test('normalizes an empty payment selection to no paid milestones',()=>{
@@ -31,7 +31,9 @@ test('changing the contract total keeps paid milestone amount and date',()=>{
  const next=plans.scheduleMilestones(previous,80000);
  const contract=next.find(m=>m.key==='contract');
  assert.equal(contract.amount_usd,10000);
+ assert.equal(contract.label_zh,'签约启动');
  assert.equal(contract.paid_at,'2026-01-02T00:00:00.000Z');
+ assert.deepEqual(next.map(m=>m.key),['intent','setup','match_lab','heartbeat','preg12','preg24','handover','contract']);
  assert.equal(next.reduce((sum,m)=>sum+m.amount_usd,0),80000);
  assert.equal(next.filter(m=>m.key!=='contract').every(m=>m.paid_at==null),true);
 });
@@ -64,4 +66,88 @@ test('plan draft does not rewrite receipts or paid dates',()=>{
  assert.equal(fresh.package_version,'abc-2026-10');
  assert.equal(fresh.pgs_included,4);
  assert.equal(fresh.milestones.every(m=>m.paid_at==null),true);
+ assert.deepEqual(fresh.milestones.map(m=>m.key),['intent','setup','match_lab','heartbeat','preg12','preg24','handover']);
+ assert.equal(fresh.milestones.some(m=>m.key==='week28'||m.key==='birth'),false);
+ assert.equal(fresh.milestones.reduce((sum,m)=>sum+m.amount_usd,0),520000);
+});
+
+test('new schedules use the seven-milestone percentages for each package total',()=>{
+ const expectScaled=(tier,total,amounts)=>{
+  const milestones=plans.defaultMilestones(tier);
+  assert.equal(milestones.reduce((sum,m)=>sum+m.amount_usd,0),total);
+  assert.deepEqual(milestones.map(m=>m.amount_usd),amounts);
+  const cumulative=[];
+  for(const amount of amounts)cumulative.push((cumulative.at(-1)||0)+amount);
+  assert.deepEqual(cumulative.map(amount=>Math.round(amount/total*100)),[2,10,20,40,55,70,100]);
+ };
+ expectScaled('a',400000,[8000,32000,40000,80000,60000,60000,120000]);
+ expectScaled('b',520000,[10400,41600,52000,104000,78000,78000,156000]);
+ expectScaled('c',580000,[11600,46400,58000,116000,87000,87000,174000]);
+ expectScaled('c_plus',630000,[12600,50400,63000,126000,94500,94500,189000]);
+ expectScaled('basic',58000,[1160,4640,5800,11600,8700,8700,17400]);
+ expectScaled('mid',72000,[1440,5760,7200,14400,10800,10800,21600]);
+ expectScaled('advanced',84000,[1680,6720,8400,16800,12600,12600,25200]);
+});
+
+test('own-egg programme A labels the lab milestone as stimulation',()=>{
+ const ownEgg=plans.defaultMilestones('a').find(m=>m.key==='match_lab');
+ const donor=plans.planDraft({tier:'c_plus',total:630000,previous:[]}).milestones.find(m=>m.key==='match_lab');
+ const legacy=plans.defaultMilestones('mid').find(m=>m.key==='match_lab');
+ assert.equal(ownEgg.label_zh,'促排或实验室启动');
+ assert.equal(ownEgg.label_en,'Stimulation or lab start');
+ assert.equal(ownEgg.amount_usd,40000);
+ assert.equal(donor.label_zh,'供卵匹配或实验室启动');
+ assert.equal(donor.label_en,'Donor match or lab start');
+ assert.equal(legacy.label_zh,'供卵匹配或实验室启动');
+ assert.deepEqual(plans.defaultMilestones('b').map(m=>[m.label_zh,m.label_en]),[
+  ['签约意向','Signing intent'],
+  ['合同生效并建档完成','Contract and file setup'],
+  ['供卵匹配或实验室启动','Donor match or lab start'],
+  ['见到胎心','Heartbeat confirmed'],
+  ['孕 12 周','Pregnancy ~12 weeks'],
+  ['孕 24 周','Pregnancy ~24 weeks'],
+  ['出生并完成约定交接后','After birth and agreed handover'],
+ ]);
+});
+
+test('pending legacy nodes are replaced and paid legacy amounts stay recorded',()=>{
+ const previous=[
+  {key:'contract',label_zh:'签约启动',label_en:'Contract start',amount_usd:10000,status:'paid',paid_at:'2026-01-02T00:00:00.000Z'},
+  {key:'cycle',label_zh:'周期启动 / 进入医疗',label_en:'Cycle start',amount_usd:10000,status:'pending',paid_at:null},
+  {key:'week12',label_zh:'确认妊娠约 12 周',label_en:'Pregnancy ~12 weeks',amount_usd:14000,status:'pending',paid_at:null},
+  {key:'week28',label_zh:'妊娠约 28 周',label_en:'Pregnancy ~28 weeks',amount_usd:18000,status:'paid',paid_at:'2026-04-01T00:00:00.000Z'},
+  {key:'birth',label_zh:'出生后约定工作日内',label_en:'After birth',amount_usd:20000,status:'pending',paid_at:null},
+ ];
+ const next=plans.scheduleMilestones(previous,72000);
+ assert.deepEqual(next.map(m=>m.key),['intent','setup','match_lab','heartbeat','preg12','preg24','handover','contract','week28']);
+ assert.equal(next.find(m=>m.key==='contract').amount_usd,10000);
+ assert.equal(next.find(m=>m.key==='week28').amount_usd,18000);
+ assert.equal(next.find(m=>m.key==='week28').label_zh,'妊娠约 28 周');
+ assert.equal(next.some(m=>m.key==='cycle'||m.key==='week12'||m.key==='birth'),false);
+ assert.deepEqual(next.filter(m=>m.status==='pending').map(m=>m.amount_usd),[880,3520,4400,8800,6600,6600,13200]);
+ assert.equal(next.reduce((sum,m)=>sum+m.amount_usd,0),72000);
+ const again=plans.scheduleMilestones(next,72000);
+ assert.deepEqual(again.map(m=>({key:m.key,amount_usd:m.amount_usd,status:m.status,paid_at:m.paid_at})),next.map(m=>({key:m.key,amount_usd:m.amount_usd,status:m.status,paid_at:m.paid_at})));
+});
+
+test('a paid current node keeps its amount and the remainder follows unpaid weights',()=>{
+ const previous=plans.defaultMilestones('mid').map(m=>m.key==='heartbeat'?{...m,status:'paid',paid_at:'2026-06-01T00:00:00.000Z'}:m);
+ const next=plans.scheduleMilestones(previous,90000,'mid');
+ const heartbeat=next.find(m=>m.key==='heartbeat');
+ assert.equal(heartbeat.amount_usd,14400);
+ assert.equal(heartbeat.status,'paid');
+ assert.equal(heartbeat.paid_at,'2026-06-01T00:00:00.000Z');
+ assert.equal(next.filter(m=>m.key!=='heartbeat').every(m=>m.status==='pending'),true);
+ assert.equal(next.reduce((sum,m)=>sum+m.amount_usd,0),90000);
+ assert.deepEqual(next.filter(m=>m.status==='pending').map(m=>m.amount_usd),[1890,7560,9450,14175,14175,28350]);
+});
+
+test('five paid legacy nodes plus the new schedule still parse',()=>{
+ const previous=['contract','cycle','week12','week28','birth'].map((key,index)=>({
+  key,label_zh:'旧'+key,label_en:key,amount_usd:1000*(index+1),status:'paid',paid_at:`2026-01-0${index+1}T00:00:00.000Z`,
+ }));
+ const next=plans.scheduleMilestones(previous,72000);
+ assert.equal(next.length,12);
+ assert.deepEqual(plans.parseMilestones(JSON.stringify(next)).filter(m=>m.status==='paid').map(m=>m.amount_usd),[1000,2000,3000,4000,5000]);
+ assert.equal(next.reduce((sum,m)=>sum+m.amount_usd,0),72000);
 });
