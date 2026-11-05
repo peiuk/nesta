@@ -201,17 +201,16 @@
 .home-editorial .faq-lead{color:var(--hm-c11);line-height:1.9;margin:0 0 12px}
 .home-editorial .faq-list{margin-top:28px;border-top:1px solid var(--hm-c45)}
 .home-editorial .faq-list .package-disclosure p{margin:0 0 22px;line-height:1.9;color:var(--hm-c51)}
-.home-editorial .public-nav-mobile{display:none;position:relative}
+.home-editorial .public-nav-mobile{display:none}
 .home-editorial .public-nav-mobile>summary{list-style:none;cursor:pointer;min-height:44px;display:inline-flex;align-items:center;padding:8px 12px;border:1px solid var(--hm-c13);border-radius:4px;font-size:.85rem;font-weight:600;color:var(--home-ink)}
 .home-editorial .public-nav-mobile>summary::-webkit-details-marker{display:none}
 .home-editorial .public-nav-mobile>summary:focus-visible{outline:2px solid var(--hm-c40);outline-offset:3px}
 .home-editorial .public-nav-mobile[open]>summary{background:var(--hm-c7)}
-.home-editorial .public-nav-mobile-panel{position:absolute;right:0;top:calc(100% + 8px);z-index:20;min-width:min(280px,92vw);padding:10px;background:var(--hm-c18);border:1px solid var(--hm-c27);border-radius:6px;box-shadow:0 12px 28px var(--hm-c66);display:grid;gap:2px}
+.home-editorial .public-nav-mobile-panel{padding:10px;background:var(--hm-c18);border:1px solid var(--hm-c27);border-radius:6px;box-shadow:0 12px 28px var(--hm-c66);display:grid;gap:2px}
 .home-editorial .public-nav-mobile-panel a{display:flex;align-items:center;min-height:44px;padding:10px 14px;border-radius:4px;color:var(--home-ink);font-size:.9rem}
 .home-editorial .public-nav-mobile-panel a:hover,.home-editorial .public-nav-mobile-panel a:focus-visible{background:var(--hm-c2);outline:none}
 .home-editorial .public-nav-mobile-panel a[aria-current=page]{font-weight:600;background:var(--hm-c28)}
 .home-editorial .nav-sign-in{white-space:nowrap}
-@media(max-width:650px){.home-editorial .public-nav-mobile{display:block}.home-editorial .site-header nav{align-items:flex-start}.home-editorial .nav-sign-in{font-size:.82rem;padding:10px 14px;min-height:44px}}
 .home-editorial .package-disclosure-block{margin-top:28px;border-top:1px solid var(--hm-c59)}
 .home-editorial .package-disclosure-block>summary{font-size:1rem;font-weight:500;color:var(--home-ink)}
 .home-editorial .package-disclosure-lead{margin:16px 0 0;font-size:.88rem;line-height:1.8;color:var(--hm-c11)}
@@ -256,4 +255,13 @@ h1,h2,h3{text-wrap:balance}
 .home-editorial .fees-page .package-inclusions>h2,.home-editorial .fees-page .package-extras>h2,.home-editorial .package-inclusions>h2,.home-editorial .package-extras>h2{font-size:clamp(1.75rem,1.1rem + 2vw,3rem);line-height:1.2;margin-top:clamp(56px,6vw,96px);margin-bottom:20px}
 .home-editorial .package-expedite p,.home-editorial .package-extras p{color:var(--home-ink)}
 .home-editorial .cta-inline-link{white-space:nowrap}
-@media(max-width:650px){.home-editorial .site-header{position:relative}.home-editorial .public-nav-mobile{position:static}.home-editorial .public-nav-mobile-panel{left:16px;right:16px;top:100%;min-width:0}}
+@media(max-width:650px){
+ .home-editorial .site-header,.home-editorial .faq-header{position:relative;display:flex;flex-wrap:wrap;align-items:flex-start;gap:10px 8px;max-width:100%;padding:14px 16px 12px;box-sizing:border-box}
+ .home-editorial .site-header .brand,.home-editorial .faq-header .brand{flex:1 1 auto;min-width:0;max-width:calc(100% - 76px);padding-right:4px}
+ .home-editorial .site-header>.language-switch,.home-editorial .faq-header>.language-switch{position:absolute;top:14px;right:16px;z-index:5;min-height:44px;padding-inline:10px;margin:0}
+ .home-editorial .site-header nav,.home-editorial .faq-header nav{position:relative;display:flex;flex:1 1 100%;flex-wrap:nowrap;align-items:center;justify-content:flex-end;gap:8px;width:100%;min-width:0;max-width:100%}
+ .home-editorial .public-nav-mobile{display:block;position:static;flex:0 0 auto;min-width:0;max-width:100%}
+ .home-editorial .public-nav-mobile-panel{position:absolute;left:0;right:0;top:calc(100% + 8px);z-index:30;width:auto;min-width:0;max-width:100%;margin:0;box-sizing:border-box}
+ .home-editorial .public-nav-mobile-panel a{overflow-wrap:anywhere}
+ .home-editorial .nav-sign-in{font-size:.8rem;padding:10px 12px;min-height:44px;white-space:nowrap}
+}

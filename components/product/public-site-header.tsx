@@ -22,8 +22,8 @@ export function PublicSiteHeader({current,className}:PublicSiteHeaderProps){
      {PUBLIC_NAV_LINKS.map(([href,zh,en])=><a key={href} role="listitem" href={href} aria-current={href===current?'page':undefined}>{t(zh,en)}</a>)}
     </div>
    </details>
-   <LanguageButton/>
    <a className="primary-link nav-sign-in" href="/portal">{t('客户登录','Client sign-in')}</a>
   </nav>
+  <LanguageButton/>
  </header>;
 }
