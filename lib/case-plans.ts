@@ -28,8 +28,9 @@ export function packageSpec(tier:Tier):PlanSpec{return CATALOG[tier]}
 // attempts are exhausted without pregnancy, that 20% is not charged, and surrogate matching costs
 // already incurred are settled separately. There is no 28-week payment node.
 // Own-egg programme A uses a different visible label on match_lab; the key and 10% weight stay.
-// Paid legacy keys (contract, cycle, week12, week28, birth) keep their recorded amounts.
-// Pending schedules use these seven nodes; the unpaid remainder is split by the weights below.
+// A stored list that is not these seven keys is replaced from the package total. Old five-step
+// keys, labels, amounts and paid flags are not kept. A list that already uses these keys keeps
+// customized amounts; a later save still recalculates unpaid nodes inside that structure.
 const PAYMENT_SPLIT=[
  {key:'intent',label_zh:'签约意向',label_en:'Signing intent',amount_usd:2},
  {key:'setup',label_zh:'合同生效并建档完成',label_en:'Contract and file setup',amount_usd:8},
@@ -47,6 +48,10 @@ function paymentTemplate(tier?:Tier){
  return PAYMENT_SPLIT.map(m=>m.key==='match_lab'?{...m,label_zh:'促排或实验室启动',label_en:'Stimulation or lab start'}:m);
 }
 
+function isOfficialMilestoneSchedule(milestones:Pick<Milestone,'key'>[]){
+ return milestones.length===MILESTONE_KEYS.length&&milestones.every((m,i)=>m.key===MILESTONE_KEYS[i]);
+}
+
 export function normalizePaidMilestoneKeys(values:unknown):string[]{
  const source=Array.isArray(values)?values:String(values||'').split(',');
  const selected=new Set(source.map(value=>String(value).trim()).filter(Boolean));
@@ -58,8 +63,9 @@ export function isAddon(v:unknown):v is AddonStatus{return v==='none'||v==='quot
 
 export function scheduleMilestones(previous:Milestone[],total:number,tier?:Tier):Milestone[]{
  const template=paymentTemplate(tier);
- const prevByKey=new Map(previous.map(m=>[m.key,m]));
- const paid=previous.filter(m=>m.status==='paid');
+ const source=isOfficialMilestoneSchedule(previous)?previous:[];
+ const prevByKey=new Map(source.map(m=>[m.key,m]));
+ const paid=source.filter(m=>m.status==='paid');
  const paidSum=paid.reduce((s,m)=>s+m.amount_usd,0);
  if(paidSum>total)throw new Error('PAID_EXCEEDS_TOTAL');
  const pendingTemplate=template.filter(m=>prevByKey.get(m.key)?.status!=='paid');
@@ -71,15 +77,25 @@ export function scheduleMilestones(previous:Milestone[],total:number,tier?:Tier)
   if(i===pendingTemplate.length-1)pendingAmounts.set(m.key,remain-acc);
   else{const amount=Math.round(m.amount_usd/weight*remain);acc+=amount;pendingAmounts.set(m.key,amount)}
  });
- const known=new Set(MILESTONE_KEYS);
- return [
-  ...template.map(m=>{
-   const prev=prevByKey.get(m.key);
-   if(prev?.status==='paid')return {...m,amount_usd:prev.amount_usd,status:'paid' as const,paid_at:prev.paid_at??null};
-   return {...m,amount_usd:pendingAmounts.get(m.key)??0,status:'pending' as const,paid_at:null};
-  }),
-  ...paid.filter(m=>!known.has(m.key)).map(m=>({...m,paid_at:m.paid_at??null})),
- ];
+ return template.map(m=>{
+  const prev=prevByKey.get(m.key);
+  if(prev?.status==='paid')return {...m,amount_usd:prev.amount_usd,status:'paid' as const,paid_at:prev.paid_at??null};
+  return {...m,amount_usd:pendingAmounts.get(m.key)??0,status:'pending' as const,paid_at:null};
+ });
+}
+
+export function milestoneRewrites(rows:Array<{case_id:string;tier:string;total_usd:number;milestones_json:string}>){
+ const updates:{case_id:string;milestones_json:string}[]=[];
+ for(const row of rows){
+  let stored:Milestone[]=[];
+  try{stored=parseMilestones(String(row.milestones_json))}catch{stored=[]}
+  if(isOfficialMilestoneSchedule(stored))continue;
+  const total=Number(row.total_usd);
+  if(!Number.isFinite(total))continue;
+  const tier=isTier(row.tier)?row.tier:undefined;
+  updates.push({case_id:String(row.case_id),milestones_json:JSON.stringify(scheduleMilestones([],total,tier))});
+ }
+ return updates;
 }
 
 export function planDraft(input:{tier:Tier;total:number;previous:Milestone[];pgsIncluded?:number;pgsExtra?:number}){
@@ -120,12 +136,13 @@ export function publicPlan(row:any){
  if(!row)return null;
  let milestones:Milestone[];
  try{milestones=parseMilestones(String(row.milestones_json))}catch{milestones=[]}
+ const total=Number(row.total_usd);
+ if(!isOfficialMilestoneSchedule(milestones)&&Number.isFinite(total))milestones=scheduleMilestones([],total,isTier(row.tier)?row.tier:undefined);
  const legacyPaid=milestones.filter(m=>m.status==='paid').reduce((s,m)=>s+m.amount_usd,0);
  const receipts=Array.isArray(row.receipts)?row.receipts.map((r:any)=>({id:r.id?String(r.id):'',amount:Number(r.amount)||0,currency:String(r.currency||''),paid_on:String(r.paid_on||''),voucher:String(r.voucher||''),note:String(r.note||'')})):[];
  const spec=isTier(row.tier)?packageSpec(row.tier):null;
  const currency=row.currency||spec?.currency||'USD';
  const receiptPaid=receipts.filter((r:any)=>r.currency===currency).reduce((s:number,r:any)=>s+r.amount,0);
- const total=Number(row.total_usd);
  return {
   case_id:row.case_id,
   case_code:row.case_code,
