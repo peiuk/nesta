@@ -19,6 +19,7 @@ export function PublicSiteHeader({current,className}:PublicSiteHeaderProps){
    <LanguageButton/>
   </div>
   <nav className="public-header-nav" aria-label={t('主导航','Primary')}>
+   <a href="/" className="public-nav-link public-nav-home" aria-current={current==='/'?'page':undefined}>{t('首页','Home')}</a>
    {PUBLIC_NAV_LINKS.map(([href,zh,en])=><a key={href} className="public-nav-link" href={href} aria-current={href===current?'page':undefined}>{t(zh,en)}</a>)}
   </nav>
  </header>;

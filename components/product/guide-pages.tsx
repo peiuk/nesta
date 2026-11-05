@@ -8,7 +8,7 @@ import {formatPackageMainPrice,formatPackageMainPriceCaption,PACKAGE_DISCLAIMER,
 
 function Guide({path,crumb,title,lead,wide,children}:{path:'/services'|'/process'|'/fees'|'/clinic';crumb:[string,string];title:string;lead:string;wide?:boolean;children:ReactNode}){
  const {t}=useLocale();
- return <PublicShell current={path}>
+ return <PublicShell current={path} wideMeasure={wide}>
   <main className={wide?'faq-main fees-page':'faq-main'}>
    <nav className="public-crumbs" aria-label={t('面包屑','Breadcrumb')}><ol><li><a href="/">{t('首页','Home')}</a></li><li aria-current="page">{t(...crumb)}</li></ol></nav>
    <h1>{title}</h1>

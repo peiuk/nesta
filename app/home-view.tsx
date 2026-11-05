@@ -23,7 +23,7 @@ export default function Home(){
  return <div className="home-shell home-editorial">
   <main>
    <section className="home-hero home-hero-family">
-  <PublicSiteHeader className="site-header"/>
+  <PublicSiteHeader className="site-header" current="/"/>
     <div className="family-hero-layout">
     <div className="hero-copy">
      <div className="hero-eyebrow hero-rise"><span aria-hidden="true"/>{t('格鲁吉亚代孕服务协调','Surrogacy coordination in Georgia')}</div>
