@@ -13,7 +13,7 @@ const EMAIL='info@leadermed.ge';
 const MAPS='https://www.google.com/maps?q=41.7804391,44.7724438';
 const INSTAGRAM='https://www.instagram.com/leadermed_clinic/';
 
-export function PartnerLeaderMed({compact=false}:{compact?:boolean}){
+export function PartnerLeaderMed({compact=false,skipIntro=false}:{compact?:boolean;skipIntro?:boolean}){
  const {t}=useLocale();
  const doctors=[
   {name:'Maia Koiava',role:t('首席胚胎学家','Chief Embryologist'),note:'',src:'/partners/leadermed/maia-koiava.jpg',w:900,h:1200},
@@ -72,12 +72,7 @@ export function PartnerLeaderMed({compact=false}:{compact?:boolean}){
   </section>;
  }
  return <section id="partner-leadermed" className="partner-section" aria-labelledby="partner-leadermed-title">
-  <div className="section-intro">
-   <div>
-    <h2 id="partner-leadermed-title">{t('LeaderMed 医院独家合作伙伴。','Exclusive partner of LeaderMed hospital.')}</h2>
-   </div>
-  </div>
-  <p className="partner-lead">{t('奈斯是第比利斯 LeaderMed 医院的独家合作伙伴，协调评估与治疗安排。配套月子中心为专业机构，持牌儿科医生实行 24 小时值班。诊疗由医疗机构负责。','Nesta is the exclusive partner of LeaderMed hospital in Tbilisi, and coordinates assessment and treatment arrangements. The accompanying postpartum centre is a professional facility, with licensed paediatricians on 24-hour duty. Clinical care stays with the medical provider.')}</p>
+  {skipIntro?<h2 id="partner-leadermed-title" className="sr-only">{t('LeaderMed 医院独家合作伙伴。','Exclusive partner of LeaderMed hospital.')}</h2>:<><div className="section-intro"><div><h2 id="partner-leadermed-title">{t('LeaderMed 医院独家合作伙伴。','Exclusive partner of LeaderMed hospital.')}</h2></div></div><p className="partner-lead">{t('奈斯是第比利斯 LeaderMed 医院的独家合作伙伴，协调评估与治疗安排。配套月子中心为专业机构，持牌儿科医生实行 24 小时值班。诊疗由医疗机构负责。','Nesta is the exclusive partner of LeaderMed hospital in Tbilisi, and coordinates assessment and treatment arrangements. The accompanying postpartum centre is a professional facility, with licensed paediatricians on 24-hour duty. Clinical care stays with the medical provider.')}</p></>}
   <div className="partner-layout">
    <figure className="partner-hero">
     <img src="/partners/leadermed/street.jpg" width={1600} height={844} alt={t('LeaderMed 沿街外观','Street exterior of LeaderMed')}/>

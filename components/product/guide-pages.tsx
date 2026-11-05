@@ -80,10 +80,10 @@ export function ClinicPage(){
  return <PublicShell current="/clinic">
   <main className="faq-main public-clinic-intro">
    <nav className="public-crumbs" aria-label={t('面包屑','Breadcrumb')}><ol><li><a href="/">{t('首页','Home')}</a></li><li aria-current="page">{t('诊所','Clinic')}</li></ol></nav>
-   <h1>{t('LeaderMed 医院独家合作伙伴','Exclusive partner of LeaderMed hospital')}</h1>
-   <p className="faq-lead">{t('奈斯是第比利斯 LeaderMed 医院的独家合作伙伴。配套月子中心为专业机构，持牌儿科医生实行 24 小时值班。诊疗由医院负责。','Nesta is the exclusive partner of LeaderMed hospital in Tbilisi. The accompanying postpartum centre is a professional facility, with licensed paediatricians on 24-hour duty. Clinical care stays with the hospital.')}</p>
+   <h1>{t('合作诊所 LeaderMed','Partner clinic LeaderMed')}</h1>
+   <p className="faq-lead">{t('诊疗由 LeaderMed 负责；奈斯协调评估、行程与进度记录。','Clinical care stays with LeaderMed; Nesta coordinates assessment, travel and progress records.')}</p>
   </main>
-  <PartnerLeaderMed/>
+  <PartnerLeaderMed skipIntro/>
   <main className="faq-main"><Related links={[['/process','查看流程','See the process'],['/fees','查看费用','See fees']]}/></main>
  </PublicShell>;
 }

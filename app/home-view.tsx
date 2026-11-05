@@ -2,10 +2,9 @@
 import {useEffect,useRef} from 'react';
 import {ArrowUpRight,ArrowRight,Download,FileText,ShieldCheck,FileHeart,MessagesSquare,Phone,Mail} from 'lucide-react';
 import './home.css';
-import {Brand} from '@/components/product/brand';
 import {useLocale} from '@/components/product/locale';
-import {PackageFeeDisclosures} from '@/components/product/package-fee-disclosures';
 import {PartnerLeaderMed} from '@/components/product/partner-leadermed';
+import {PublicFooter} from '@/components/product/public-footer';
 import {PublicSiteHeader} from '@/components/product/public-site-header';
 import {CONTACT_EMAIL,CONTACT_PHONE,CONTACT_PHONE_TEL} from '@/lib/public-contact';
 import {formatPackageMainPrice,formatPackageMainPriceCaption,PACKAGE_DISCLAIMER,PACKAGE_SHEET_VERSION,PACKAGE_STRIP,PUBLIC_PACKAGES} from '@/lib/public-packages';
@@ -36,7 +35,10 @@ export default function Home(){
     <div className="hero-visual"><figure className="family-hero-photo"><img src="/nesta-family.webp" width="1448" height="1086" fetchPriority="high" alt={t('父母轻抱婴儿的家庭主题配图','Family illustration: parents gently holding their baby')}/></figure><div className="hero-care-note"><span className="care-note-icon"><FileHeart size={26} strokeWidth={1.4}/></span><div><strong>{t('每个阶段，清楚可见','Your journey, clearly documented')}</strong><p>{t('专属服务空间 · 进度与报告随时查阅','Your care space · progress and reports together')}</p></div></div></div>
     </div>
    </section>
-   <section id="care" className="service-strip">{[[ShieldCheck,t('私密的服务空间','A private care space'),t('身份验证后建立代孕协调档案；阶段与负责人按人、按案件可见。','Create your surrogacy-coordination profile after sign-in. Stages and a named coordinator stay visible by person and case.')],[FileHeart,t('可追溯的报告','Traceable reports'),t('原件与复核译稿按权限交付；来源、日期、版本与复核状态完整记录。','Originals and reviewed translations shared privately — source, date, version and review status recorded together.')],[MessagesSquare,t('持续的双语沟通','Ongoing bilingual support'),t('专属协调员跟进代孕行程中的问题，让下一步更明确。','A named coordinator follows questions through your surrogacy journey so next steps stay clear.')]].map(([Icon,title,description],i)=>{const I=Icon as typeof ShieldCheck;return <article key={i}><span className="service-index">0{i+1}</span><I size={22} strokeWidth={1.5}/><h3>{title as string}</h3><p>{description as string}</p></article>})}</section>
+   <section id="care" className="service-strip" aria-labelledby="service-strip-title">
+    <h2 id="service-strip-title" className="sr-only">{t('我们如何陪同','How we accompany you')}</h2>
+    {[[ShieldCheck,t('私密的服务空间','A private care space'),t('身份验证后建立代孕协调档案；阶段与负责人按人、按案件可见。','Create your surrogacy-coordination profile after sign-in. Stages and a named coordinator stay visible by person and case.')],[FileHeart,t('可追溯的报告','Traceable reports'),t('原件与复核译稿按权限交付；来源、日期、版本与复核状态完整记录。','Originals and reviewed translations shared privately — source, date, version and review status recorded together.')],[MessagesSquare,t('持续的双语沟通','Ongoing bilingual support'),t('专属协调员跟进代孕行程中的问题，让下一步更明确。','A named coordinator follows questions through your surrogacy journey so next steps stay clear.')]].map(([Icon,title,description],i)=>{const I=Icon as typeof ShieldCheck;return <article key={i}><span className="service-index">0{i+1}</span><I size={22} strokeWidth={1.5}/><h3>{title as string}</h3><p>{description as string}</p></article>})}
+   </section>
    <section id="options" className="options-section">
     <div className="section-intro">
      <div><h2>{t('你的需求，是方案的起点。','A programme shaped around you.')}</h2></div>
@@ -72,20 +74,20 @@ export default function Home(){
    <section id="packages" className="packages-section">
     <div className="section-intro">
      <div><h2>{t('三种方案，清楚选择。','Three programmes. A clear choice.')}</h2></div>
-     <p>{t('套餐价格、费用明细与办理流程（与下方原图一致）。三档主价为人民币，不做美元换算；另计项按原图以美元标注。具体范围以所选套餐、合同及医疗评估为准。','Programme prices, inclusions and process match the sheet below. The three main prices are in RMB (Chinese yuan) exactly as on the sheet — not converted to US dollars. Listed extras stay in USD where the sheet shows USD. Scope follows your programme, contract and clinical assessment.')}</p>
+     <p>{t('三档主价为人民币，与套餐原图一致；费用明细与办理流程见费用页。','The three programme prices are in RMB, matching the package sheet. Full inclusions and process are on the fees page.')}</p>
     </div>
     <p className="package-strip">{PACKAGE_STRIP.map(item=>t(...item)).join(' · ')}</p>
-    <div className="packages-grid">
+    <div className="packages-grid packages-grid-home">
      {PUBLIC_PACKAGES.map(pkg=><article key={pkg.id} className={pkg.featured?'is-featured':undefined}>
       <span className="pkg-tag">{t(...pkg.tag)}</span><h3>{t(...pkg.title)}</h3>
       <div className="pkg-price"><strong>{formatPackageMainPrice(pkg.totalCny,lang)}</strong><small className="pkg-currency">{lang==='en'?`${formatPackageMainPriceCaption(lang)} · `:''}{t(...pkg.edition)}</small></div>
       <p className="package-highlight">{t(...pkg.highlight)}</p>
-      <ul>{pkg.points.map(pt=><li key={pt[0]}>{t(...pt)}</li>)}</ul>
-      <a href="#contact" className="quiet-link">{t('咨询此套餐','Discuss this programme')}<ArrowUpRight size={16}/></a>
+      <ul className="packages-home-points">{pkg.points.slice(0,2).map(pt=><li key={pt[0]}>{t(...pt)}</li>)}</ul>
+      <a href={pkg.featured?'#contact':'/fees'} className={pkg.featured?'primary-link packages-home-cta':'quiet-link'}>{pkg.featured?t('咨询推荐方案','Discuss this programme'):t('查看明细','See full details')}<ArrowUpRight size={16}/></a>
      </article>)}
     </div>
+    <p className="packages-home-more"><a className="hero-process-link" href="/fees">{t('查看三档套餐、费用包含与额外收费','View all programmes, inclusions and extras')}<ArrowUpRight size={16}/></a></p>
     <p className="package-terms"><ShieldCheck size={20} aria-hidden="true"/>{t(...PACKAGE_DISCLAIMER)} <a href="/faq">{t('常见问题','Common questions')}</a></p>
-    <PackageFeeDisclosures showCurrencyNote/>
     <aside className="packages-download-card" aria-label={t('套餐资料下载','Package sheet download')}>
      <div className="packages-download-icon" aria-hidden="true"><FileText size={22}/></div>
      <div className="packages-download-copy"><h3>{t('套餐原图，一页查看','The original package sheet')}</h3><p>{t('三种套餐、费用明细与办理流程，保存后随时对照。','Save the three programmes, fee details and process for reference.')}</p><span className="packages-download-meta">{t(`中文 · JPG · ${PACKAGE_SHEET_VERSION}`,`Chinese · JPG · ${PACKAGE_SHEET_VERSION}`)}</span></div>
@@ -115,6 +117,6 @@ export default function Home(){
     </div>
    </section>
   </main>
-  <footer className="site-footer"><Brand/><span className="footer-links"><a href="/services">{t('服务','Services')}</a><a href="/process">{t('流程','Process')}</a><a href="/fees">{t('费用','Fees')}</a><a href="/clinic">{t('诊所','Clinic')}</a><a href="/faq">{t('问答','Questions')}</a><a href="/privacy">{t('隐私与试用说明','Privacy & pilot information')}</a></span></footer>
+  <PublicFooter/>
  </div>;
 }

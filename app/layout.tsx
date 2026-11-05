@@ -4,6 +4,7 @@ import { LocaleProvider } from '@/components/product/locale';
 import { HOME_DESCRIPTION, HOME_TITLE, publicOrigin } from '@/lib/seo';
 import './globals.css';
 import './product.css';
+import './home.css';
 import './admin.css';
 import './client.css';
 

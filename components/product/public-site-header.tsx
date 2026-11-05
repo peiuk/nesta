@@ -12,18 +12,14 @@ type PublicSiteHeaderProps={
 export function PublicSiteHeader({current,className}:PublicSiteHeaderProps){
  const {t}=useLocale();
  const headerClass=className??'site-header';
- return <header className={headerClass}>
+ return <header className={`${headerClass} public-site-header`}>
   <Brand/>
-  <nav aria-label={t('主导航','Primary')}>
-   {PUBLIC_NAV_LINKS.map(([href,zh,en])=><a key={href} className="nav-desk" href={href} aria-current={href===current?'page':undefined}>{t(zh,en)}</a>)}
-   <details className="public-nav-mobile">
-    <summary>{t('菜单','Menu')}</summary>
-    <div className="public-nav-mobile-panel" role="list">
-     {PUBLIC_NAV_LINKS.map(([href,zh,en])=><a key={href} role="listitem" href={href} aria-current={href===current?'page':undefined}>{t(zh,en)}</a>)}
-    </div>
-   </details>
-   <a className="primary-link nav-sign-in" href="/portal">{t('客户登录','Client sign-in')}</a>
+  <div className="public-header-actions">
+   <a className="primary-link nav-sign-in" href="/portal"><span className="nav-sign-in-full">{t('客户登录','Client sign-in')}</span><span className="nav-sign-in-short">{t('登录','Sign in')}</span></a>
+   <LanguageButton/>
+  </div>
+  <nav className="public-header-nav" aria-label={t('主导航','Primary')}>
+   {PUBLIC_NAV_LINKS.map(([href,zh,en])=><a key={href} className="public-nav-link" href={href} aria-current={href===current?'page':undefined}>{t(zh,en)}</a>)}
   </nav>
-  <LanguageButton/>
  </header>;
 }
