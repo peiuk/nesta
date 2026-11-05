@@ -20,15 +20,32 @@ export const TIER_PGS:Record<'basic'|'mid'|'advanced',number>={basic:0,mid:6,adv
 
 export function packageSpec(tier:Tier):PlanSpec{return CATALOG[tier]}
 
-const MID_SPLIT=[
- {key:'contract',label_zh:'签约启动',label_en:'Contract start',amount_usd:10000},
- {key:'cycle',label_zh:'周期启动 / 进入医疗',label_en:'Cycle start',amount_usd:10000},
- {key:'week12',label_zh:'确认妊娠约 12 周',label_en:'Pregnancy ~12 weeks',amount_usd:14000},
- {key:'week28',label_zh:'妊娠约 28 周',label_en:'Pregnancy ~28 weeks',amount_usd:18000},
- {key:'birth',label_zh:'出生后约定工作日内',label_en:'After birth',amount_usd:20000},
+// Official client schedule approved by Rio on 2026-11-05. `amount_usd` here is a percentage
+// weight of the package total, scaled to each plan's total and currency (CNY for A/B/C/C+,
+// USD for legacy basic/mid/advanced). Each installment is due only after the matching checkup
+// report or deliverable. Twins, caesarean, NICU, extra PGS and the expedite package sit outside
+// these percentages. Do not charge the heartbeat installment if there is no heartbeat. If agreed
+// attempts are exhausted without pregnancy, that 20% is not charged, and surrogate matching costs
+// already incurred are settled separately. There is no 28-week payment node.
+// Own-egg programme A uses a different visible label on match_lab; the key and 10% weight stay.
+// Paid legacy keys (contract, cycle, week12, week28, birth) keep their recorded amounts.
+// Pending schedules use these seven nodes; the unpaid remainder is split by the weights below.
+const PAYMENT_SPLIT=[
+ {key:'intent',label_zh:'签约意向',label_en:'Signing intent',amount_usd:2},
+ {key:'setup',label_zh:'合同生效并建档完成',label_en:'Contract and file setup',amount_usd:8},
+ {key:'match_lab',label_zh:'供卵匹配或实验室启动',label_en:'Donor match or lab start',amount_usd:10},
+ {key:'heartbeat',label_zh:'见到胎心',label_en:'Heartbeat confirmed',amount_usd:20},
+ {key:'preg12',label_zh:'孕 12 周',label_en:'Pregnancy ~12 weeks',amount_usd:15},
+ {key:'preg24',label_zh:'孕 24 周',label_en:'Pregnancy ~24 weeks',amount_usd:15},
+ {key:'handover',label_zh:'出生并完成约定交接后',label_en:'After birth and agreed handover',amount_usd:30},
 ];
 
-const MILESTONE_KEYS=MID_SPLIT.map(m=>m.key);
+const MILESTONE_KEYS=PAYMENT_SPLIT.map(m=>m.key);
+
+function paymentTemplate(tier?:Tier){
+ if(tier!=='a')return PAYMENT_SPLIT;
+ return PAYMENT_SPLIT.map(m=>m.key==='match_lab'?{...m,label_zh:'促排或实验室启动',label_en:'Stimulation or lab start'}:m);
+}
 
 export function normalizePaidMilestoneKeys(values:unknown):string[]{
  const source=Array.isArray(values)?values:String(values||'').split(',');
@@ -39,13 +56,13 @@ export function normalizePaidMilestoneKeys(values:unknown):string[]{
 export function isTier(v:unknown):v is Tier{return typeof v==='string'&&v in CATALOG}
 export function isAddon(v:unknown):v is AddonStatus{return v==='none'||v==='quoted'||v==='included'||v==='occurred'}
 
-export function scheduleMilestones(previous:Milestone[],total:number):Milestone[]{
+export function scheduleMilestones(previous:Milestone[],total:number,tier?:Tier):Milestone[]{
+ const template=paymentTemplate(tier);
  const prevByKey=new Map(previous.map(m=>[m.key,m]));
  const paid=previous.filter(m=>m.status==='paid');
  const paidSum=paid.reduce((s,m)=>s+m.amount_usd,0);
  if(paidSum>total)throw new Error('PAID_EXCEEDS_TOTAL');
- // ponytail: unpaid nodes keep the 2026-09 five-step weights; replace when A/B/C has its own schedule.
- const pendingTemplate=MID_SPLIT.filter(m=>prevByKey.get(m.key)?.status!=='paid');
+ const pendingTemplate=template.filter(m=>prevByKey.get(m.key)?.status!=='paid');
  const weight=pendingTemplate.reduce((s,m)=>s+m.amount_usd,0)||1;
  const remain=total-paidSum;
  let acc=0;
@@ -56,7 +73,7 @@ export function scheduleMilestones(previous:Milestone[],total:number):Milestone[
  });
  const known=new Set(MILESTONE_KEYS);
  return [
-  ...MID_SPLIT.map(m=>{
+  ...template.map(m=>{
    const prev=prevByKey.get(m.key);
    if(prev?.status==='paid')return {...m,amount_usd:prev.amount_usd,status:'paid' as const,paid_at:prev.paid_at??null};
    return {...m,amount_usd:pendingAmounts.get(m.key)??0,status:'pending' as const,paid_at:null};
@@ -75,13 +92,13 @@ export function planDraft(input:{tier:Tier;total:number;previous:Milestone[];pgs
   pgs_included:input.pgsIncluded??spec.pgs,
   pgs_scope:spec.pgsScope,
   pgs_extra:input.pgsExtra??500,
-  milestones:scheduleMilestones(input.previous,input.total),
+  milestones:scheduleMilestones(input.previous,input.total,input.tier),
  };
 }
 
 export function defaultMilestones(tier:Tier,paidKeys:string[]=[]):Milestone[]{
  const paid=new Set(paidKeys);
- return scheduleMilestones([],packageSpec(tier).total).map(m=>paid.has(m.key)?{...m,status:'paid' as const,paid_at:null}:m);
+ return scheduleMilestones([],packageSpec(tier).total,tier).map(m=>paid.has(m.key)?{...m,status:'paid' as const,paid_at:null}:m);
 }
 
 export function parseMilestones(raw:string):Milestone[]{
