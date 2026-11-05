@@ -6,7 +6,7 @@ import {Input} from '@/components/ui/input';
 import {Table,TableHeader,TableBody,TableRow,TableHead,TableCell} from '@/components/ui/table';
 import {Brand} from './brand';
 import {LanguageButton,useLocale} from './locale';
-import {Registration,SignIn} from './registration';
+import {AuthHomeLink,Registration,SignIn} from './registration';
 import {api,useResource,ErrorNotice,Empty,Panel,Status,Field,Choice,FilterSelect,ActionForm,Modal,formObject,useLabels,type Data} from './common';
 import {accountChangeEffects,canUseDirectory,grantIsActive,hasDirectoryAccess} from '@/lib/policy';
 import {filterDonors,validAgeRange} from '@/lib/directory-filters';
@@ -20,7 +20,6 @@ import {FilePreview} from './file-preview';
 import {ClientPlanFees,CasePlanPanel} from './plan-fees';
 
 export const STAGES=['assessment','treatment','transfer','pregnancy','birth','paperwork','paused','loss','closed'];
-const SIGN_OUT='/signout-with-chatgpt?return_to=%2F';
 const PROFILE_KEYS=['id','name','email','role','status','language','jurisdiction'] as const;
 const CASE_KEYS=['id','code','title','stage','cycle','membership_role','updated_at'] as const;
 const GRANT_KEYS=['scope','expires_at','revoked_at'] as const;
@@ -45,28 +44,27 @@ async function registerFirstleafReadTools(signal:AbortSignal){
  },{signal});
 }
 
-export function Shell({nav,children,signIn='chatgpt'}:{nav?:ReactNode;children:ReactNode;signIn?:string}){
+export function Shell({nav,children}:{nav?:ReactNode;children:ReactNode}){
  const {t}=useLocale();
  async function signOut(){
-  if(signIn==='email'){try{await api('auth/logout',{})}catch{/* still leave */}window.location.href='/';return}
-  window.location.href=SIGN_OUT;
+  try{await api('auth/logout',{})}catch{/* still leave */}
+  window.location.href='/';
  }
- return <div className="workspace"><header className="workspace-header"><Brand/><nav>{nav}<LanguageButton/><button type="button" className="quiet-link" onClick={signOut}><LogOut size={16}/>{t('退出','Sign out')}</button></nav></header><main className="workspace-main">{children}</main></div>;
+ return <div className="workspace"><header className="workspace-header"><Brand/><nav><AuthHomeLink/>{nav}<LanguageButton/><button type="button" className="quiet-link" onClick={signOut}><LogOut size={16}/>{t('退出','Sign out')}</button></nav></header><main className="workspace-main">{children}</main></div>;
 }
 
-export function Portal({signInHref}:{signInHref:string}){
+export function Portal(){
  const {t}=useLocale();const [version,setVersion]=useState(0);const {data,error,loading}=useResource('me',version);
- const signIn=data?.sign_in==='email'?'email':'chatgpt';
  if(loading)return <Shell><div className="loading">{t('正在载入…','Loading…')}</div></Shell>;
- if(error==='SIGN_IN_REQUIRED')return <SignIn href={signInHref}/>;
+ if(error==='SIGN_IN_REQUIRED')return <SignIn/>;
  if(error||!data)return <Shell><ErrorNotice code={error||'SERVICE_UNAVAILABLE'}/></Shell>;
  const profile=data.profile as Data;
- if(!profile.registered_at&&profile.role!=='admin')return <Shell signIn={signIn}><Registration profile={profile} done={()=>setVersion(v=>v+1)}/></Shell>;
- if(profile.status!=='approved')return <Shell signIn={signIn}><div className="notice">{profile.status==='suspended'?t('账户已暂停，请联系协调员。','Your account is suspended. Contact your coordinator.'):t('档案已提交，等待管理员批准后即可查看案件与报告。','Your profile is submitted. A coordinator will approve access before cases and reports appear.')}</div></Shell>;
- return <Workspace profile={profile} signIn={signIn}/>;
+ if(!profile.registered_at&&profile.role!=='admin')return <Shell><Registration profile={profile} done={()=>setVersion(v=>v+1)}/></Shell>;
+ if(profile.status!=='approved')return <Shell><div className="notice">{profile.status==='suspended'?t('账户已暂停，请联系协调员。','Your account is suspended. Contact your coordinator.'):t('档案已提交，等待管理员批准后即可查看案件与报告。','Your profile is submitted. A coordinator will approve access before cases and reports appear.')}</div></Shell>;
+ return <Workspace profile={profile}/>;
 }
 
-function Workspace({profile,signIn}:{profile:Data;signIn:string}){
+function Workspace({profile}:{profile:Data}){
  const {t}=useLocale();const [view,setView]=useState<'overview'|'directory'|'requests'|'plan'>('overview');const [caseId,setCaseId]=useState<string|null>(null);const [version,setVersion]=useState(0);
  const refresh=()=>setVersion(v=>v+1);
  useEffect(()=>{const c=new AbortController();registerFirstleafReadTools(c.signal).catch(()=>{});return()=>c.abort()},[]);
@@ -77,7 +75,7 @@ function Workspace({profile,signIn}:{profile:Data;signIn:string}){
  const go=(next:'overview'|'directory'|'requests'|'plan')=>{setCaseId(null);setView(next)};
  const item=(key:'overview'|'directory'|'requests'|'plan',label:string)=><Button key={key} variant={view===key?'secondary':'ghost'} size="sm" onClick={()=>go(key)}>{label}</Button>;
  const nav=<>{item('overview',t('概览','Overview'))}{profile.role==='client'&&item('plan',t('我的方案/费用','My plan / fees'))}{showDirectory&&item('directory',t('资料库','Directory'))}{profile.role==='client'&&item('requests',t('我的选卵申请','My egg requests'))}{profile.role==='admin'&&<a className="quiet-link" href="/admin">{t('管理后台','Administration')}</a>}</>;
- return <Shell nav={nav} signIn={signIn}>
+ return <Shell nav={nav}>
   {view==='overview'&&(caseId
    ?<CaseDetail caseId={caseId} profile={profile} back={()=>setCaseId(null)}/>
    :overview.loading?<div className="loading">{t('正在载入…','Loading…')}</div>

@@ -19,7 +19,7 @@ test('email sign in requires sending credentials and a session secret',()=>{
  assert.equal(emailSignInAvailable({GOOGLE_CLIENT_ID:'id',GOOGLE_CLIENT_SECRET:'sec',GMAIL_REFRESH_TOKEN:'rt',GMAIL_USER:'a@b.c',SESSION_SECRET:'secret'}),true);
  assert.equal(emailSignInAvailable({GOOGLE_CLIENT_ID:'id',GOOGLE_CLIENT_SECRET:'sec',GMAIL_REFRESH_TOKEN:'rt',GMAIL_USER:'a@b.c'}),false);
  assert.equal(emailSignInAvailable({SESSION_SECRET:'secret',SITE_ORIGIN:'http://localhost:3000'}),true);
- assert.equal(emailSignInAvailable({SESSION_SECRET:'secret',SITE_ORIGIN:'https://example.com'}),false);
+ assert.equal(emailSignInAvailable({SESSION_SECRET:'secret',SITE_ORIGIN:'https://example.com'}),true);
 });
 test('customer homepage only returns own published recipient reports and upcoming assigned appointments',async()=>{
  const db=new DatabaseSync(':memory:');

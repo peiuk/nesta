@@ -9,7 +9,7 @@ import {Table,TableBody,TableCell,TableHead,TableHeader,TableRow} from '@/compon
 import {SidebarProvider,Sidebar,SidebarHeader,SidebarContent,SidebarFooter,SidebarGroup,SidebarGroupLabel,SidebarMenu,SidebarMenuItem,SidebarMenuButton,SidebarInset,SidebarTrigger,useSidebar} from '@/components/ui/sidebar';
 import {Brand} from './brand';
 import {LanguageButton,useLocale} from './locale';
-import {SignIn} from './registration';
+import {AuthHomeLink,SignIn} from './registration';
 import {EggRequests} from './egg-requests';
 import {api,useResource,Panel,Empty,ErrorNotice,Status,Field,Choice,ActionForm,Modal,formObject,useLabels,type Data} from './common';
 import {Shell,PeopleTab,PersonForm,GrantsTab,CasesTab,CaseDetail,Directory,AuditTab,NewCase,ReplyForm} from './portal';
@@ -48,17 +48,17 @@ const descriptions:Partial<Record<View,[string,string]>>={
  audit:['追溯账户、授权与资料变更。','Trace changes to accounts, access and records.'],
 };
 
-export function AdminPortal({signInHref}:{signInHref:string}){
+export function AdminPortal(){
  const {t}=useLocale();const {data,error,loading}=useResource('me');
  if(loading)return <Shell><div className="loading" role="status">{t('正在验证管理员身份…','Verifying administrator access…')}</div></Shell>;
- if(error==='SIGN_IN_REQUIRED')return <SignIn href={signInHref} returnTo="/admin"/>;
+ if(error==='SIGN_IN_REQUIRED')return <SignIn returnTo="/admin"/>;
  if(error||!data)return <Shell><ErrorNotice code={error||'SERVICE_UNAVAILABLE'}/></Shell>;
- const profile=data.profile as Data;const signIn=String(data.sign_in);
- if(profile.role!=='admin'||profile.status!=='approved')return <Shell signIn={signIn}><Panel title={t('需要管理员权限','Administrator access required')}><p>{t('当前账户无权进入管理后台。客户与工作人员可从服务空间查看获准的案件。','This account cannot enter Administration. Clients and staff can view assigned cases in the care space.')}</p><a href="/portal" className="primary-link mt-5">{t('进入服务空间','Open care space')}</a></Panel></Shell>;
- return <AdminWorkspace profile={profile} signIn={signIn}/>;
+ const profile=data.profile as Data;
+ if(profile.role!=='admin'||profile.status!=='approved')return <Shell><Panel title={t('需要管理员权限','Administrator access required')}><p>{t('当前账户无权进入管理后台。请使用 ADMIN_EMAIL 中的邮箱登录，或联系已登录的管理员在「客户与团队」中批准你的账户。','This account cannot enter Administration. Sign in with an ADMIN_EMAIL address, or ask an administrator to approve your account under Clients & team.')}</p><a href="/portal" className="primary-link mt-5">{t('进入服务空间','Open care space')}</a></Panel></Shell>;
+ return <AdminWorkspace profile={profile}/>;
 }
 
-function AdminWorkspace({profile,signIn}:{profile:Data;signIn:string}){
+function AdminWorkspace({profile}:{profile:Data}){
  const {t}=useLocale();const [route,setRoute]=useState<Route>({view:'overview'});const [version,setVersion]=useState(0);const [signOutError,setSignOutError]=useState('');
  const refresh=()=>setVersion(v=>v+1);
  const operations=useResource('admin-operations',version);
@@ -74,8 +74,7 @@ function AdminWorkspace({profile,signIn}:{profile:Data;signIn:string}){
  const openCase=(id:string)=>{window.location.hash='cases/'+encodeURIComponent(id);setRoute({view:'cases',caseId:id})};
  async function signOut(){
   setSignOutError('');
-  if(signIn==='email'){try{await api('auth/logout',{});window.location.href='/'}catch(e){setSignOutError(e instanceof Error?e.message:'SERVICE_UNAVAILABLE')}}
-  else window.location.href='/signout-with-chatgpt?return_to=%2F';
+  try{await api('auth/logout',{});window.location.href='/'}catch(e){setSignOutError(e instanceof Error?e.message:'SERVICE_UNAVAILABLE')}
  }
  const section=sections.find(s=>s.id===route.view)!;
  const data=operations.data||{};
@@ -83,7 +82,7 @@ function AdminWorkspace({profile,signIn}:{profile:Data;signIn:string}){
   <a className="admin-skip-link" href="#admin-main" onClick={e=>{e.preventDefault();document.getElementById('admin-main')?.focus()}}>{t('跳至主要内容','Skip to main content')}</a>
   <AdminNavigation profile={profile} view={route.view} go={go} counts={data.counts||{}}/>
   <SidebarInset className="admin-inset">
-   <header className="admin-topbar"><div className="admin-topbar-start"><SidebarTrigger aria-label={t('展开或收起菜单','Toggle navigation')}/><span className="admin-breadcrumb"><span className="admin-breadcrumb-root">{t('管理后台','Administration')}<span aria-hidden="true">/</span></span><strong>{t(section.zh,section.en)}</strong></span></div><div className="admin-topbar-actions"><LanguageButton/><Button variant="ghost" size="sm" onClick={signOut} aria-label={t('退出登录','Sign out')}><LogOut size={16}/><span className="admin-signout-label">{t('退出','Sign out')}</span></Button></div></header>
+   <header className="admin-topbar"><div className="admin-topbar-start"><SidebarTrigger aria-label={t('展开或收起菜单','Toggle navigation')}/><AuthHomeLink/><span className="admin-breadcrumb"><span className="admin-breadcrumb-root">{t('管理后台','Administration')}<span aria-hidden="true">/</span></span><strong>{t(section.zh,section.en)}</strong></span></div><div className="admin-topbar-actions"><LanguageButton/><Button variant="ghost" size="sm" onClick={signOut} aria-label={t('退出登录','Sign out')}><LogOut size={16}/><span className="admin-signout-label">{t('退出','Sign out')}</span></Button></div></header>
    <main id="admin-main" className="admin-main" tabIndex={-1}>
     <ErrorNotice code={signOutError}/>
     {route.caseId?<CaseDetail key={route.caseId} caseId={route.caseId} profile={profile} back={()=>go('cases')}/>:<>
