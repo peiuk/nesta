@@ -5,8 +5,9 @@ import {useLocale} from '@/components/product/locale';
 
 export function PrivacyView() {
   const {t} = useLocale();
-  const sections: Array<[string, string]> = [
+  const sections: Array<[string, string, string]> = [
     [
+      'who-we-are',
       t('我们是谁', 'Who we are'),
       t(
         '本网站由奈斯（Nesta）运营，提供格鲁吉亚代孕相关协调与进度记录服务。我们不是医疗机构，也不是律师事务所。公开页面用于介绍服务、费用参考与咨询联系；客户档案与报告交付在经审核后通过私密客户空间进行。',
@@ -14,6 +15,7 @@ export function PrivacyView() {
       ),
     ],
     [
+      'information-we-collect',
       t('我们收集什么', 'What we collect'),
       t(
         '当你通过电话或邮件咨询时，我们会处理你主动提供的联系方式与沟通内容。当你登录客户空间时，网站会保存登录标识或会话、邮箱以及可用的显示名称；你填写的称呼、语言、居住地区及服务意向会保存为服务档案。同一邮箱将合并为同一档案。',
@@ -21,6 +23,7 @@ export function PrivacyView() {
       ),
     ],
     [
+      'how-we-use-information',
       t('我们如何使用资料', 'How we use information'),
       t(
         '资料用于回复咨询、协调服务流程、记录进度与授权范围内的报告交付。我们不会将客户档案用于与协调无关的营销列表。能否开展服务须个案评估；网站信息不构成医疗或法律意见。',
@@ -28,6 +31,7 @@ export function PrivacyView() {
       ),
     ],
     [
+      'storage-and-access',
       t('保存与访问', 'Storage and access'),
       t(
         '档案及操作记录保存在网站的服务端数据库，附件保存在私密文件存储。获准且分配到案件的工作人员按职责处理资料，客户只可查看获准共享的已发布文件。',
@@ -35,6 +39,15 @@ export function PrivacyView() {
       ),
     ],
     [
+      'email-notifications',
+      t('更新邮件通知', 'Update email notifications'),
+      t(
+        '当报告与文件、服务进度或沟通记录有面向客户的更新时，系统会尝试向相关客户档案中的邮箱发送提醒，并提供客户空间入口。报告通知仅发送给获准接收该报告的客户；沟通记录通知发送给与该记录关联的客户；服务进度通知发送给该案件的客户。提醒邮件不包含私密记录或文件附件，最新内容请登录客户空间查看。',
+        'When reports and files, service progress or communication records receive a client-visible update, the system attempts to send a notice to the relevant client profile email with a link to the client space. Report notices go only to clients authorised to receive that report; communication notices go to the client associated with that record; progress notices go to clients on the case. Notice emails do not contain private records or file attachments. Sign in to the client space to view the latest content.',
+      ),
+    ],
+    [
+      'your-rights',
       t('你的权利', 'Your rights'),
       t(
         '你可以请求查阅、纠正或删除与你相关的服务档案与沟通记录，具体以适用法律及双方合同为准。请通过网站公布的电话或邮件联系我们。',
@@ -42,6 +55,7 @@ export function PrivacyView() {
       ),
     ],
     [
+      'service-scope',
       t('服务边界', 'Service scope'),
       t(
         '奈斯的业务是格鲁吉亚代孕相关协调与进度记录，并协调独立精卵资料库的授权查阅。本站不提供医疗诊断、法律资格判断、紧急医疗联络或在线付款结算，也不承诺医疗结果。诊疗由接诊医疗机构负责；法律事务由持牌专业人士确认。',
@@ -49,6 +63,7 @@ export function PrivacyView() {
       ),
     ],
     [
+      'public-pricing',
       t('公开价格说明', 'Public pricing'),
       t(
         '首页与费用页的三档主价为人民币，与套餐原图一致，不做美元换算；另计项按原图以美元标注。价格可能随合作诊所、汇率与方案调整。是否含税、发票与当地费用以书面报价和签约合同为准。网站标价不构成要约，最终应付金额以双方签署的合同及附件为准。',
@@ -56,6 +71,7 @@ export function PrivacyView() {
       ),
     ],
     [
+      'client-space-pilot',
       t('客户空间与试用说明', 'Client space and pilot use'),
       t(
         '客户空间用于建立档案、授权查阅与报告交付。当前版本可能处于产品试用阶段：请勿在未经团队确认的情况下上传真实医疗、遗传、身份或儿童信息。试用资料的导出、纠正与删除请求可通过公布的联系方式提出。',
@@ -66,7 +82,7 @@ export function PrivacyView() {
 
   return (
     <PublicShell current="/privacy">
-      <main className="faq-main">
+      <main className="faq-main privacy-main">
         <nav className="public-crumbs" aria-label={t('面包屑', 'Breadcrumb')}>
           <ol>
             <li>
@@ -82,8 +98,16 @@ export function PrivacyView() {
             'How we handle personal information for public enquiries and the client space. Your contract, written quote and the clinic’s judgement still come first.',
           )}
         </p>
-        {sections.map(([title, body]) => (
-          <section key={title} className="privacy-section">
+        <nav className="privacy-contents" aria-label={t('本页目录', 'On this page')}>
+          <p>{t('本页内容', 'On this page')}</p>
+          <ol>
+            {sections.map(([id, title]) => (
+              <li key={id}><a href={`#${id}`}>{title}</a></li>
+            ))}
+          </ol>
+        </nav>
+        {sections.map(([id, title, body]) => (
+          <section id={id} key={id} className="privacy-section">
             <h2>{title}</h2>
             <p>{body}</p>
           </section>
