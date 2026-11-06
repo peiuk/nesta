@@ -1,6 +1,6 @@
 # Gmail OAuth outbound email (Firstleaf)
 
-中文步骤 + brief English. Goal: send OTP via Gmail API using a **refresh token** (no password). Secrets stay in `.dev.vars` only.
+中文步骤 + brief English. Goal: send OTP via Gmail API using a **refresh token** (no password). Local secrets stay in `.dev.vars`; production secrets belong in the deployment secret store.
 
 ## Prerequisites
 
@@ -18,10 +18,12 @@
    - Scopes: later you only need `https://www.googleapis.com/auth/gmail.send` (least privilege)
    - **Test users**: add **your** Gmail address
 4. **APIs & Services → Credentials → Create Credentials → OAuth client ID**:
-   - Application type: **Desktop app**
-   - Download / copy **Client ID** and **Client secret**
+   - For the OAuth Playground flow below, choose **Web application**.
+   - Add `https://developers.google.com/oauthplayground` as an authorised redirect URI.
+   - Copy the **Client ID** and **Client secret**.
+5. In the OAuth app branding/configuration, set the homepage to `https://nestafamily.com` and the privacy policy URL to `https://nestafamily.com/privacy` (not the homepage URL). Keep the privacy policy linked from the public site homepage.
 
-English: External consent + test user = your Gmail; Desktop OAuth client; enable Gmail API only.
+English: External consent + test user = your Gmail; Web application OAuth client for Playground; enable Gmail API only.
 
 ## 2. Get a refresh token once
 
@@ -33,6 +35,7 @@ English: External consent + test user = your Gmail; Desktop OAuth client; enable
 4. **Authorize APIs** → sign in as the test user / sender mailbox → Allow.
 5. **Exchange authorization code for tokens** → copy **Refresh token**.
 6. Store it in `.dev.vars` as `GMAIL_REFRESH_TOKEN`. Do not commit.
+7. If the response has no refresh token, set Access type to **Offline** and Force prompt to **Consent Screen**, then authorise again.
 
 ### Alternative: tiny local script
 
@@ -51,14 +54,15 @@ GOOGLE_CLIENT_ID=...
 GOOGLE_CLIENT_SECRET=...
 GMAIL_REFRESH_TOKEN=...
 GMAIL_USER=you@gmail.com
-EMAIL_FROM=Firstleaf <you@gmail.com>
+EMAIL_FROM=Nesta <you@gmail.com>
 SESSION_SECRET=long-random-string
 SITE_ORIGIN=http://localhost:3000
 ```
 
 Notes:
 
-- `GMAIL_USER` / `EMAIL_FROM` must be the **authorized mailbox** (the account that granted `gmail.send`).
+- `GMAIL_USER` is the Google account that granted `gmail.send`. `EMAIL_FROM` controls the visible sender name and address. If it uses a different address (for example `noreply@nestafamily.com`), add and verify that address in Gmail's **Send mail as** settings first; the Gmail API cannot send from an unverified alias.
+- An External OAuth app left in **Testing** may receive refresh tokens that expire after 7 days for the Gmail send scope. For persistent use, publish the app and complete any verification Google requires.
 - If Gmail OAuth vars are incomplete, Firstleaf falls back to Resend (`RESEND_API_KEY` + `EMAIL_FROM`).
 - If neither is configured and `SITE_ORIGIN` is localhost, OTP is logged to the console (dev only).
 

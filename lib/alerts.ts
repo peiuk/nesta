@@ -10,7 +10,7 @@ export function alertRecipients(coordinatorEmails:string[],adminEmails:string[])
 }
 
 export function profileSubmittedAlert(name:string){
- return {subject:'Nesta: profile awaiting approval',text:`${name} submitted a profile and is awaiting approval. Private pilot — test data only.`};
+ return {subject:'Nesta: profile awaiting approval',text:`${name} submitted a profile and is awaiting approval.\n\nNesta\nnestafamily.com`};
 }
 
 export function questionAlert(caseCode:string){

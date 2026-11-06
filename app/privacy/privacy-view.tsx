@@ -47,6 +47,22 @@ export function PrivacyView() {
       ),
     ],
     [
+      'google-gmail-data',
+      t('Google 账号与 Gmail API 数据', 'Google account and Gmail API data'),
+      t(
+        '为发送客户空间登录验证码、服务更新提醒及相关服务邮件，奈斯会使用经授权的发件 Google 账号调用 Gmail API。授权范围仅为 gmail.send，即代表该账号发送邮件。应用不会读取该 Gmail 账号的收件箱、草稿、联系人或邮件附件，也不会出售 Gmail 数据、将其用于广告或用户画像，或用于训练、改进人工智能或机器学习模型。发送时会将发件地址、收件地址、主题和邮件正文交给 Google 处理并投递；正文可能包含一次性登录验证码，或更新类别与客户空间链接。通知邮件不包含报告内容或文件附件。邮件由收件人的邮件服务接收；如服务器配置了其他发信服务，该服务也会处理发送所需的邮件字段。',
+        'To send client-space sign-in codes, service update notices and related service emails, Nesta uses the authorised sender Google account with the Gmail API. The app requests only the gmail.send scope, which allows it to send email on that account’s behalf. It does not read that Gmail account’s inbox, drafts, contacts or attachments. Gmail data is not sold, used for advertising or profiling, or used to train or improve AI or machine-learning models. To send a message, the sender address, recipient address, subject and message body are provided to Google for processing and delivery. A body may contain a one-time sign-in code, or an update category and client-space link. Notice emails do not include report contents or file attachments. The recipient’s email provider receives the message; if another mail provider is configured on the server, that provider also processes the fields needed to send it.',
+      ),
+    ],
+    [
+      'google-data-storage',
+      t('Google 授权信息的保存与撤销', 'Storage and revocation of Google authorisation'),
+      t(
+        'OAuth 客户端密钥和刷新令牌保存在服务端部署密钥配置中，不发送到浏览器。应用在发信时向 Google 换取短期访问令牌，用于当前发送请求；应用不会将该访问令牌持久化保存。为重试投递，客户更新通知的收件地址、主题、正文和发送状态会写入服务端通知队列；当前系统不会自动清理已发送的队列记录，暂无固定删除期限。你可通过 Google 账号的第三方应用连接设置撤销授权，也可通过本站联系方式请求删除相关服务记录；撤销授权后，系统将无法继续通过该 Gmail 账号发送邮件。',
+        'The OAuth client secret and refresh token are stored in server-side deployment secret settings and are not sent to the browser. When sending email, the app obtains a short-lived access token from Google for that request; it does not persistently store that access token. To retry delivery, recipient addresses, subjects, bodies and delivery status for client update notices are stored in the server-side notification queue. The current system does not automatically delete sent queue records and has no fixed deletion period for them. You can revoke access in your Google Account’s third-party connections settings, or request deletion of related service records through the contact details on this site. After revocation, the system cannot continue sending through that Gmail account.',
+      ),
+    ],
+    [
       'your-rights',
       t('你的权利', 'Your rights'),
       t(

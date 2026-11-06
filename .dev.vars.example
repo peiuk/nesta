@@ -6,9 +6,10 @@ GOOGLE_CLIENT_SECRET=
 GMAIL_REFRESH_TOKEN=
 # Authorized mailbox (must match the Google account that granted gmail.send)
 GMAIL_USER=
-# From display used by Resend, and fallback From if GMAIL_USER empty
-# e.g. Nesta <you@gmail.com> or Nesta <noreply@yourdomain.com>
-EMAIL_FROM=Nesta <onboarding@resend.dev>
+# Optional From name/address. Leave blank to use GMAIL_USER for Gmail.
+# For a custom domain, use a verified Gmail "Send mail as" alias, e.g. Nesta <noreply@nestafamily.com>.
+# For Resend, set a sender address verified in your Resend account.
+EMAIL_FROM=
 
 # Resend fallback when Gmail OAuth env is incomplete
 RESEND_API_KEY=

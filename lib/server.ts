@@ -115,7 +115,7 @@ export const stages=['assessment','treatment','transfer','pregnancy','birth','pa
 
 async function sendOtpEmail(to:string,code:string){
  try{
-  await sendMail(env,{to,subject:'Nesta login code',text:`Your Nesta login code is ${code}. It expires in 10 minutes. Private pilot — test data only.`});
+  await sendMail(env,{to,subject:'Nesta login code',text:`Your Nesta login code is ${code}. It expires in 10 minutes.\n\nNesta\nnestafamily.com`});
  }catch(e){
   if(e instanceof MailError)fail(e.status,e.code);
   throw e;

@@ -48,7 +48,7 @@ async function refreshGoogleAccessToken(env:MailEnv){
 }
 
 async function sendViaGmail(env:MailEnv,mail:{to:string;subject:string;text:string}){
- const from=(env.GMAIL_USER?.trim()||env.EMAIL_FROM!.trim());
+ const from=(env.EMAIL_FROM?.trim()||env.GMAIL_USER!.trim());
  const accessToken=await refreshGoogleAccessToken(env);
  const raw=base64url(new TextEncoder().encode(rfc822({from,to:mail.to,subject:mail.subject,text:mail.text})));
  const res=await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send',{
