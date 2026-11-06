@@ -3,6 +3,9 @@ export const SESSION_TTL_MS=14*24*60*60*1000;
 export const COOKIE_NAME='firstleaf_session';
 export const OTP_MAX_ATTEMPTS=5;
 export const OTP_RESEND_MS=60*1000;
+export const OTP_IP_WINDOW_MS=60*60*1000;
+export const OTP_IP_MAX_REQUESTS=5;
+export function ipThrottleWindow(requests:number,ageMs:number){return ageMs>=OTP_IP_WINDOW_MS||requests<OTP_IP_MAX_REQUESTS}
 
 const emailRe=/^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 

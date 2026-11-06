@@ -53,8 +53,8 @@ function isOfficialMilestoneSchedule(milestones:Pick<Milestone,'key'>[]){
 }
 
 export function normalizePaidMilestoneKeys(values:unknown):string[]{
- const source=Array.isArray(values)?values:String(values||'').split(',');
- const selected=new Set(source.map(value=>String(value).trim()).filter(Boolean));
+ const source=Array.isArray(values)?values:scalarText(values).split(',');
+ const selected=new Set(source.map(scalarText).map(value=>value.trim()).filter(Boolean));
  return MILESTONE_KEYS.filter(key=>selected.has(key));
 }
 
@@ -118,31 +118,33 @@ export function defaultMilestones(tier:Tier,paidKeys:string[]=[]):Milestone[]{
 }
 
 export function parseMilestones(raw:string):Milestone[]{
- const v=JSON.parse(raw);
+ const v:unknown=JSON.parse(raw);
  if(!Array.isArray(v)||v.length<1||v.length>12)throw new Error('INVALID_MILESTONES');
- return v.map((m:any)=>{
-  if(!m||typeof m!=='object')throw new Error('INVALID_MILESTONES');
-  const key=String(m.key||'').slice(0,40);
-  const label_zh=String(m.label_zh||'').slice(0,80);
-  const label_en=String(m.label_en||'').slice(0,80);
+ return v.map((entry:unknown)=>{
+  const m=entry&&typeof entry==='object'?entry as Record<string,unknown>:null;
+  if(!m)throw new Error('INVALID_MILESTONES');
+  const key=scalarText(m.key).slice(0,40);
+  const label_zh=scalarText(m.label_zh).slice(0,80);
+  const label_en=scalarText(m.label_en).slice(0,80);
   const amount_usd=Number(m.amount_usd);
   const status:PayStatus=m.status==='paid'?'paid':'pending';
   if(!key||!label_zh||!Number.isFinite(amount_usd)||amount_usd<0||amount_usd>1000000)throw new Error('INVALID_MILESTONES');
-  return {key,label_zh,label_en,amount_usd,status,paid_at:m.paid_at?String(m.paid_at):null};
+  return {key,label_zh,label_en,amount_usd,status,paid_at:scalarText(m.paid_at)||null};
  });
 }
 
-export function publicPlan(row:any){
+export function publicPlan(row:Record<string,unknown>|null|undefined){
  if(!row)return null;
  let milestones:Milestone[];
- try{milestones=parseMilestones(String(row.milestones_json))}catch{milestones=[]}
+ try{milestones=parseMilestones(scalarText(row.milestones_json))}catch{milestones=[]}
  const total=Number(row.total_usd);
  if(!isOfficialMilestoneSchedule(milestones)&&Number.isFinite(total))milestones=scheduleMilestones([],total,isTier(row.tier)?row.tier:undefined);
  const legacyPaid=milestones.filter(m=>m.status==='paid').reduce((s,m)=>s+m.amount_usd,0);
- const receipts=Array.isArray(row.receipts)?row.receipts.map((r:any)=>({id:r.id?String(r.id):'',amount:Number(r.amount)||0,currency:String(r.currency||''),paid_on:String(r.paid_on||''),voucher:String(r.voucher||''),note:String(r.note||'')})):[];
+ const receiptRows=Array.isArray(row.receipts)?row.receipts:[];
+ const receipts=receiptRows.map(entry=>{const r=entry&&typeof entry==='object'?entry as Record<string,unknown>:{};return {id:scalarText(r.id),amount:Number(r.amount)||0,currency:scalarText(r.currency),paid_on:scalarText(r.paid_on),voucher:scalarText(r.voucher),note:scalarText(r.note)}});
  const spec=isTier(row.tier)?packageSpec(row.tier):null;
  const currency=row.currency||spec?.currency||'USD';
- const receiptPaid=receipts.filter((r:any)=>r.currency===currency).reduce((s:number,r:any)=>s+r.amount,0);
+ const receiptPaid=receipts.filter(r=>r.currency===currency).reduce((s,r)=>s+r.amount,0);
  return {
   case_id:row.case_id,
   case_code:row.case_code,
@@ -167,3 +169,4 @@ export function publicPlan(row:any){
   updated_at:row.updated_at,
  };
 }
+import {scalarText} from './text.ts';

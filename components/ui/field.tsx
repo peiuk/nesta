@@ -1,3 +1,4 @@
+/* oxlint-disable jsx-a11y/prefer-tag-over-role -- role=group labels related field controls without changing fieldset submission semantics. */
 'use client';
 
 import { useMemo } from 'react';

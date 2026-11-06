@@ -71,6 +71,27 @@
       "when": 1789400000000,
       "tag": "0009_faq_entries",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1793923200000,
+      "tag": "0010_otp_ip_limits",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "6",
+      "when": 1794009600000,
+      "tag": "0011_notification_outbox",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "6",
+      "when": 1794096000000,
+      "tag": "0012_schema_migrations",
+      "breakpoints": true
     }
   ]
 }

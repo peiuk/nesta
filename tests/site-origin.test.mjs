@@ -18,3 +18,13 @@ test('mutationOriginMatches uses referer when origin header missing',()=>{
  assert.equal(mutationOriginMatches(request,'http://nestafamily.com'),true);
  assert.equal(resolveExpectedOrigin(request,'http://nestafamily.com/'),'http://nestafamily.com');
 });
+
+test('configured host aliases are accepted while unknown request hosts fail closed',()=>{
+ const aliasRequest=new Request('https://www.nestafamily.com/api/cases/case/documents',{headers:{origin:'https://www.nestafamily.com'}});
+ const allowed='https://nestafamily.com,https://www.nestafamily.com';
+ assert.equal(resolveExpectedOrigin(aliasRequest,allowed),'https://www.nestafamily.com');
+ assert.equal(mutationOriginMatches(aliasRequest,resolveExpectedOrigin(aliasRequest,allowed)),true);
+ const unknownRequest=new Request('https://unexpected.example/api/cases/case/documents',{headers:{origin:'https://unexpected.example'}});
+ assert.equal(resolveExpectedOrigin(unknownRequest,allowed),'https://nestafamily.com');
+ assert.equal(mutationOriginMatches(unknownRequest,resolveExpectedOrigin(unknownRequest,allowed)),false);
+});

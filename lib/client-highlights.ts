@@ -1,4 +1,4 @@
-type Row=Record<string,any>;
+type Row=Record<string,string|number|null>;
 type Query={all:(sql:string,...p:string[])=>Promise<Row[]>;one:(sql:string,...p:string[])=>Promise<Row|null>};
 export async function readClientHighlights(actor:{id:string;role:string;status:string},query:Query,today=new Date().toISOString().slice(0,10)){
  if(actor.role!=='client'||actor.status!=='approved')throw new Error('FORBIDDEN');

@@ -1,4 +1,5 @@
 'use client';
+import Link from "next/link";
 import {PublicShell} from '@/components/product/public-shell';
 import {useLocale} from '@/components/product/locale';
 
@@ -69,7 +70,7 @@ export function PrivacyView() {
         <nav className="public-crumbs" aria-label={t('面包屑', 'Breadcrumb')}>
           <ol>
             <li>
-              <a href="/">{t('首页', 'Home')}</a>
+              <Link href="/">{t('首页', 'Home')}</Link>
             </li>
             <li aria-current="page">{t('隐私政策', 'Privacy policy')}</li>
           </ol>
@@ -88,12 +89,12 @@ export function PrivacyView() {
           </section>
         ))}
         <div className="faq-next">
-          <a className="primary-link" href="/#contact">
+          <Link className="primary-link" href="/#contact">
             {t('联系咨询', 'Contact us')}
-          </a>
-          <a className="hero-process-link" href="/portal">
+          </Link>
+          <Link className="hero-process-link" href="/portal">
             {t('进入客户空间', 'Client sign-in')}
-          </a>
+          </Link>
         </div>
       </main>
     </PublicShell>

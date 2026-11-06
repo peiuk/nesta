@@ -1,3 +1,4 @@
+/* oxlint-disable jsx-a11y/prefer-tag-over-role -- inline separator is decorative between OTP slots, not a document rule. */
 'use client';
 
 import * as React from 'react';

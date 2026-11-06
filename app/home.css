@@ -235,6 +235,8 @@
 .home-editorial .partner-layout-compact{margin-top:28px}
 .home-editorial .partner-clinic-link{display:inline-flex;margin-top:20px}
 .home-editorial .cta-band-actions{display:flex;flex-direction:column;align-items:flex-start;gap:12px;flex-shrink:0;margin-top:0}
+.home-editorial .cta-wechat{display:inline-flex;align-items:center;gap:8px;color:var(--pc-c30);font-size:.95rem}
+.home-editorial .wechat-id{user-select:all;overflow-wrap:anywhere}
 .home-editorial .quiet-link.on-dark{border-color:var(--hm-c67);color:var(--hm-c49);background:transparent}
 .home-editorial .quiet-link.on-dark:hover,.home-editorial .quiet-link.on-dark:focus-visible{background:var(--hm-c68);color:var(--hm-c5)}
 .home-editorial .fees-page .package-extra-list dd{font-variant-numeric:tabular-nums}

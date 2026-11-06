@@ -1,4 +1,5 @@
 'use client';
+import Link from "next/link";
 
 import {useEffect,useState} from 'react';
 import {ArrowRight,Building2,CalendarDays,CheckCheck,FileCheck2,FolderOpen,HelpCircle,LayoutDashboard,Leaf,LogOut,MessageSquare,RefreshCw,ShieldCheck,Users,X} from 'lucide-react';
@@ -50,11 +51,11 @@ const descriptions:Partial<Record<View,[string,string]>>={
 
 export function AdminPortal(){
  const {t}=useLocale();const {data,error,loading}=useResource('me');
- if(loading)return <Shell><div className="loading" role="status">{t('正在验证管理员身份…','Verifying administrator access…')}</div></Shell>;
+ if(loading)return <Shell><output className="loading" >{t('正在验证管理员身份…','Verifying administrator access…')}</output></Shell>;
  if(error==='SIGN_IN_REQUIRED')return <SignIn returnTo="/admin"/>;
  if(error||!data)return <Shell><ErrorNotice code={error||'SERVICE_UNAVAILABLE'}/></Shell>;
  const profile=data.profile as Data;
- if(profile.role!=='admin'||profile.status!=='approved')return <Shell><Panel title={t('需要管理员权限','Administrator access required')}><p>{t('当前账户无权进入管理后台。请使用 ADMIN_EMAIL 中的邮箱登录，或联系已登录的管理员在「客户与团队」中批准你的账户。','This account cannot enter Administration. Sign in with an ADMIN_EMAIL address, or ask an administrator to approve your account under Clients & team.')}</p><a href="/portal" className="primary-link mt-5">{t('进入服务空间','Open care space')}</a></Panel></Shell>;
+ if(profile.role!=='admin'||profile.status!=='approved')return <Shell><Panel title={t('需要管理员权限','Administrator access required')}><p>{t('当前账户无权进入管理后台。请使用 ADMIN_EMAIL 中的邮箱登录，或联系已登录的管理员在「客户与团队」中批准你的账户。','This account cannot enter Administration. Sign in with an ADMIN_EMAIL address, or ask an administrator to approve your account under Clients & team.')}</p><Link href="/portal" className="primary-link mt-5">{t('进入服务空间','Open care space')}</Link></Panel></Shell>;
  return <AdminWorkspace profile={profile}/>;
 }
 
@@ -88,7 +89,7 @@ function AdminWorkspace({profile}:{profile:Data}){
     {route.caseId?<CaseDetail key={route.caseId} caseId={route.caseId} profile={profile} back={()=>go('cases')}/>:<>
      <div className="page-title"><div><h1>{t(section.zh,section.en)}</h1><p>{t(...(descriptions[route.view]||['奈斯服务管理','Nesta care operations']))}</p></div><Button className="admin-refresh" variant="outline" size="sm" onClick={refresh} disabled={operations.loading}><RefreshCw size={15} className={operations.loading?'animate-spin':undefined}/>{t('刷新','Refresh')}</Button></div>
      {['overview','reports','questions'].includes(route.view)&&<>
-      {operations.loading?<div className="loading" role="status">{t('正在载入工作记录…','Loading work records…')}</div>:operations.error?<ErrorNotice code={operations.error}/>:<>
+      {operations.loading?<output className="loading" >{t('正在载入工作记录…','Loading work records…')}</output>:operations.error?<ErrorNotice code={operations.error}/>:<>
        {route.view==='overview'&&<Dashboard data={data} go={go} openCase={openCase} refresh={refresh}/>}
        {route.view==='reports'&&<ReportQueue data={data} openCase={openCase} go={go}/>}
        {route.view==='questions'&&<QuestionQueue data={data} openCase={openCase} refresh={refresh}/>}
@@ -116,7 +117,7 @@ function AdminNavigation({profile,view,go,counts}:{profile:Data;view:View;go:(v:
   <SidebarContent className="admin-nav-content"><nav aria-label={t('后台导航','Administration navigation')}>{navigationGroups.map(group=><SidebarGroup key={group.en}><SidebarGroupLabel>{t(group.zh,group.en)}</SidebarGroupLabel><SidebarMenu>
    {sections.filter(s=>group.views.includes(s.id)).map(s=><SidebarMenuItem key={s.id}><SidebarMenuButton isActive={view===s.id} className="admin-nav-button" onClick={()=>{go(s.id);setOpenMobile(false)}} aria-current={view===s.id?'page':undefined}><s.icon/><span>{t(s.zh,s.en)}</span>{Boolean(badges[s.id])&&<span className="admin-nav-count">{badges[s.id]}</span>}</SidebarMenuButton></SidebarMenuItem>)}
   </SidebarMenu></SidebarGroup>)}</nav></SidebarContent>
-  <SidebarFooter className="admin-sidebar-footer"><a href="/portal" className="quiet-link">{t('进入服务空间','Open care space')}<ArrowRight size={15}/></a><div className="admin-identity"><span className="admin-avatar">{String(profile.name||'A').slice(0,1).toUpperCase()}</span><div><strong>{t('管理员','Administrator')}</strong><span>{String(profile.email)}</span></div></div><div className="admin-pilot"><ShieldCheck size={14}/><span>{t('私密试用 · 仅使用测试资料','Private pilot · Test data only')}</span></div></SidebarFooter>
+  <SidebarFooter className="admin-sidebar-footer"><Link href="/portal" className="quiet-link">{t('进入服务空间','Open care space')}<ArrowRight size={15}/></Link><div className="admin-identity"><span className="admin-avatar">{String(profile.name||'A').slice(0,1).toUpperCase()}</span><div><strong>{t('管理员','Administrator')}</strong><span>{String(profile.email)}</span></div></div><div className="admin-pilot"><ShieldCheck size={14}/><span>{t('私密试用 · 仅使用测试资料','Private pilot · Test data only')}</span></div></SidebarFooter>
  </Sidebar>;
 }
 

@@ -4,7 +4,7 @@ type Row=Record<string,unknown>;
 type Query={
  all:(sql:string,...params:string[])=>Promise<Row[]>;
 };
-export type AuditFilter={action?:string;actor?:string;target?:string;from?:string;to?:string};
+export type AuditFilter={action?:string;actor?:string;target?:string;from?:string;to?:string;limit?:number;offset?:number};
 
 function like(value:string){
  return '%'+value.trim().slice(0,80).replace(/[\\%_]/g,ch=>'\\'+ch)+'%';
@@ -25,5 +25,6 @@ export async function readAudit(query:Query,filter:AuditFilter={}){
  if(filter.from&&validDate(filter.from)){clauses.push('substr(created_at,1,10)>=?');params.push(filter.from)}
  if(filter.to&&validDate(filter.to)){clauses.push('substr(created_at,1,10)<=?');params.push(filter.to)}
  const where=clauses.length?` WHERE ${clauses.join(' AND ')}`:'';
- return query.all(`SELECT * FROM (${labeled}) AS audit_rows${where} ORDER BY created_at DESC,id DESC LIMIT 100`,...params);
+ params.push(String(filter.limit??100),String(filter.offset??0));
+ return query.all(`SELECT * FROM (${labeled}) AS audit_rows${where} ORDER BY created_at DESC,id DESC LIMIT ? OFFSET ?`,...params);
 }

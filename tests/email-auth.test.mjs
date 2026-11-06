@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {normalizeEmail,emailProfileId,hashSecret,verifySecret,generateOtpCode} from '../lib/email-auth.ts';
+import {normalizeEmail,emailProfileId,hashSecret,verifySecret,generateOtpCode,ipThrottleWindow} from '../lib/email-auth.ts';
 
 test('normalizeEmail trims and lowercases valid addresses',()=>{
  assert.equal(normalizeEmail('  Ada@Example.COM '),'ada@example.com');
@@ -25,4 +25,9 @@ test('hashSecret verifies and rejects wrong codes',async()=>{
 
 test('generateOtpCode is six digits',()=>{
  for(let i=0;i<20;i++)assert.match(generateOtpCode(),/^\d{6}$/);
+});
+test('IP throttle permits five requests per hour and blocks the sixth',()=>{
+ assert.equal(ipThrottleWindow(4,60*60*1000-1),true);
+ assert.equal(ipThrottleWindow(5,60*60*1000-1),false);
+ assert.equal(ipThrottleWindow(5,60*60*1000),true);
 });

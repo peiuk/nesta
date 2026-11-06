@@ -9,26 +9,29 @@ import {isAddon,isTier,packageSpec,parseMilestones,planDraft,publicPlan,type Mil
 import {moveFaq,visibleFaq,type FaqEntry} from './faq';
 import {buildDefaultFaqSyncStatements} from './faq-sync';
 import {submitEggRequest,decideEggRequest,withdrawEggRequest,listEggRequests,type SelectionStore} from './egg-requests';
-import {canReadReport,canManageCase,canReviewReport,canPublishReport,canUseDirectory,canPostQuestion,validDate,classifyUpload,canonicalUploadMime,accountChangeEffects} from './policy';
+import {canReadReport,canManageCase,canReviewReport,canPublishReport,canUseDirectory,canPostQuestion,validDate,classifyUpload,canonicalUploadMime,validateUploadRequestSize,accountChangeEffects} from './policy';
 import {mutationOriginMatches,resolveExpectedOrigin} from './site-origin.ts';
 import {readAudit} from './audit-log';
 import {alertRecipients,profileSubmittedAlert,questionAlert} from './alerts';
 import {notifyClientUpdate,type ClientUpdate} from './client-notifications';
 import {assertPartnerKind,canBindPartner,normalizePartnerId} from './partners';
 import {DOCUMENT_KINDS,assertDocumentKind,assertDocumentStatus,normalizeStatusDate,projectDocument,sortDocuments,documentSeedRows,type DocumentRow} from './documents';
-import {normalizeEmail,emailProfileId,generateOtpCode,hashSecret,verifySecret,parseSessionCookie,sessionCookieValue,clearSessionCookie,OTP_TTL_MS,SESSION_TTL_MS,OTP_MAX_ATTEMPTS,OTP_RESEND_MS} from './email-auth';
+import {scalarText} from './text.ts';
+import {normalizeEmail,emailProfileId,generateOtpCode,hashSecret,verifySecret,parseSessionCookie,sessionCookieValue,clearSessionCookie,OTP_TTL_MS,SESSION_TTL_MS,OTP_MAX_ATTEMPTS,OTP_RESEND_MS,OTP_IP_WINDOW_MS,OTP_IP_MAX_REQUESTS} from './email-auth';
 import {sendMail,MailError} from './mail';
 export type Profile={id:string;email:string;name:string;role:string;status:string;language:string;jurisdiction:string;interest:string;registered_at:string|null;created_at:string};
 export type AuthContext={profile:Profile;sign_in:'email'};
+// D1 queries deliberately project different columns per route; each consumer validates its fields.
+// oxlint-disable-next-line typescript/no-explicit-any
 export type Row=Record<string,any>;
 export class AppError extends Error{constructor(public status:number,public code:string){super(code)}}
 export function fail(status:number,code:string):never{throw new AppError(status,code)}
 export const db=()=>env.DB;
-export const one=async<T=Row>(sql:string,...params:any[])=>db().prepare(sql).bind(...params).first<T>();
-export const all=async<T=Row>(sql:string,...params:any[])=>{const r=await db().prepare(sql).bind(...params).all<T>();return r.results};
+export const one=async<T=Row>(sql:string,...params:unknown[])=>db().prepare(sql).bind(...params).first<T>();
+export const all=async<T=Row>(sql:string,...params:unknown[])=>{const r=await db().prepare(sql).bind(...params).all<T>();return r.results};
 export const now=()=>new Date().toISOString();
 export const id=()=>crypto.randomUUID();
-export const statement=(sql:string,...p:any[])=>db().prepare(sql).bind(...p);
+export const statement=(sql:string,...p:unknown[])=>db().prepare(sql).bind(...p);
 const selectionStore:SelectionStore={first:one,all,batch:async items=>(await db().batch(items.map(s=>statement(s.sql,...s.params)))).map(r=>({changes:r.meta.changes||0}))};
 const photoStorage={put:(key:string,bytes:Uint8Array,mime:string)=>env.FILES.put(key,bytes,{httpMetadata:{contentType:mime}}),delete:(key:string)=>env.FILES.delete(key)};
 export function auditStatement(actor:Profile,action:string,target:string,reason:string){return statement('INSERT INTO audit (id,actor_id,action,target,reason,created_at) VALUES (?,?,?,?,?,?)',id(),actor.id,action,target,reason,now())}
@@ -53,7 +56,21 @@ function isOwnerEmail(email:string){
 function adminEmails(){return parseAdminEmails()}
 async function notify(emails:string[],mail:{subject:string;text:string}){for(const to of emails){try{await sendMail(env,{to,...mail})}catch(error){console.error('[firstleaf-alert]',error instanceof Error?error.message:error)}}}
 async function notifyClients(update:ClientUpdate,request:Request){
- await notifyClientUpdate({all,send:mail=>sendMail(env,mail)},update,resolveExpectedOrigin(request,env.SITE_ORIGIN));
+ await notifyClientUpdate({all,enqueue:async(mail,key)=>{
+  const dedupeKey=`${key}:${now()}:${mail.to.toLowerCase()}`;
+  await statement('INSERT OR IGNORE INTO notification_outbox(id,dedupe_key,recipient,subject,body,status,attempts,available_at,created_at) VALUES(?,?,?,?,?,\'pending\',0,?,?)',id(),dedupeKey,mail.to,mail.subject,mail.text,now(),now()).run();
+ }},update,resolveExpectedOrigin(request,env.SITE_ORIGIN));
+}
+export async function processNotificationOutbox(limit=20){
+ const due=await all<{id:string;recipient:string;subject:string;body:string;attempts:number}>('SELECT id,recipient,subject,body,attempts FROM notification_outbox WHERE status=\'pending\' AND available_at<=? AND (locked_at IS NULL OR locked_at<?) ORDER BY created_at LIMIT ?',now(),new Date(Date.now()-5*60_000).toISOString(),Math.max(1,Math.min(50,limit)));
+ let sent=0,failed=0;
+ for(const item of due){
+  const locked=await statement("UPDATE notification_outbox SET locked_at=? WHERE id=? AND status='pending' AND (locked_at IS NULL OR locked_at<?)",now(),item.id,new Date(Date.now()-5*60_000).toISOString()).run();
+  if(!locked.meta.changes)continue;
+  try{await sendMail(env,{to:item.recipient,subject:item.subject,text:item.body});await statement("UPDATE notification_outbox SET status='sent',sent_at=?,locked_at=NULL,last_error=NULL WHERE id=?",now(),item.id).run();sent++}
+  catch(error){const attempts=item.attempts+1,delay=Math.min(24*60*60_000,60_000*2**Math.min(attempts,10));await statement("UPDATE notification_outbox SET attempts=?,available_at=?,locked_at=NULL,last_error=? WHERE id=?",attempts,new Date(Date.now()+delay).toISOString(),error instanceof Error?error.message.slice(0,300):'send_failed',item.id).run();failed++}
+ }
+ return {sent,failed};
 }
 function cookieSecure(request:Request){return new URL(request.url).protocol==='https:'}
 function pepper(){const s=env.SESSION_SECRET;if(!s)fail(503,'SERVICE_UNAVAILABLE');return s}
@@ -86,6 +103,8 @@ export function text(value:unknown,max=250,required=true){if(typeof value!=='str
 export function choice(value:unknown,choices:string[]){const s=text(value);if(!choices.includes(s))fail(400,'INVALID_INPUT');return s}
 export function date(value:unknown){const s=text(value,10);if(!validDate(s))fail(400,'INVALID_DATE');return s}
 export function number(value:unknown,min:number,max:number){const n=Number(value);if(!Number.isInteger(n)||n<min||n>max)fail(400,'INVALID_INPUT');return n}
+function pagination(request:Request){const sp=new URL(request.url).searchParams;const limitRaw=sp.get('limit'),offsetRaw=sp.get('offset');const limit=limitRaw===null?100:number(limitRaw,1,300);const offset=offsetRaw===null?0:number(offsetRaw,0,1000000);return {limit,offset}}
+async function stableIpHash(ip:string){const digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(`${pepper()}:${ip}`));return Array.from(new Uint8Array(digest)).map(b=>b.toString(16).padStart(2,'0')).join('')}
 export function mutateRequest(request:Request){
  const expected=resolveExpectedOrigin(request,env.SITE_ORIGIN);
  if(!mutationOriginMatches(request,expected)||request.headers.get('x-firstleaf')!=='firstleaf'||request.headers.get('sec-fetch-site')==='cross-site')fail(403,'INVALID_ORIGIN');
@@ -117,10 +136,16 @@ export async function handleAuth(path:string[],request:Request){
  if(path[0]==='email'&&path[1]==='request'){
   if(!emailSignInAvailable(env))fail(503,'SERVICE_UNAVAILABLE');
   const body=await json(request);const email=normalizeEmail(String(body.email||''));if(!email)fail(400,'INVALID_EMAIL');
+  const ip=(request.headers.get('cf-connecting-ip')||request.headers.get('x-forwarded-for')||'unknown').split(',')[0].trim().slice(0,80)||'unknown';
+  const ipHash=await stableIpHash(ip);const windowStart=new Date(Date.now()-OTP_IP_WINDOW_MS).toISOString();
+  await statement('DELETE FROM otp_ip_limits WHERE window_started_at<?',windowStart).run();
+  const limit=await one<{window_started_at:string;requests:number}>('SELECT window_started_at,requests FROM otp_ip_limits WHERE ip_hash=?',ipHash);
+  if(limit&&Date.now()-Date.parse(limit.window_started_at)<OTP_IP_WINDOW_MS&&limit.requests>=OTP_IP_MAX_REQUESTS)fail(429,'TOO_MANY_REQUESTS');
+  if(limit&&Date.now()-Date.parse(limit.window_started_at)<OTP_IP_WINDOW_MS)await statement('UPDATE otp_ip_limits SET requests=requests+1 WHERE ip_hash=?',ipHash).run();
+  else await statement('INSERT INTO otp_ip_limits(ip_hash,window_started_at,requests) VALUES(?,?,1) ON CONFLICT(ip_hash) DO UPDATE SET window_started_at=excluded.window_started_at,requests=1',ipHash,now()).run();
   const existing=await one<{created_at:string}>('SELECT created_at FROM email_otps WHERE email=?',email);
   if(existing&&Date.now()-Date.parse(existing.created_at)<OTP_RESEND_MS)fail(429,'TOO_MANY_REQUESTS');
   const secret=pepper();const code=generateOtpCode();const {salt,hash}=await hashSecret(code,secret);
-  const ip=(request.headers.get('cf-connecting-ip')||request.headers.get('x-forwarded-for')||'').slice(0,80);
   await statement('INSERT INTO email_otps (email,code_hash,salt,expires_at,attempts,created_at,request_ip) VALUES (?,?,?,?,0,?,?) ON CONFLICT(email) DO UPDATE SET code_hash=excluded.code_hash,salt=excluded.salt,expires_at=excluded.expires_at,attempts=0,created_at=excluded.created_at,request_ip=excluded.request_ip',email,hash,salt,new Date(Date.now()+OTP_TTL_MS).toISOString(),now(),ip).run();
   await sendOtpEmail(email,code);
   await statement('INSERT INTO audit (id,actor_id,action,target,reason,created_at) VALUES (?,?,?,?,?,?)',id(),'system','auth.email.request',email,'OTP issued',now()).run();
@@ -192,45 +217,49 @@ export async function read(path:string[],auth:AuthContext,request:Request){
  if(path[0]==='donor-photos'&&path.length===2){
   const photo=await readDonorPhoto(selectionStore,a,path[1]);
   const object=await env.FILES.get(photo.object_key);if(!object)fail(404,'NOT_FOUND');
-  return new Response(object.body,{headers:{'Content-Type':photo.mime,'Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer','Cross-Origin-Resource-Policy':'same-origin','Content-Security-Policy':"default-src 'none'; sandbox"}});
+  const mime=String(photo.mime);
+  const inline=new URL(request.url).searchParams.get('view')==='1'&&(mime.startsWith('image/')||mime==='application/pdf'||mime.startsWith('video/'));
+  const headers:Record<string,string>={'Content-Type':mime,'Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer','Cross-Origin-Resource-Policy':'same-origin'};
+  if(inline)headers['Content-Disposition']='inline';else headers['Content-Security-Policy']="default-src 'none'; sandbox";
+  return new Response(object.body,{headers});
  }
  if(path[0]==='egg-requests'&&path.length===1)return response({requests:await listEggRequests(selectionStore,a)});
  if(path.length===1&&path[0]==='admin-operations'){admin(a);return response(await readAdminOperations(a,{one,all}))}
  if(path[0]==='overview'){
   const casesRaw=await all('SELECT c.*,m.role AS membership_role FROM cases c JOIN case_members m ON m.case_id=c.id WHERE m.user_id=? ORDER BY c.updated_at DESC LIMIT 200',a.id);
   // Portal overview: never expose partner FK ids.
-  const cases=casesRaw.map(c=>{const{ivf_partner_id,postpartum_partner_id,...safe}=c;return safe});
+  const cases=casesRaw.map(c=>{const{ivf_partner_id:_ivf_partner_id,postpartum_partner_id:_postpartum_partner_id,...safe}=c;return safe});
   const grants=await all('SELECT scope,expires_at,revoked_at FROM directory_grants WHERE user_id=?',a.id);
   return response({cases,grants,...(a.role==='client'?await readClientHighlights(a,{all,one}):{})});
  }
- if(path[0]==='people'){admin(a);return response({people:await all("SELECT p.*,(SELECT COUNT(*) FROM case_members m WHERE m.user_id=p.id) AS membership_count,(SELECT COUNT(*) FROM directory_grants g WHERE g.user_id=p.id AND g.revoked_at IS NULL) AS active_grant_count FROM profiles p ORDER BY p.created_at DESC LIMIT 300")})}
- if(path[0]==='audit'){admin(a);const sp=new URL(request.url).searchParams;return response({audit:await readAudit({all},{action:sp.get('action')||'',actor:sp.get('actor')||'',target:sp.get('target')||'',from:sp.get('from')||'',to:sp.get('to')||''})})}
- if(path[0]==='grants'){admin(a);return response({grants:await all('SELECT g.*,p.name,p.email FROM directory_grants g JOIN profiles p ON p.id=g.user_id ORDER BY p.name')})}
+ if(path[0]==='people'){admin(a);const pg=pagination(request);return response({people:await all("SELECT p.*,(SELECT COUNT(*) FROM case_members m WHERE m.user_id=p.id) AS membership_count,(SELECT COUNT(*) FROM directory_grants g WHERE g.user_id=p.id AND g.revoked_at IS NULL) AS active_grant_count FROM profiles p ORDER BY p.created_at DESC LIMIT ? OFFSET ?",pg.limit,pg.offset),pagination:pg})}
+ if(path[0]==='audit'){admin(a);const sp=new URL(request.url).searchParams,pg=pagination(request);return response({audit:await readAudit({all},{action:sp.get('action')||'',actor:sp.get('actor')||'',target:sp.get('target')||'',from:sp.get('from')||'',to:sp.get('to')||'',...pg}),pagination:pg})}
+ if(path[0]==='grants'){admin(a);const pg=pagination(request);return response({grants:await all('SELECT g.*,p.name,p.email FROM directory_grants g JOIN profiles p ON p.id=g.user_id ORDER BY p.name LIMIT ? OFFSET ?',pg.limit,pg.offset),pagination:pg})}
  if(path[0]==='site-faq'&&path.length===1){admin(a);const rows=(await all('SELECT id,question_zh,question_en,answer_zh,answer_en,position,hidden,updated_at FROM faq_entries ORDER BY position,id')).map(row=>({...asFaq(row),updated_at:row.updated_at}));return response({faq:rows})}
  if(path[0]==='partners'&&path.length===1){
   admin(a);
-  const sp=new URL(request.url).searchParams,clauses:string[]=[],params:any[]=[];
+  const sp=new URL(request.url).searchParams,clauses:string[]=[],params:unknown[]=[];
   const kindRaw=sp.get('kind');if(kindRaw){let kind:string;try{kind=assertPartnerKind(kindRaw)}catch{fail(400,'PARTNER_KIND_INVALID')}clauses.push('kind=?');params.push(kind)}
   const statusRaw=sp.get('status')||'all';if(statusRaw!=='all'){clauses.push('status=?');params.push(choice(statusRaw,['active','inactive']))}
   const where=clauses.length?`WHERE ${clauses.join(' AND ')}`:'';
-  return response({partners:await all(`SELECT * FROM partners ${where} ORDER BY name LIMIT 300`,...params)});
+  const pg=pagination(request);return response({partners:await all(`SELECT * FROM partners ${where} ORDER BY name LIMIT ? OFFSET ?`,...params,pg.limit,pg.offset),pagination:pg});
  }
  if(path[0]==='directory'){
   const kind=choice(new URL(request.url).searchParams.get('kind')||'egg',['egg','sperm']);
-  if(a.role!=='admin'){const grant=await one('SELECT * FROM directory_grants WHERE user_id=? AND scope=?',a.id,kind);if(!canUseDirectory(a,grant as any,kind))fail(403,'DIRECTORY_LOCKED')}
+  if(a.role!=='admin'){const grant=await one('SELECT * FROM directory_grants WHERE user_id=? AND scope=?',a.id,kind);if(!canUseDirectory(a,grant as Parameters<typeof canUseDirectory>[1],kind))fail(403,'DIRECTORY_LOCKED')}
   const donors=await all(directoryQuery(a.role==='admin'),a.id,kind);
   return response({donors});
  }
- if(path[0]==='cases'&&path.length===1){admin(a);return response({cases:await all('SELECT c.*,m.role AS membership_role FROM cases c LEFT JOIN case_members m ON m.case_id=c.id AND m.user_id=? ORDER BY updated_at DESC LIMIT 200',a.id)})}
+ if(path[0]==='cases'&&path.length===1){admin(a);const pg=pagination(request);return response({cases:await all('SELECT c.*,m.role AS membership_role FROM cases c LEFT JOIN case_members m ON m.case_id=c.id AND m.user_id=? ORDER BY updated_at DESC LIMIT ? OFFSET ?',a.id,pg.limit,pg.offset),pagination:pg})}
  if(path[0]==='cases'&&path.length===2){
   const caseId=path[1];active(a);const membership=await one('SELECT role FROM case_members WHERE case_id=? AND user_id=?',caseId,a.id);const role=(membership?.role as string|undefined)??null;if(!role&&a.role!=='admin')fail(404,'NOT_FOUND');const c=await one('SELECT * FROM cases WHERE id=?',caseId);if(!c)fail(404,'NOT_FOUND');
   const reportRows=await all('SELECT r.*,EXISTS(SELECT 1 FROM report_recipients rr WHERE rr.report_id=r.id AND rr.user_id=?) AS is_recipient FROM reports r WHERE r.case_id=? ORDER BY r.report_date DESC,r.created_at DESC',a.id,caseId);
-  const reports=reportRows.filter(r=>canReadReport(a,role,r as any,!!r.is_recipient)).map(r=>{const {object_key,translation_key,sha256,...safe}=r;return {...safe,has_translation:!!translation_key,can_review:canReviewReport(a,role,r as any),can_publish:canPublishReport(a,role,r as any)}});
+  const reports=reportRows.filter(r=>canReadReport(a,role,r as Parameters<typeof canReadReport>[2],!!r.is_recipient)).map(r=>{const {object_key:_object_key,translation_key,sha256:_sha256,...safe}=r;return {...safe,has_translation:!!translation_key,can_review:canReviewReport(a,role,r as Parameters<typeof canReviewReport>[2]),can_publish:canPublishReport(a,role,r as Parameters<typeof canPublishReport>[2])}});
   const members=await all(`SELECT p.id,p.name,m.role,p.status ${role==='client'?'':',p.email'} FROM case_members m JOIN profiles p ON p.id=m.user_id WHERE m.case_id=? ${role==='client'?"AND (m.user_id=? OR m.role='coordinator')":''}`,caseId,...(role==='client'?[a.id]:[]));
   const questions=await all(`SELECT q.*,p.name AS author_name FROM questions q JOIN profiles p ON p.id=q.author_id WHERE q.case_id=? ${role==='client'?'AND q.author_id=?':''} ORDER BY q.created_at DESC LIMIT 100`,caseId,...(role==='client'?[a.id]:[]));
   const events=await all('SELECT e.*,p.name AS author_name FROM events e JOIN profiles p ON p.id=e.created_by WHERE e.case_id=? ORDER BY e.event_date DESC,e.created_at DESC LIMIT 200',caseId);
   const manage=canManageCase(a,role);
-  const casePayload=a.role==='admin'?c:(()=>{const{ivf_partner_id,postpartum_partner_id,...safe}=c;return safe})();
+  const casePayload=a.role==='admin'?c:(()=>{const{ivf_partner_id:_ivf_partner_id,postpartum_partner_id:_postpartum_partner_id,...safe}=c;return safe})();
   const payload:Row={case:casePayload,membership:role,can_manage:manage,members,reports,reports_withheld:a.role==='admin'&&!role&&reportRows.length>0,events,questions,documents:await caseDocumentsPayload(caseId,manage)};
   if(a.role==='admin'){
    const partnerSummary=async(pid:unknown)=>{if(!pid)return null;const p=await one('SELECT id,name,status FROM partners WHERE id=?',pid);return p?{id:p.id,name:p.name,status:p.status}:null};
@@ -251,7 +280,7 @@ export async function read(path:string[],auth:AuthContext,request:Request){
   return response({plan:publicPlan(plan)});
  }
  if(path[0]==='files'&&path.length===3){
-  const r=await one('SELECT * FROM reports WHERE id=?',path[1]);if(!r)fail(404,'NOT_FOUND');const role=await member(a,r.case_id);const recipient=await one('SELECT 1 FROM report_recipients WHERE report_id=? AND user_id=?',r.id,a.id);if(!canReadReport(a,role,r as any,!!recipient))fail(404,'NOT_FOUND');
+  const r=await one('SELECT * FROM reports WHERE id=?',path[1]);if(!r)fail(404,'NOT_FOUND');const role=await member(a,r.case_id);const recipient=await one('SELECT 1 FROM report_recipients WHERE report_id=? AND user_id=?',r.id,a.id);if(!canReadReport(a,role,r as Parameters<typeof canReadReport>[2],!!recipient))fail(404,'NOT_FOUND');
   const variant=choice(path[2],['original','translation']);const key=variant==='original'?r.object_key:r.translation_key;if(!key)fail(404,'NOT_FOUND');const object=await env.FILES.get(key);if(!object)fail(404,'NOT_FOUND');await auditStatement(a,'file.download',r.id,variant).run();const name=variant==='original'?r.file_name:r.translation_name;
   const mime=String(variant==='original'?r.mime:r.translation_mime);const inline=new URL(request.url).searchParams.get('view')==='1'&&['application/pdf','image/jpeg','image/png'].includes(mime);
   const headers:Record<string,string>={'Content-Type':mime,'Content-Disposition':`${inline?'inline':'attachment'}; filename="document"; filename*=UTF-8''${encodeURIComponent(name)}`,'Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer','Cross-Origin-Resource-Policy':'same-origin'};
@@ -263,18 +292,19 @@ export async function read(path:string[],auth:AuthContext,request:Request){
 
 export async function write(path:string[],a:Profile,request:Request){
  mutateRequest(request);
+ if(path[0]==='notification-outbox'&&path[1]==='process'){admin(a);const body=await json(request);return response(await processNotificationOutbox(number(body.limit??20,1,50)))}
  if(path[0]==='donors'&&path.length===3&&path[2]==='photos'){
-  admin(a);const limit=21*1024*1024;
-  if(Number(request.headers.get('content-length'))>limit)fail(413,'PHOTO_BATCH_TOO_LARGE');
+  admin(a);const limit=105*1024*1024;
+   try{validateUploadRequestSize(request.headers.get('content-length'),limit)}catch{fail(413,'PHOTO_BATCH_TOO_LARGE')}
   const reader=request.body?.getReader();if(!reader)fail(400,'PHOTO_REQUIRED');
   const chunks:Uint8Array[]=[];let size=0;
   try{while(true){const {done,value}=await reader.read();if(done)break;size+=value.length;if(size>limit){await reader.cancel();fail(413,'PHOTO_BATCH_TOO_LARGE')}chunks.push(value)}}finally{reader.releaseLock()}
   const bytes=new Uint8Array(size);let offset=0;for(const chunk of chunks){bytes.set(chunk,offset);offset+=chunk.length}chunks.length=0;
   let form:FormData;try{form=await new Response(bytes,{headers:{'Content-Type':request.headers.get('content-type')||''}}).formData()}catch{fail(400,'INVALID_INPUT')}
   const files=form.getAll('photos');if(!files.length)fail(400,'PHOTO_REQUIRED');if(files.length>10)fail(409,'PHOTO_LIMIT');
-  const photos=[];let total=0;
-  for(const file of files){if(typeof file==='string'||file.size>5*1024*1024)fail(400,'INVALID_PHOTO');total+=file.size;if(total>20*1024*1024)fail(413,'PHOTO_BATCH_TOO_LARGE');photos.push({mime:file.type,bytes:new Uint8Array(await file.arrayBuffer())})}
-  return response(await uploadDonorPhotos(selectionStore,photoStorage,a,path[1],photos));
+  const photos:{mime:string;bytes:Uint8Array}[]=[];const names:string[]=[];
+  for(const file of files){if(typeof file==='string')fail(400,'INVALID_PHOTO');photos.push({mime:file.type,bytes:new Uint8Array(await file.arrayBuffer())});names.push(file.name)}
+  return response(await uploadDonorPhotos(selectionStore,photoStorage,a,path[1],photos,names));
  }
  if(path[0]==='donor-photos'&&path.length===3&&path[2]==='delete')return response(await deleteDonorPhoto(selectionStore,photoStorage,a,path[1]));
  if(path[0]==='egg-requests'){
@@ -353,7 +383,7 @@ export async function write(path:string[],a:Profile,request:Request){
   await db().batch([statement('UPDATE donors SET age=?,height=?,blood_group=?,source=?,summary_zh=?,summary_en=?,verified_at=?,consent_ref=? WHERE id=?',age,height,group,source,zh,en,verified,consent,path[1]),auditStatement(a,'donor.update',path[1],reason)]);return response({ok:true});
  }
  if(path[0]==='favorites'){
-  const b=await json(request),d=await one('SELECT * FROM donors WHERE id=?',text(b.donor_id));if(!d||d.status==='archived')fail(404,'NOT_FOUND');if(a.role!=='admin'){const grant=await one('SELECT * FROM directory_grants WHERE user_id=? AND scope=?',a.id,d.kind);if(!canUseDirectory(a,grant as any,d.kind))fail(403,'DIRECTORY_LOCKED')}
+  const b=await json(request),d=await one('SELECT * FROM donors WHERE id=?',text(b.donor_id));if(!d||d.status==='archived')fail(404,'NOT_FOUND');if(a.role!=='admin'){const grant=await one('SELECT * FROM directory_grants WHERE user_id=? AND scope=?',a.id,d.kind);if(!canUseDirectory(a,grant as Parameters<typeof canUseDirectory>[1],d.kind))fail(403,'DIRECTORY_LOCKED')}
   if(b.favorite===true)await statement('INSERT OR IGNORE INTO favorites (user_id,donor_id) VALUES (?,?)',a.id,d.id).run();else await statement('DELETE FROM favorites WHERE user_id=? AND donor_id=?',a.id,d.id).run();return response({ok:true});
  }
  if(path[0]==='cases'&&path.length===1){
@@ -367,7 +397,7 @@ export async function write(path:string[],a:Profile,request:Request){
   admin(a);const b=await json(request),caseId=path[1];
   const current=await one<{ivf_partner_id:string|null;postpartum_partner_id:string|null}>('SELECT ivf_partner_id,postpartum_partner_id FROM cases WHERE id=?',caseId);
   if(!current)fail(404,'NOT_FOUND');
-  const reason=text(b.reason,500),sets:string[]=[],params:any[]=[];
+  const reason=text(b.reason,500),sets:string[]=[],params:unknown[]=[];
   let finalIvf=current.ivf_partner_id,finalPostpartum=current.postpartum_partner_id;
   for(const slot of ['ivf','postpartum'] as const){
    const key=`${slot}_partner_id`;if(!(key in b))continue;
@@ -468,10 +498,10 @@ export async function write(path:string[],a:Profile,request:Request){
  if(path[0]==='reports'&&path.length===3){
   const r=await one('SELECT * FROM reports WHERE id=?',path[1]);if(!r)fail(404,'NOT_FOUND');const role=await member(a,r.case_id);const b=await json(request);const reason=text(b.reason,1000);
   if(path[2]==='review'){
-   if(!canReviewReport(a,role,r as any))fail(403,'INDEPENDENT_REVIEW_REQUIRED');const decision=choice(b.decision,['reviewed','rejected']);const results=await db().batch([statement("UPDATE reports SET status=?,reviewed_by=?,review_note=? WHERE id=? AND status='draft' AND uploaded_by<>?",decision,a.id,reason,r.id,a.id),auditStatement(a,'report.review',r.id,`${decision}: ${reason}`)]);if(!results[0].meta.changes)fail(409,'STALE_RECORD');return response({ok:true});
+   if(!canReviewReport(a,role,r as Parameters<typeof canReviewReport>[2]))fail(403,'INDEPENDENT_REVIEW_REQUIRED');const decision=choice(b.decision,['reviewed','rejected']);const results=await db().batch([statement("UPDATE reports SET status=?,reviewed_by=?,review_note=? WHERE id=? AND status='draft' AND uploaded_by<>?",decision,a.id,reason,r.id,a.id),auditStatement(a,'report.review',r.id,`${decision}: ${reason}`)]);if(!results[0].meta.changes)fail(409,'STALE_RECORD');return response({ok:true});
   }
   if(path[2]==='publish'){
-   if(!canPublishReport(a,role,r as any))fail(403,'REVIEW_REQUIRED');const reviewer=await one("SELECT p.id FROM profiles p JOIN case_members m ON m.user_id=p.id WHERE p.id=? AND p.role='reviewer' AND p.status='approved' AND m.case_id=? AND m.role='reviewer'",r.reviewed_by,r.case_id);if(!reviewer)fail(403,'INDEPENDENT_REVIEW_REQUIRED');const recipients=await one("SELECT COUNT(*) AS count FROM report_recipients rr JOIN case_members m ON m.user_id=rr.user_id AND m.case_id=? JOIN profiles p ON p.id=rr.user_id WHERE rr.report_id=? AND m.role='client' AND p.status='approved' AND p.role='client'",r.case_id,r.id);if(!recipients?.count)fail(400,'RECIPIENT_REQUIRED');const results=await db().batch([statement("UPDATE reports SET status='published',published_at=? WHERE id=? AND status='reviewed'",now(),r.id),statement('UPDATE cases SET updated_at=? WHERE id=?',now(),r.case_id),auditStatement(a,'report.publish',r.id,reason)]);if(!results[0].meta.changes)fail(409,'STALE_RECORD');
+   if(!canPublishReport(a,role,r as Parameters<typeof canPublishReport>[2]))fail(403,'REVIEW_REQUIRED');const reviewer=await one("SELECT p.id FROM profiles p JOIN case_members m ON m.user_id=p.id WHERE p.id=? AND p.role='reviewer' AND p.status='approved' AND m.case_id=? AND m.role='reviewer'",r.reviewed_by,r.case_id);if(!reviewer)fail(403,'INDEPENDENT_REVIEW_REQUIRED');const recipients=await one("SELECT COUNT(*) AS count FROM report_recipients rr JOIN case_members m ON m.user_id=rr.user_id AND m.case_id=? JOIN profiles p ON p.id=rr.user_id WHERE rr.report_id=? AND m.role='client' AND p.status='approved' AND p.role='client'",r.case_id,r.id);if(!recipients?.count)fail(400,'RECIPIENT_REQUIRED');const results=await db().batch([statement("UPDATE reports SET status='published',published_at=? WHERE id=? AND status='reviewed'",now(),r.id),statement('UPDATE cases SET updated_at=? WHERE id=?',now(),r.case_id),auditStatement(a,'report.publish',r.id,reason)]);if(!results[0].meta.changes)fail(409,'STALE_RECORD');
    await notifyClients({kind:'report',caseId:r.case_id,reportId:r.id},request);
    return response({ok:true});
   }
@@ -492,12 +522,13 @@ export async function write(path:string[],a:Profile,request:Request){
 }
 
 async function uploadReport(caseId:string,a:Profile,request:Request){
- await manager(a,caseId);if(Number(request.headers.get('content-length')||0)>17*1024*1024)fail(413,'TOO_LARGE');const f=await request.formData();const original=f.get('original');if(!(original instanceof File))fail(400,'FILE_REQUIRED');const title=text(f.get('title'),150),kind=choice(f.get('kind'),['report','document']),source=text(f.get('source'),150),reportDate=date(f.get('report_date')),language=choice(f.get('language'),['ka','en','zh']),cycle=number(f.get('cycle'),1,99);let recipientIds:string[]=[];try{const value=JSON.parse(String(f.get('recipients')));if(!Array.isArray(value)||!value.length||value.length>10||value.some(x=>typeof x!=='string'))fail(400,'RECIPIENT_REQUIRED');recipientIds=[...new Set(value as string[])]}catch{fail(400,'RECIPIENT_REQUIRED')}
+ await manager(a,caseId);try{validateUploadRequestSize(request.headers.get('content-length'),17*1024*1024)}catch{fail(413,'TOO_LARGE')}const f=await request.formData();const original=f.get('original');if(!(original instanceof File))fail(400,'FILE_REQUIRED');const title=text(f.get('title'),150),kind=choice(f.get('kind'),['report','document']),source=text(f.get('source'),150),reportDate=date(f.get('report_date')),language=choice(f.get('language'),['ka','en','zh']),cycle=number(f.get('cycle'),1,99);let recipientIds:string[]=[];try{const encoded=scalarText(f.get('recipients'));if(!encoded)fail(400,'RECIPIENT_REQUIRED');const value=JSON.parse(encoded);if(!Array.isArray(value)||!value.length||value.length>10||value.some(x=>typeof x!=='string'))fail(400,'RECIPIENT_REQUIRED');recipientIds=[...new Set(value as string[])]}catch{fail(400,'RECIPIENT_REQUIRED')}
  const members=await all("SELECT m.user_id FROM case_members m JOIN profiles p ON p.id=m.user_id WHERE m.case_id=? AND m.role='client' AND p.role='client' AND p.status='approved'",caseId);if(recipientIds.some(x=>!members.some(m=>m.user_id===x)))fail(400,'RECIPIENT_REQUIRED');
  const bytes=new Uint8Array(await original.arrayBuffer());const originalKind=classifyUpload(original.name,original.type,bytes);if(!originalKind)fail(400,'INVALID_FILE');const originalMime=canonicalUploadMime(originalKind);
  const translation=f.get('translation');let translationBytes:Uint8Array|null=null;let translationMime:string|null=null;
  if(translation instanceof File&&translation.size){translationBytes=new Uint8Array(await translation.arrayBuffer());const translationKind=classifyUpload(translation.name,translation.type,translationBytes);if(!translationKind)fail(400,'INVALID_FILE');translationMime=canonicalUploadMime(translationKind)}
- let version=1;const supersedes=String(f.get('supersedes_id')||'').trim()||null;if(supersedes){const old=await one('SELECT * FROM reports WHERE id=? AND case_id=?',supersedes,caseId);if(!old||old.cycle!==cycle)fail(400,'INVALID_INPUT');version=old.version+1}
+  if(original.size+(translation instanceof File?translation.size:0)>17*1024*1024)fail(413,'TOO_LARGE');
+ let version=1;const supersedes=scalarText(f.get('supersedes_id')).trim()||null;if(supersedes){const old=await one('SELECT * FROM reports WHERE id=? AND case_id=?',supersedes,caseId);if(!old||old.cycle!==cycle)fail(400,'INVALID_INPUT');version=old.version+1}
  const reportId=id(),objectKey=`private/${caseId}/${reportId}/original`,translationKey=translationBytes?`private/${caseId}/${reportId}/translation`:null;const hash=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes))).map(b=>b.toString(16).padStart(2,'0')).join('');
  try{
   await env.FILES.put(objectKey,bytes,{httpMetadata:{contentType:originalMime}});

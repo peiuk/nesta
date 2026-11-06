@@ -15,4 +15,5 @@ RESEND_API_KEY=
 
 SESSION_SECRET=
 ADMIN_EMAIL=
+# Comma-separated allowed public origins; put the canonical origin first.
 SITE_ORIGIN=http://localhost:5173

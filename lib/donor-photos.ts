@@ -1,8 +1,48 @@
+import {canonicalUploadMime,classifyUpload} from './policy.ts';
+
 type Actor={id:string;role:string;status:string};
 type Row=Record<string,string|number|null>;
 type Store={first:(sql:string,...params:string[])=>Promise<Row|null>;all:(sql:string,...params:string[])=>Promise<Row[]>;batch:(items:{sql:string;params:string[]}[])=>Promise<unknown>};
 type Storage={put:(key:string,bytes:Uint8Array,mime:string)=>Promise<unknown>;delete:(key:string)=>Promise<unknown>};
+export type DonorMediaKind='image'|'pdf'|'video';
 export type PhotoInput={mime:string;bytes:Uint8Array};
+export const DONOR_MEDIA_MAX_ITEMS=10;
+export const DONOR_MEDIA_BATCH_MAX_BYTES=100*1024*1024;
+const VIDEO_MP4_EXTENSIONS=['mp4','m4v','mov'];
+const VIDEO_WEBM_EXTENSIONS=['webm'];
+
+function maxBytesForKind(kind:DonorMediaKind){
+ switch(kind){
+  case 'image':return 5*1024*1024;
+  case 'pdf':return 8*1024*1024;
+  case 'video':return 50*1024*1024;
+  default:{const missing:never=kind;return missing}
+ }
+}
+
+function sniffVideoMime(name:string,bytes:Uint8Array){
+ if(bytes.length<12)return null;
+ const ext=name.split('.').pop()?.toLowerCase()??'';
+ const webm=bytes[0]===0x1a&&bytes[1]===0x45&&bytes[2]===0xdf&&bytes[3]===0xa3;
+ if(webm&&VIDEO_WEBM_EXTENSIONS.includes(ext))return 'video/webm';
+ const ftyp=String.fromCharCode(...bytes.slice(4,8))==='ftyp';
+ if(ftyp&&VIDEO_MP4_EXTENSIONS.includes(ext))return ext==='mov'?'video/quicktime':'video/mp4';
+ return null;
+}
+
+export function classifyDonorMedia(name:string,mime:string,bytes:Uint8Array):{kind:DonorMediaKind;mime:string}|null{
+ if(bytes.length<8)return null;
+ const uploadKind=classifyUpload(name,mime,bytes);
+ if(uploadKind)return {kind:uploadKind==='pdf'?'pdf':'image',mime:canonicalUploadMime(uploadKind)};
+ const videoMime=sniffVideoMime(name,bytes);
+ if(!videoMime)return null;
+ const declared=mime.trim().toLowerCase();
+ if(declared&&declared!=='application/octet-stream'){
+  const allowed=new Set([videoMime,'video/mp4','video/webm','video/quicktime']);
+  if(!allowed.has(declared))return null;
+ }
+ return {kind:'video',mime:videoMime};
+}
 export class PhotoError extends Error{
  status:number;code:string;
  constructor(status:number,code:string){super(code);this.status=status;this.code=code}
@@ -18,21 +58,29 @@ async function authorize(store:Store,actor:Actor,donorId:string){
   if(!grant||grant.revoked_at||!Number.isFinite(Date.parse(String(grant.expires_at)))||Date.parse(String(grant.expires_at))<=Date.now())fail(403,'DIRECTORY_LOCKED');
  }
 }
-export function validatePhotos(photos:PhotoInput[]){
- if(!photos.length)fail(400,'PHOTO_REQUIRED');
- if(photos.length>10)fail(409,'PHOTO_LIMIT');
+export function validateDonorMedia(files:Array<{name:string;mime:string;bytes:Uint8Array}>){
+ if(!files.length)fail(400,'PHOTO_REQUIRED');
+ if(files.length>DONOR_MEDIA_MAX_ITEMS)fail(409,'PHOTO_LIMIT');
  let total=0;
- for(const {mime,bytes} of photos){
+ for(const {name,mime,bytes} of files){
+  const classified=classifyDonorMedia(name,mime,bytes);
+  if(!classified||bytes.length>maxBytesForKind(classified.kind))fail(400,'INVALID_PHOTO');
   total+=bytes.length;
-  const png=mime==='image/png'&&[137,80,78,71,13,10,26,10].every((n,i)=>bytes[i]===n);
-  const jpeg=mime==='image/jpeg'&&bytes[0]===255&&bytes[1]===216&&bytes[2]===255;
-  if(bytes.length<8||bytes.length>5*1024*1024||(!png&&!jpeg))fail(400,'INVALID_PHOTO');
  }
- if(total>20*1024*1024)fail(413,'PHOTO_BATCH_TOO_LARGE');
+ if(total>DONOR_MEDIA_BATCH_MAX_BYTES)fail(413,'PHOTO_BATCH_TOO_LARGE');
+}
+
+export function validatePhotos(photos:PhotoInput[]){
+ validateDonorMedia(photos.map((photo,i)=>{
+  let name=`upload-${i}.png`;
+  if(photo.mime==='application/pdf')name=`upload-${i}.pdf`;
+  else if(photo.mime==='image/jpeg'||photo.mime==='image/jpg')name=`upload-${i}.jpg`;
+  return {name,mime:photo.mime,bytes:photo.bytes};
+ }));
 }
 export async function listDonorPhotos(store:Store,actor:Actor,donorId:string){
  await authorize(store,actor,donorId);
- return store.all('SELECT id,created_at FROM donor_photos WHERE donor_id=? ORDER BY created_at,id',donorId);
+ return store.all('SELECT id,mime,created_at FROM donor_photos WHERE donor_id=? ORDER BY created_at,id',donorId);
 }
 export async function readDonorPhoto(store:Store,actor:Actor,photoId:string){
  const photo=await store.first('SELECT * FROM donor_photos WHERE id=?',photoId);
@@ -41,12 +89,27 @@ export async function readDonorPhoto(store:Store,actor:Actor,photoId:string){
  return {...photo,object_key:String(photo.object_key),mime:String(photo.mime),donor_id:String(photo.donor_id)};
 }
 function audit(actor:Actor,action:string,target:string,reason:string){return {sql:'INSERT INTO audit(id,actor_id,action,target,reason,created_at) VALUES(?,?,?,?,?,?)',params:[crypto.randomUUID(),actor.id,action,target,reason,new Date().toISOString()]}}
-export async function uploadDonorPhotos(store:Store,storage:Storage,actor:Actor,donorId:string,photos:PhotoInput[]){
- admin(actor);await authorize(store,actor,donorId);validatePhotos(photos);
+export async function uploadDonorPhotos(store:Store,storage:Storage,actor:Actor,donorId:string,photos:PhotoInput[],names?:string[]){
+ admin(actor);await authorize(store,actor,donorId);
+ const files=photos.map((photo,i)=>{
+  let name=names?.[i]?.trim()||'';
+  if(!name.includes('.')){
+   if(photo.mime==='image/png')name='upload.png';
+   else if(photo.mime==='image/jpeg'||photo.mime==='image/jpg')name='upload.jpg';
+   else if(photo.mime==='application/pdf')name='upload.pdf';
+   else if(photo.mime.startsWith('video/'))name='upload.mp4';
+   else name=`upload-${i}.png`;
+  }
+  return {name,mime:photo.mime,bytes:photo.bytes};
+ });
+ validateDonorMedia(files);
  const existing=await store.first('SELECT COUNT(*) AS count,MAX(created_at) AS latest FROM donor_photos WHERE donor_id=?',donorId);
  if(Number(existing?.count)+photos.length>10)fail(409,'PHOTO_LIMIT');
  const firstTime=Math.max(Date.now(),(Date.parse(String(existing?.latest))||0)+1);
- const entries=photos.map((photo,i)=>({...photo,id:crypto.randomUUID(),key:'donor-photos/'+crypto.randomUUID(),createdAt:new Date(firstTime+i).toISOString()}));
+ const entries=files.map((file,i)=>{
+  const classified=classifyDonorMedia(file.name,file.mime,file.bytes)!;
+  return {mime:classified.mime,bytes:file.bytes,id:crypto.randomUUID(),key:'donor-photos/'+crypto.randomUUID(),createdAt:new Date(firstTime+i).toISOString()};
+ });
  const attempted:string[]=[];
  try{
   for(const p of entries){attempted.push(p.key);await storage.put(p.key,p.bytes,p.mime)}

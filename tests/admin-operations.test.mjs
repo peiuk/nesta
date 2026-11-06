@@ -36,7 +36,7 @@ test('admin work queues count real records and exclude unsubmitted registrations
 test('medical metadata and messages remain limited to assigned cases; storage keys never leave server',async()=>{
  const {db,query,run}=fixture();try{
   const data=await readAdminOperations(actor,query,now);
-  assert.deepEqual(data.reports.map(r=>r.id).sort(),['draft','ready']);
+  assert.deepEqual(data.reports.map(r=>r.id).sort((a,b)=>a.localeCompare(b)),['draft','ready']);
   assert.deepEqual(data.questions.map(q=>q.id),['assigned']);
   assert.ok(!JSON.stringify(data).includes('PRIVATE_STORAGE_KEY'));
   assert.ok(!JSON.stringify(data).includes('PRIVATE_HASH'));

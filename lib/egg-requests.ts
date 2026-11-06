@@ -1,5 +1,5 @@
 type Actor={id:string;role:string;status:string};
-type Row=Record<string,any>;
+type Row=Record<string,string|number|null>;
 type Statement={sql:string;params:string[]};
 export type SelectionStore={first:(sql:string,...params:string[])=>Promise<Row|null>;all:(sql:string,...params:string[])=>Promise<Row[]>;batch:(items:Statement[])=>Promise<{changes:number}[]>};
 export class SelectionError extends Error{
@@ -36,7 +36,7 @@ export async function submitEggRequest(store:SelectionStore,actor:Actor,donorId:
 export async function decideEggRequest(store:SelectionStore,actor:Actor,id:string,status:'approved'|'rejected',reply:string,now=new Date().toISOString()){
  requireRole(actor,'admin');if(!['approved','rejected'].includes(status))fail(400,'INVALID_INPUT');reply=noteText(reply,true);
  const current=await store.first('SELECT user_id,donor_id,status FROM egg_requests WHERE id=?',id);
- if(!current||current.status!=='pending')fail(409,'STALE_RECORD');
+ if(!current||current.status!=='pending'||typeof current.donor_id!=='string'||typeof current.user_id!=='string')fail(409,'STALE_RECORD');
  if(status==='approved'&&!await eligible(store,current.donor_id,current.user_id,now))fail(409,'SELECTION_NOT_ELIGIBLE');
  const token=crypto.randomUUID();
  const guard=status==='approved'?` AND EXISTS(SELECT 1 ${eligibleFrom})`:'';

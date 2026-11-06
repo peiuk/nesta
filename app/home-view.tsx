@@ -1,12 +1,14 @@
 'use client';
+import Link from "next/link";
 import {useEffect,useRef} from 'react';
-import {ArrowUpRight,ArrowRight,Download,FileText,ShieldCheck,FileHeart,MessagesSquare,Phone,Mail} from 'lucide-react';
+import Image from 'next/image';
+import {ArrowUpRight,ArrowRight,Download,FileText,ShieldCheck,FileHeart,MessagesSquare,MessageCircle,Phone,Mail} from 'lucide-react';
 import './home.css';
 import {useLocale} from '@/components/product/locale';
 import {PartnerLeaderMed} from '@/components/product/partner-leadermed';
 import {PublicFooter} from '@/components/product/public-footer';
 import {PublicSiteHeader} from '@/components/product/public-site-header';
-import {CONTACT_EMAIL,CONTACT_PHONE,CONTACT_PHONE_TEL} from '@/lib/public-contact';
+import {CONTACT_EMAIL,CONTACT_PHONE,CONTACT_PHONE_TEL,CONTACT_WECHAT} from '@/lib/public-contact';
 import {formatPackageMainPrice,formatPackageMainPriceCaption,PACKAGE_DISCLAIMER,PACKAGE_SHEET_VERSION,PACKAGE_STRIP,PUBLIC_PACKAGES} from '@/lib/public-packages';
 
 export default function Home(){
@@ -32,7 +34,7 @@ export default function Home(){
      <div className="hero-actions hero-rise delay-2"><a href="#contact" className="primary-link">{t('预约咨询','Book a consultation')}<ArrowRight size={17}/></a><a href="#journey" className="hero-process-link">{t('了解服务流程','Explore the process')}<ArrowUpRight size={17}/></a></div>
      <small className="hero-rise delay-3">{t('具体服务须经个别法律与医疗评估，不承诺结果。','Services require individual legal and clinical assessment. Outcomes are not guaranteed.')}</small>
     </div>
-    <div className="hero-visual"><figure className="family-hero-photo"><img src="/nesta-family.webp" width="1448" height="1086" fetchPriority="high" alt={t('父母轻抱婴儿的家庭主题配图','Family illustration: parents gently holding their baby')}/></figure><div className="hero-care-note"><span className="care-note-icon"><FileHeart size={26} strokeWidth={1.4}/></span><div><strong>{t('每个阶段，清楚可见','Your journey, clearly documented')}</strong><p>{t('专属服务空间 · 进度与报告随时查阅','Your care space · progress and reports together')}</p></div></div></div>
+    <div className="hero-visual"><figure className="family-hero-photo"><Image src="/nesta-family.webp" width={1448} height={1086} fetchPriority="high" alt={t('父母轻抱婴儿的家庭主题配图','Family illustration: parents gently holding their baby')}/></figure><div className="hero-care-note"><span className="care-note-icon"><FileHeart size={26} strokeWidth={1.4}/></span><div><strong>{t('每个阶段，清楚可见','Your journey, clearly documented')}</strong><p>{t('专属服务空间 · 进度与报告随时查阅','Your care space · progress and reports together')}</p></div></div></div>
     </div>
    </section>
    <section id="care" className="service-strip" aria-labelledby="service-strip-title">
@@ -66,7 +68,7 @@ export default function Home(){
      <p>{t('我们协调合作方安排与进度记录；诊疗由医疗机构负责，具体休养与认证以合作方及当地要求为准。','We coordinate partner arrangements and progress records. Clinical care stays with medical providers; postpartum and certification details follow partners and local requirements.')}</p>
     </div>
     <div className="network-grid">
-     {[[t('LeaderMed 独家合作','Exclusive LeaderMed partner'),t('奈斯是第比利斯 LeaderMed 医院的独家合作伙伴，协调评估与治疗安排。诊疗由医院负责。','Nesta is the exclusive partner of LeaderMed hospital in Tbilisi, and coordinates assessment and treatment arrangements. Clinical care stays with the hospital.')],[t('专业月子中心','Professional postpartum centre'),t('配套月子中心为专业机构，持牌儿科医生实行 24 小时值班。休养与行程节点记入服务进度。','The accompanying postpartum centre is a professional facility, with licensed paediatricians on 24-hour duty. Rest and travel milestones stay on the care timeline.')],[t('公证与海牙认证','Notarisation & Apostille'),t('跟进出生、亲权等相关证件的公证与海牙认证进度，材料与状态可追溯。','Track notarisation and Apostille progress for birth and parentage documents, with a clear record of materials and status.')]].map((x,i)=><article key={i}><span>0{i+1}</span><h3>{x[0]}</h3><p>{x[1]}</p>{i===0?<a className="network-more" href="/clinic">{t('查看合作医院 LeaderMed','See partner clinic LeaderMed')}<ArrowUpRight size={14}/></a>:null}</article>)}
+     {[[t('LeaderMed 独家合作','Exclusive LeaderMed partner'),t('奈斯是第比利斯 LeaderMed 医院的独家合作伙伴，协调评估与治疗安排。诊疗由医院负责。','Nesta is the exclusive partner of LeaderMed hospital in Tbilisi, and coordinates assessment and treatment arrangements. Clinical care stays with the hospital.')],[t('专业月子中心','Professional postpartum centre'),t('配套月子中心为专业机构，持牌儿科医生实行 24 小时值班。休养与行程节点记入服务进度。','The accompanying postpartum centre is a professional facility, with licensed paediatricians on 24-hour duty. Rest and travel milestones stay on the care timeline.')],[t('公证与海牙认证','Notarisation & Apostille'),t('跟进出生、亲权等相关证件的公证与海牙认证进度，材料与状态可追溯。','Track notarisation and Apostille progress for birth and parentage documents, with a clear record of materials and status.')]].map((x,i)=><article key={i}><span>0{i+1}</span><h3>{x[0]}</h3><p>{x[1]}</p>{i===0?<Link className="network-more" href="/clinic">{t('查看合作医院 LeaderMed','See partner clinic LeaderMed')}<ArrowUpRight size={14}/></Link>:null}</article>)}
     </div>
    </section>
    <PartnerLeaderMed compact/>
@@ -86,12 +88,12 @@ export default function Home(){
       <a href={pkg.featured?'#contact':'/fees'} className={pkg.featured?'primary-link packages-home-cta':'quiet-link'}>{pkg.featured?t('咨询推荐方案','Discuss this programme'):t('查看明细','See full details')}<ArrowUpRight size={16}/></a>
      </article>)}
     </div>
-    <p className="packages-home-more"><a className="hero-process-link" href="/fees">{t('查看三档套餐、费用包含与额外收费','View all programmes, inclusions and extras')}<ArrowUpRight size={16}/></a></p>
-    <p className="package-terms"><ShieldCheck size={20} aria-hidden="true"/>{t(...PACKAGE_DISCLAIMER)} <a href="/faq">{t('常见问题','Common questions')}</a></p>
+    <p className="packages-home-more"><Link className="hero-process-link" href="/fees">{t('查看三档套餐、费用包含与额外收费','View all programmes, inclusions and extras')}<ArrowUpRight size={16}/></Link></p>
+    <p className="package-terms"><ShieldCheck size={20} aria-hidden="true"/>{t(...PACKAGE_DISCLAIMER)} <Link href="/faq">{t('常见问题','Common questions')}</Link></p>
     <aside className="packages-download-card" aria-label={t('套餐资料下载','Package sheet download')}>
      <div className="packages-download-icon" aria-hidden="true"><FileText size={22}/></div>
      <div className="packages-download-copy"><h3>{t('套餐原图，一页查看','The original package sheet')}</h3><p>{t('三种套餐、费用明细与办理流程，保存后随时对照。','Save the three programmes, fee details and process for reference.')}</p><span className="packages-download-meta">{t(`中文 · JPG · ${PACKAGE_SHEET_VERSION}`,`Chinese · JPG · ${PACKAGE_SHEET_VERSION}`)}</span></div>
-     <a className="primary-link packages-download-btn" href="/nesta-packages.jpg" download>{t('下载套餐原图','Download package sheet')}<Download size={16}/></a>
+     <Link className="primary-link packages-download-btn" href="/nesta-packages.jpg" download>{t('下载套餐原图','Download package sheet')}<Download size={16}/></Link>
     </aside>
    </section>
 
@@ -104,16 +106,17 @@ export default function Home(){
    <section id="contact" className="cta-band">
     <div>
      <h2>{t('从一次坦诚的沟通开始。','Begin with an honest conversation.')}</h2>
-     <p>{t('登录或联系前，可先看问答说明；也可先电话或邮件咨询。','Before you sign in or write, you can read the questions — or reach us by phone or email first.')} <a className="cta-inline-link" href="/faq">{t('打开问答','Open questions')}</a></p>
+     <p>{t('登录或联系前，可先看问答说明；也可先通过微信、电话或邮件咨询。','Before you sign in or write, you can read the questions — or reach us by WeChat, phone or email first.')} <Link className="cta-inline-link" href="/faq">{t('打开问答','Open questions')}</Link></p>
      <div className="cta-contact">
+      <span className="cta-wechat"><MessageCircle size={16} strokeWidth={1.5} aria-hidden="true"/><span>{t('微信号：','WeChat ID: ')}<span className="wechat-id">{CONTACT_WECHAT}</span></span></span>
       <a href={`tel:${CONTACT_PHONE_TEL}`}><Phone size={16} strokeWidth={1.5}/><span>{CONTACT_PHONE}</span></a>
       <a href={`mailto:${CONTACT_EMAIL}`}><Mail size={16} strokeWidth={1.5}/><span>{CONTACT_EMAIL}</span></a>
      </div>
-     <ol className="consultation-steps"><li>{t('电话或邮件沟通基本需求，无需先注册。','Contact us by phone or email; registration is not required.')}</li><li>{t('团队说明资料要求、服务流程与费用范围。','The team explains information needed, the process and fee scope.')}</li><li>{t('确认继续后建立档案，按审核结果开放服务空间。','Create a profile when ready; access is granted after review.')}</li></ol>
+     <ol className="consultation-steps"><li>{t('微信、电话或邮件沟通基本需求，无需先注册。','Contact us by WeChat, phone or email; registration is not required.')}</li><li>{t('团队说明资料要求、服务流程与费用范围。','The team explains information needed, the process and fee scope.')}</li><li>{t('确认继续后建立档案，按审核结果开放服务空间。','Create a profile when ready; access is granted after review.')}</li></ol>
     </div>
     <div className="cta-band-actions">
      <a href={`tel:${CONTACT_PHONE_TEL}`} className="primary-link on-dark">{t('电话咨询','Call to consult')}<Phone size={18}/></a>
-     <a href="/portal" className="quiet-link on-dark cta-secondary">{t('已有意向？建立档案','Ready to continue? Create profile')}<ArrowUpRight size={16}/></a>
+     <Link href="/portal" className="quiet-link on-dark cta-secondary">{t('已有意向？建立档案','Ready to continue? Create profile')}<ArrowUpRight size={16}/></Link>
     </div>
    </section>
   </main>

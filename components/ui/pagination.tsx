@@ -42,6 +42,7 @@ type PaginationLinkProps = {
 } & Pick<React.ComponentProps<typeof Button>, 'size'> &
   React.ComponentProps<'a'>;
 
+/* oxlint-disable jsx-a11y/anchor-has-content -- Base UI injects the pagination child through render props at runtime. */
 function PaginationLink({
   className,
   isActive,

@@ -10,9 +10,13 @@ export function normalizeSiteOrigin(value:string){
 }
 
 export function resolveExpectedOrigin(request:Request,configured?:string){
- const fromEnv=normalizeSiteOrigin(configured||'');
- if(fromEnv)return fromEnv;
- return new URL(request.url).origin;
+ const configuredOrigins=(configured||'').split(',').map(normalizeSiteOrigin).filter(Boolean);
+ const requestOrigin=new URL(request.url).origin;
+ // SITE_ORIGIN may list explicitly configured host aliases, comma-separated.
+ // Only accept one of those hosts; unknown Host values fall back to the
+ // canonical first origin and therefore fail the same-origin comparison.
+ if(configuredOrigins.includes(requestOrigin))return requestOrigin;
+ return configuredOrigins[0]||requestOrigin;
 }
 
 export function mutationOriginMatches(request:Request,expected:string){

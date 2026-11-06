@@ -16,6 +16,7 @@ export function canBindPartner(partner:{kind:string;status:string}|null,slot:Par
 
 export function normalizePartnerId(value:unknown):string|null{
  if(value==null||value==='')return null;
- const s=String(value).trim();
+ const s=scalarText(value).trim();
  return s||null;
 }
+import {scalarText} from './text.ts';

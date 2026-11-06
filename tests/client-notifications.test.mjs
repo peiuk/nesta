@@ -24,13 +24,20 @@ registerHooks({
   return next(url,context);
  }
 });
-const {write}=await import('../lib/server.ts');
+const {write,processNotificationOutbox}=await import('../lib/server.ts');
+const {sendWithRetry}=await import('../lib/client-notifications.ts');
 const owner={id:'owner',role:'admin',status:'approved'};
 const stamp='2026-11-05T10:00:00.000Z';
 
+test('email delivery retries transient failures with bounded attempts',async()=>{
+ let attempts=0;
+ await sendWithRetry(async()=>{attempts++;if(attempts<3)throw new Error('temporary');}, {to:'a@example.invalid',subject:'test',text:'test'}, {maxAttempts:3,baseDelayMs:0});
+ assert.equal(attempts,3);
+});
+
 function fixture(t){
  const db=new DatabaseSync(':memory:');
- for(const file of ['0000_swift_jamie_braddock.sql','0007_case_documents.sql'])db.exec(readFileSync(new URL('../drizzle/'+file,import.meta.url),'utf8'));
+ for(const file of ['0000_swift_jamie_braddock.sql','0007_case_documents.sql','0011_notification_outbox.sql'])db.exec(readFileSync(new URL('../drizzle/'+file,import.meta.url),'utf8'));
  const run=(sql,...args)=>db.prepare(sql).run(...args);
  for(const [id,role,status,language] of [
   ['owner','admin','approved','en'],['reviewer','reviewer','approved','en'],
@@ -57,18 +64,22 @@ function fixture(t){
  });
  t.after(()=>db.close());
  const post=(path,body,actor=owner)=>write(path.split('/'),actor,new Request(env.SITE_ORIGIN+'/api/'+path,{method:'POST',headers:{origin:env.SITE_ORIGIN,'x-firstleaf':'firstleaf','content-type':'application/json'},body:JSON.stringify(body)}));
- return {db,run,post,sent,addresses:()=>sent.flatMap(m=>m.to).sort()};
+ const drain=()=>processNotificationOutbox(50);
+ return {db,run,post,drain,sent,addresses:()=>sent.flatMap(m=>m.to).sort((a,b)=>a.localeCompare(b))};
 }
 
-test('publishing sends only to approved assigned report recipients, after commit, with a portal link',async t=>{
+test('publishing queues only approved assigned report recipients after commit',async t=>{
  const f=fixture(t);
  assert.equal((await f.post('reports/report/publish',{reason:'release'})).status,200);
  assert.equal(f.db.prepare("SELECT status FROM reports WHERE id='report'").get().status,'published');
- assert.deepEqual(f.addresses(),['alice@example.invalid']);
- assert.match(f.sent[0].text,/报告与文件/);
- assert.match(f.sent[0].text,/https:\/\/portal\.example\.invalid\/portal/);
+ const queued=f.db.prepare("SELECT recipient,subject,body,status FROM notification_outbox ORDER BY recipient").all();
+ assert.deepEqual(queued.map(row=>row.recipient),['alice@example.invalid']);
+ assert.equal(queued[0].status,'pending');
+ assert.match(queued[0].body,/报告与文件/);
+ assert.match(queued[0].body,/https:\/\/portal\.example\.invalid\/portal/);
+ assert.equal(f.sent.length,0);
  await assert.rejects(f.post('reports/report/publish',{reason:'repeat'}));
- assert.equal(f.sent.length,1);
+ assert.equal(f.db.prepare('SELECT COUNT(*) AS n FROM notification_outbox').get().n,1);
 });
 
 test('draft reviews do not notify; withdrawing a published file notifies once',async t=>{
@@ -80,6 +91,7 @@ test('draft reviews do not notify; withdrawing a published file notifies once',a
  assert.equal(f.sent.length,0);
  f.run("UPDATE reports SET status='published'");
  await f.post('reports/report/withdraw',{reason:'removed'});
+ await f.drain();
  await f.post('reports/report/withdraw',{reason:'removed again'});
  assert.deepEqual(f.addresses(),['alice@example.invalid']);
 });
@@ -87,18 +99,20 @@ test('draft reviews do not notify; withdrawing a published file notifies once',a
 test('stage and cycle changes notify current clients in their language; unchanged saves do not',async t=>{
  const f=fixture(t);
  await f.post('cases/case/stage',{stage:'treatment',cycle:1,reason:'PRIVATE_REASON'});
+ await f.drain();
  assert.deepEqual(f.addresses(),['alice@example.invalid','bob@example.invalid']);
  assert.match(f.sent.find(m=>m.to[0].startsWith('alice')).text,/服务进度/);
  assert.match(f.sent.find(m=>m.to[0].startsWith('bob')).text,/service progress/i);
  await f.post('cases/case/stage',{stage:'treatment',cycle:1,reason:'save again'});
  assert.equal(f.sent.length,2);
  await f.post('cases/case/stage',{stage:'treatment',cycle:2,reason:'new cycle'});
+ await f.drain();
  assert.equal(f.sent.length,4);
 });
 
 test('milestones and appointments notify case clients',async t=>{
  const f=fixture(t);
- for(const kind of ['milestone','appointment'])await f.post('cases/case/events',{kind,title:'PRIVATE_TITLE',note:'PRIVATE_NOTE',cycle:1,event_date:'2026-11-06'});
+ for(const kind of ['milestone','appointment']){await f.post('cases/case/events',{kind,title:'PRIVATE_TITLE',note:'PRIVATE_NOTE',cycle:1,event_date:'2026-11-06'});await f.drain()}
  assert.deepEqual(f.addresses(),['alice@example.invalid','alice@example.invalid','bob@example.invalid','bob@example.invalid']);
 });
 
@@ -106,22 +120,26 @@ test('document status or date changes notify; internal-only edits and no-op save
  const f=fixture(t);
  const body={kind:'apostille',status:'in_progress',status_date:null,notes:'PRIVATE_NOTES',reason:'update'};
  await f.post('cases/case/documents',body);
+ await f.drain();
  assert.equal(f.sent.length,2);
  await f.post('cases/case/documents',body);
  await f.post('cases/case/documents',{...body,notes:'PRIVATE_NEW_NOTES'});
  assert.equal(f.sent.length,2);
  await f.post('cases/case/documents',{...body,status_date:'2026-11-05'});
+ await f.drain();
  assert.equal(f.sent.length,4);
 });
 
 test('a new or edited reply only notifies its author; no-op saves and removed members do not',async t=>{
  const f=fixture(t);
  await f.post('questions/question',{reply:'PRIVATE_REPLY'});
+ await f.drain();
  assert.deepEqual(f.addresses(),['alice@example.invalid']);
  assert.match(f.sent[0].text,/沟通记录/);
  await f.post('questions/question',{reply:'PRIVATE_REPLY'});
  assert.equal(f.sent.length,1);
  await f.post('questions/question',{reply:'PRIVATE_NEW_REPLY'});
+ await f.drain();
  assert.equal(f.sent.length,2);
  f.run("DELETE FROM case_members WHERE user_id='alice'");
  await f.post('questions/question',{reply:'PRIVATE_LAST_REPLY'});
@@ -137,13 +155,16 @@ test('failed or unauthorized mutations never send email',async t=>{
  assert.equal(f.sent.length,0);
 });
 
-test('mail failure preserves the saved update and still attempts other recipients',async t=>{
+test('mail failure preserves the update and stores failed delivery for retry',async t=>{
  const f=fixture(t);const attempted=[];
  t.mock.method(console,'error',()=>{});
  t.mock.method(globalThis,'fetch',async(url,options)=>{attempted.push(JSON.parse(options.body).to[0]);return new Response('{}',{status:attempted.length===1?503:200})});
  assert.equal((await f.post('cases/case/stage',{stage:'treatment',cycle:1,reason:'update'})).status,200);
  assert.equal(f.db.prepare("SELECT stage FROM cases WHERE id='case'").get().stage,'treatment');
- assert.deepEqual(attempted.sort(),['alice@example.invalid','bob@example.invalid']);
+ await f.drain();
+ assert.deepEqual(attempted.sort((a,b)=>a.localeCompare(b)),['alice@example.invalid','bob@example.invalid']);
+ const failed=f.db.prepare("SELECT status,attempts,last_error FROM notification_outbox WHERE recipient='alice@example.invalid'").get();
+ assert.equal(failed.status,'pending');assert.equal(failed.attempts,1);assert.ok(failed.last_error);
 });
 
 test('concurrent publication makes stale withdrawal fail without a false audit or email',async t=>{

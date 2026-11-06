@@ -1,4 +1,5 @@
 'use client';
+import Link from "next/link";
 import {useEffect,useState,useRef,type ReactNode} from 'react';
 import {ArrowLeft,Heart,LogOut,Upload} from 'lucide-react';
 import {Button} from '@/components/ui/button';
@@ -15,7 +16,9 @@ import {EggRequests,SubmitEggRequest,SelectionStatus} from './egg-requests';
 import {ClientOverview} from './client-overview';
 import {DonorDetails,DonorComparison} from './donor-details';
 import {DonorCover,DonorPhotoManager} from './donor-photos';
+import {DONOR_MEDIA_ACCEPT,validateDonorMediaSelection} from './donor-media-client';
 import {groupReports} from '@/lib/report-groups';
+import {scalarText} from '@/lib/text';
 import {FilePreview} from './file-preview';
 import {ClientPlanFees,CasePlanPanel} from './plan-fees';
 
@@ -71,19 +74,19 @@ function Workspace({profile}:{profile:Data}){
  const overview=useResource('overview',version);
  const grants=(overview.data?.grants||[]) as Array<{scope:string;expires_at:string;revoked_at:string|null}>;
  const showDirectory=profile.role==='admin'||(profile.role==='client'&&hasDirectoryAccess({id:String(profile.id),role:String(profile.role),status:String(profile.status)},grants));
- useEffect(()=>{if(view==='directory'&&!showDirectory)setView('overview')},[view,showDirectory]);
+ const activeView=view==='directory'&&!showDirectory?'overview':view;
  const go=(next:'overview'|'directory'|'requests'|'plan')=>{setCaseId(null);setView(next)};
- const item=(key:'overview'|'directory'|'requests'|'plan',label:string)=><Button key={key} variant={view===key?'secondary':'ghost'} size="sm" onClick={()=>go(key)}>{label}</Button>;
- const nav=<>{item('overview',t('概览','Overview'))}{profile.role==='client'&&item('plan',t('我的方案/费用','My plan / fees'))}{showDirectory&&item('directory',t('资料库','Directory'))}{profile.role==='client'&&item('requests',t('我的选卵申请','My egg requests'))}{profile.role==='admin'&&<a className="quiet-link" href="/admin">{t('管理后台','Administration')}</a>}</>;
+ const item=(key:'overview'|'directory'|'requests'|'plan',label:string)=><Button key={key} variant={activeView===key?'secondary':'ghost'} size="sm" onClick={()=>go(key)}>{label}</Button>;
+ const nav=<>{item('overview',t('概览','Overview'))}{profile.role==='client'&&item('plan',t('我的方案/费用','My plan / fees'))}{showDirectory&&item('directory',t('资料库','Directory'))}{profile.role==='client'&&item('requests',t('我的选卵申请','My egg requests'))}{profile.role==='admin'&&<Link className="quiet-link" href="/admin">{t('管理后台','Administration')}</Link>}</>;
  return <Shell nav={nav}>
-  {view==='overview'&&(caseId
+  {activeView==='overview'&&(caseId
    ?<CaseDetail caseId={caseId} profile={profile} back={()=>setCaseId(null)}/>
    :overview.loading?<div className="loading">{t('正在载入…','Loading…')}</div>
    :overview.error?<ErrorNotice code={overview.error}/>
    :profile.role==='client'?<ClientOverview profile={profile} data={overview.data||{}} open={setCaseId} go={go}/>:<Overview profile={profile} data={overview.data||{}} open={setCaseId} refresh={refresh}/>)}
-  {view==='directory'&&showDirectory&&<Directory profile={profile} openRequests={()=>go('requests')}/>}
-  {view==='plan'&&profile.role==='client'&&<ClientPlanFees/>}
-  {view==='requests'&&profile.role==='client'&&<EggRequests/>}
+  {activeView==='directory'&&<Directory profile={profile} openRequests={()=>go('requests')}/>}
+  {activeView==='plan'&&profile.role==='client'&&<ClientPlanFees/>}
+  {activeView==='requests'&&profile.role==='client'&&<EggRequests/>}
  </Shell>;
 }
 
@@ -186,7 +189,7 @@ function CasePartnersPanel({caseId,summary,refresh}:{caseId:string;summary:Data|
    {(ivfList.loading||postpartumList.loading)&&<div className="loading">{t('正在载入…','Loading…')}</div>}
    <ErrorNotice code={ivfList.error||postpartumList.error}/>
    {ready&&<ActionForm submitLabel={t('保存绑定','Save bindings')} onSubmit={f=>{
-    const pick=(key:string)=>{const v=String(f.get(key)||'');return v===NONE?null:v};
+    const pick=(key:string)=>{const v=scalarText(f.get(key));return v===NONE?null:v};
     return api(`cases/${caseId}/partners`,{ivf_partner_id:pick('ivf_partner_id'),postpartum_partner_id:pick('postpartum_partner_id'),reason:f.get('reason')});
    }} onDone={()=>{setOpen(false);refresh()}}>
     <Choice name="ivf_partner_id" label={label('ivf')} value={ivf?String(ivf.id):NONE} options={partnerOptions((ivfList.data?.partners||[]) as Data[],ivf,label,t('未绑定','Not bound'))}/>
@@ -299,7 +302,7 @@ export function Directory({profile,openRequests}:{profile:Data;openRequests?:()=
  const statusOptions=admin?['available','matching','unavailable','archived']:['available','matching','unavailable'];
  return <>
   <div className="page-title"><div>{admin?<h2>{t('合作方供者档案','Partner donor records')}</h2>:<h1>{t('供者资料库','Donor directory')}</h1>}<p>{admin?t('维护已核实的匿名档案、来源和当前可申请状态。','Maintain verified anonymous records, sources and availability.'):t('授权范围与有效期由管理员设定，资料仅供本次服务评估使用。','Scope and expiry are set by an administrator. Records are for this service assessment only.')}</p></div>{admin&&<NewDonor kind={kind} onCreated={k=>{selectKind(k);refresh()}} refresh={refresh}/>}</div>
-  {saved&&<div className="success-banner" role="status">{submitted?t('选卵申请已提交，等待服务团队审批。','Egg request submitted. Awaiting review by the service team.'):t('更改已保存。','Changes saved.')}{submitted&&openRequests&&<Button variant="link" onClick={openRequests}>{t('查看申请状态','View request status')}</Button>}</div>}
+  {saved&&<output className="success-banner" >{submitted?t('选卵申请已提交，等待服务团队审批。','Egg request submitted. Awaiting review by the service team.'):t('更改已保存。','Changes saved.')}{submitted&&openRequests&&<Button variant="link" onClick={openRequests}>{t('查看申请状态','View request status')}</Button>}</output>}
   {profile.role==='client'&&kind==='egg'&&<div className="notice"><p>{t('收藏用于记录偏好。确定意向后，请点击档案上的「提交选卵申请」，等待服务团队审批。','Save records to shortlist your preferences. When ready, select Request this egg donor and wait for the service team to review.')}</p>{openRequests&&<Button variant="link" onClick={openRequests}>{t('查看我的选卵申请','View my egg requests')}</Button>}<ErrorNotice code={applications.error}/></div>}
   <div className="row-actions section-tabs" aria-label={t('资料库类别','Directory type')}>{(['egg','sperm'] as const).map(k=><Button key={k} variant={kind===k?'secondary':'ghost'} size="sm" aria-pressed={kind===k} onClick={()=>selectKind(k)}>{label(k)}</Button>)}</div>
   {!loading&&!error&&donors.length>0&&<div className="row-actions mb-4 flex-wrap gap-3">
@@ -313,7 +316,7 @@ export function Directory({profile,openRequests}:{profile:Data;openRequests?:()=
    {hasFilters&&<Button variant="ghost" onClick={resetFilters}>{t('清空筛选','Clear filters')}</Button>}
   </div>}
   {!ageValid&&<div className="error-banner" role="alert">{t('请输入 18–65 岁的整数范围，最小年龄不能大于最大年龄。','Use whole ages from 18 to 65. Minimum age cannot exceed maximum age.')}</div>}
-  {!loading&&!error&&donors.length>0&&<p className="metadata mb-4" role="status">{t(`显示 ${filtered.length} / ${donors.length} 份档案`,`Showing ${filtered.length} of ${donors.length} records`)}{donors.length===300&&t(' · 当前最多载入 300 份',' · Up to 300 records loaded')}</p>}
+  {!loading&&!error&&donors.length>0&&<output className="metadata mb-4" >{t(`显示 ${filtered.length} / ${donors.length} 份档案`,`Showing ${filtered.length} of ${donors.length} records`)}{donors.length===300&&t(' · 当前最多载入 300 份',' · Up to 300 records loaded')}</output>}
   {loading?<div className="loading">{t('正在载入…','Loading…')}</div>
    :error?<><ErrorNotice code={error}/><Button variant="outline" onClick={()=>setVersion(v=>v+1)}>{t('重新载入','Retry')}</Button></>
    :donors.length===0?<Empty title={t('暂无可查看的档案','No records available')}>{admin?t('点击「新增档案」，开始录入当前资料库的匿名供者资料。','Use Add record to create an anonymous donor profile in this directory.'):t('当前授权范围内还没有可查看的档案，请联系协调员。','No records are available within your access. Contact your coordinator.')}</Empty>
@@ -386,11 +389,21 @@ function DonorStatus({donor,refresh}:{donor:Data;refresh:()=>void}){
 }
 
 function NewDonor({refresh,kind='egg',onCreated}:{refresh:()=>void;kind?:'egg'|'sperm';onCreated?:(kind:'egg'|'sperm')=>void}){
- const {t}=useLocale();const label=useLabels();const [open,setOpen]=useState(false);const createdKind=useRef(kind);
+ const {t}=useLocale();const label=useLabels();const [open,setOpen]=useState(false);const [attachments,setAttachments]=useState<File[]>([]);const [attachmentError,setAttachmentError]=useState('');const fileInput=useRef<HTMLInputElement>(null);const createdKind=useRef(kind);
+ function resetAttachments(){setAttachments([]);setAttachmentError('');if(fileInput.current)fileInput.current.value=''}
+ function closeModal(){setOpen(false);resetAttachments()}
+ function pickFiles(selected:File[]){setAttachmentError('');const code=validateDonorMediaSelection(selected,0);if(code){setAttachmentError(code);return}setAttachments(selected)}
+ async function saveDonor(f:FormData){
+  const kindValue=scalarText(f.get('kind'))||kind;
+  const heightRaw=scalarText(f.get('height')).trim();
+  const created=(await api('donors',{...formObject(f),kind:kindValue,age:Number(f.get('age')),height:heightRaw?Number(heightRaw):null})) as Data;
+  createdKind.current=kindValue==='sperm'?'sperm':'egg';
+  if(attachments.length){const media=new FormData();attachments.forEach(file=>media.append('photos',file));await api('donors/'+String(created.id)+'/photos',media)}
+ }
  return <>
   <Button onClick={()=>setOpen(true)}>{t('新增档案','Add record')}</Button>
-  {open&&<Modal title={t('新增供者档案','Add donor record')} description={t('仅录入已核实、已取得同意的匿名摘要，不含身份信息。','Record only verified, consented anonymous summaries. No identifying details.')} onClose={()=>setOpen(false)}>
-   <ActionForm submitLabel={t('保存档案','Save record')} onSubmit={async f=>{await api('donors',{...formObject(f),age:Number(f.get('age')),height:f.get('height')?Number(f.get('height')):null});createdKind.current=f.get('kind')==='sperm'?'sperm':'egg'}} onDone={()=>{setOpen(false);if(onCreated)onCreated(createdKind.current);else refresh()}}>
+  {open&&<Modal title={t('新增供者档案','Add donor record')} description={t('录入已核实、已取得同意的匿名摘要；可同时上传图片、PDF 或视频（可选）。','Record verified anonymous summaries; you may attach images, PDF or video (optional).')} onClose={closeModal}>
+   <ActionForm submitLabel={t('保存档案','Save record')} onSubmit={saveDonor} onDone={()=>{closeModal();if(onCreated)onCreated(createdKind.current);else refresh()}}>
     <div className="form-grid">
      <Field name="code" label={t('档案编号','Record code')} max={40}/>
      <Choice name="kind" label={t('类别','Type')} value={kind} options={[['egg',label('egg')],['sperm',label('sperm')]]}/>
@@ -403,6 +416,7 @@ function NewDonor({refresh,kind='egg',onCreated}:{refresh:()=>void;kind?:'egg'|'
     <Field name="summary_zh" type="textarea" label={t('中文摘要','Chinese summary')} max={1500}/>
     <Field name="summary_en" type="textarea" label={t('英文摘要','English summary')} max={1500}/>
     <Field name="consent_ref" label={t('同意书编号','Consent reference')} max={250}/>
+    <div className="field full"><span>{t('附件（可选）','Attachments (optional)')}</span><Input ref={fileInput} type="file" multiple accept={DONOR_MEDIA_ACCEPT} onChange={e=>pickFiles(Array.from(e.target.files||[]))}/><p className="metadata">{t('最多 10 个：JPG/PNG 5 MB、PDF 8 MB、视频 50 MB，每批不超过 100 MB。','Up to 10: JPG/PNG 5 MB, PDF 8 MB, video 50 MB, 100 MB per batch.')}</p>{attachmentError&&<ErrorNotice code={attachmentError}/>}{attachments.length>0&&<ul className="metadata">{attachments.map((file,i)=><li key={`${file.name}-${i}`}>{file.name} ({Math.max(1,Math.round(file.size/1024))} KB)</li>)}</ul>}</div>
    </ActionForm>
   </Modal>}
  </>;
@@ -544,7 +558,7 @@ export function CasesTab({profile,open,refresh,version}:{profile:Data;open:(id:s
   <ErrorNotice code={actionError}/>
   <div className="notice">{t('未参与的案件可以直接查看。加入为协调员后才能上传和发布报告。','Cases you are not on can be opened directly. Join as coordinator to upload and publish reports.')}</div>
   <div className="row-actions mb-4 gap-3"><Input className="min-h-11 min-w-48 flex-1" value={query} onChange={e=>setQuery(e.target.value)} placeholder={t('搜索案件编号或名称','Search case code or title')} aria-label={t('搜索案件','Search cases')}/><FilterSelect value={stage} onChange={setStage} label={t('案件阶段','Case stage')} options={[["all",t('全部阶段','All stages')],...STAGES.map(s=>[s,label(s)] as [string,string])]}/><Button variant={assignedOnly?'secondary':'outline'} className="min-h-11" aria-pressed={assignedOnly} onClick={()=>setAssignedOnly(v=>!v)}>{t('仅我参与的案件','Assigned to me')}</Button>{hasFilters&&<Button variant="ghost" onClick={resetFilters}>{t('清空筛选','Clear filters')}</Button>}</div>
-  <p className="metadata mb-4" role="status">{t(`显示 ${cases.length} / ${allCases.length} 个案件`,`Showing ${cases.length} of ${allCases.length} cases`)}</p>
+  <output className="metadata mb-4" >{t(`显示 ${cases.length} / ${allCases.length} 个案件`,`Showing ${cases.length} of ${allCases.length} cases`)}</output>
   {cases.length?<div className="table-wrap"><Table>
    <TableHeader><TableRow><TableHead>{t('编号','Code')}</TableHead><TableHead>{t('名称','Title')}</TableHead><TableHead>{t('阶段','Stage')}</TableHead><TableHead>{t('我的身份','My role')}</TableHead><TableHead>{t('更新','Updated')}</TableHead></TableRow></TableHeader>
    <TableBody>{cases.map(c=><TableRow key={String(c.id)}>

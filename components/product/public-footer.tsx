@@ -1,4 +1,5 @@
 'use client';
+import Link from "next/link";
 import {Brand} from './brand';
 import {useLocale} from './locale';
 import {CONTACT_EMAIL,CONTACT_PHONE,CONTACT_PHONE_TEL,PUBLIC_LEGAL_NAME_EN,PUBLIC_LEGAL_NAME_ZH} from '@/lib/public-contact';
@@ -24,15 +25,15 @@ export function PublicFooter({current, showHomeLink = false}: PublicFooterProps)
         </p>
       </div>
       <span className="footer-links">
-        {showHomeLink ? <a href="/">{t('首页', 'Home')}</a> : null}
+        {showHomeLink ? <Link href="/">{t('首页', 'Home')}</Link> : null}
         {PUBLIC_NAV_LINKS.map(([href, zh, en]) => (
           <a key={href} href={href} aria-current={href === current ? 'page' : undefined}>
             {t(zh, en)}
           </a>
         ))}
-        <a href="/privacy" aria-current={current === '/privacy' ? 'page' : undefined}>
+        <Link href="/privacy" aria-current={current === '/privacy' ? 'page' : undefined}>
           {t('隐私政策', 'Privacy policy')}
-        </a>
+        </Link>
       </span>
     </footer>
   );

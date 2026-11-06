@@ -1,4 +1,5 @@
 'use client';
+import Link from "next/link";
 import type {ReactNode} from 'react';
 import {PublicShell} from './public-shell';
 import {useLocale} from './locale';
@@ -10,7 +11,7 @@ function Guide({path,crumb,title,lead,wide,children}:{path:'/services'|'/process
  const {t}=useLocale();
  return <PublicShell current={path} wideMeasure={wide}>
   <main className={wide?'faq-main fees-page':'faq-main'}>
-   <nav className="public-crumbs" aria-label={t('面包屑','Breadcrumb')}><ol><li><a href="/">{t('首页','Home')}</a></li><li aria-current="page">{t(...crumb)}</li></ol></nav>
+   <nav className="public-crumbs" aria-label={t('面包屑','Breadcrumb')}><ol><li><Link href="/">{t('首页','Home')}</Link></li><li aria-current="page">{t(...crumb)}</li></ol></nav>
    <h1>{title}</h1>
    <p className="faq-lead">{lead}</p>
    {children}
@@ -66,7 +67,7 @@ export function FeesPage(){
     <div className="pkg-price"><strong>{formatPackageMainPrice(pkg.totalCny,lang)}</strong><small className="pkg-currency">{lang==='en'?`${formatPackageMainPriceCaption(lang)} · `:''}{t(...pkg.edition)}</small></div>
     <p className="package-highlight">{t(...pkg.highlight)}</p>
     <ul>{pkg.points.map(point=><li key={point[0]}>{t(...point)}</li>)}</ul>
-    <a className="quiet-link" href="/#contact">{t('咨询此方案','Discuss this programme')}</a>
+    <Link className="quiet-link" href="/#contact">{t('咨询此方案','Discuss this programme')}</Link>
    </article>)}
   </div>
   <PackageFeeDisclosures showCurrencyNote/>
@@ -79,7 +80,7 @@ export function ClinicPage(){
  const {t}=useLocale();
  return <PublicShell current="/clinic">
   <main className="faq-main public-clinic-intro">
-   <nav className="public-crumbs" aria-label={t('面包屑','Breadcrumb')}><ol><li><a href="/">{t('首页','Home')}</a></li><li aria-current="page">{t('诊所','Clinic')}</li></ol></nav>
+   <nav className="public-crumbs" aria-label={t('面包屑','Breadcrumb')}><ol><li><Link href="/">{t('首页','Home')}</Link></li><li aria-current="page">{t('诊所','Clinic')}</li></ol></nav>
    <h1>{t('合作诊所 LeaderMed','Partner clinic LeaderMed')}</h1>
    <p className="faq-lead">{t('诊疗由 LeaderMed 负责；奈斯协调评估、行程与进度记录。','Clinical care stays with LeaderMed; Nesta coordinates assessment, travel and progress records.')}</p>
   </main>

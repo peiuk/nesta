@@ -43,4 +43,10 @@ export function classifyUpload(name:string,mime:string,bytes:Uint8Array):UploadM
  return kind;
 }
 export function validateUpload(name:string,mime:string,bytes:Uint8Array){return classifyUpload(name,mime,bytes)!==null}
+export function validateUploadRequestSize(contentLength:string|null,maxBytes:number){
+ if(contentLength===null||contentLength.trim()==='')return null;
+ const declared=Number(contentLength);
+ if(!Number.isFinite(declared)||declared<0||declared>maxBytes)throw new Error('TOO_LARGE');
+ return declared;
+}
 export function hasDirectoryAccess(a:ActorPolicy,grants:Array<{scope:string;expires_at:string;revoked_at:string|null}>,now=new Date().toISOString()){return grants.some(g=>canUseDirectory(a,g,g.scope,now))}

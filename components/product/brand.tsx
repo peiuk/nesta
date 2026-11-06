@@ -1,4 +1,5 @@
 'use client';
+import Link from "next/link";
 import { Sprout } from 'lucide-react';
 
 function closePublicNav() {
@@ -9,7 +10,7 @@ function closePublicNav() {
 
 export function Brand() {
   return (
-    <a href="/" className="brand" aria-label="Nesta · 格鲁吉亚代孕协调" onClick={closePublicNav}>
+    <Link href="/" className="brand" aria-label="Nesta · 格鲁吉亚代孕协调" onClick={closePublicNav}>
       <span className="brand-icon">
         <Sprout size={24} />
       </span>
@@ -19,6 +20,6 @@ export function Brand() {
         </strong>
         <small>格鲁吉亚代孕协调</small>
       </span>
-    </a>
+    </Link>
   );
 }

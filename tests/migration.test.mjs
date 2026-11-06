@@ -13,6 +13,8 @@ const sql6=readFileSync(join(root,'drizzle/0006_partners.sql'),'utf8');
 const sql7=readFileSync(join(root,'drizzle/0007_case_documents.sql'),'utf8');
 const sql8=readFileSync(join(root,'drizzle/0008_case_payments.sql'),'utf8');
 const sql9=readFileSync(join(root,'drizzle/0009_faq_entries.sql'),'utf8');
+const sql11=readFileSync(join(root,'drizzle/0011_notification_outbox.sql'),'utf8');
+const sql12=readFileSync(join(root,'drizzle/0012_schema_migrations.sql'),'utf8');
 const journal=JSON.parse(readFileSync(join(root,'drizzle/meta/_journal.json'),'utf8'));
 
 const tables=[
@@ -22,7 +24,7 @@ const tables=[
 
 test('migration journal points at prepared schemas',()=>{
  assert.equal(journal.dialect,'sqlite');
- assert.equal(journal.entries.length,10);
+ assert.equal(journal.entries.length,13);
  assert.equal(journal.entries[0].tag,'0000_swift_jamie_braddock');
  assert.equal(journal.entries[1].tag,'0001_email_auth');
  assert.equal(journal.entries[2].tag,'0002_donor_status_reason');
@@ -33,6 +35,20 @@ test('migration journal points at prepared schemas',()=>{
  assert.equal(journal.entries[7].tag,'0007_case_documents');
  assert.equal(journal.entries[8].tag,'0008_case_payments');
  assert.equal(journal.entries[9].tag,'0009_faq_entries');
+ assert.equal(journal.entries[10].tag,'0010_otp_ip_limits');
+ assert.equal(journal.entries[11].tag,'0011_notification_outbox');
+ assert.equal(journal.entries[12].tag,'0012_schema_migrations');
+});
+
+test('notification outbox migration creates durable queue and due index',()=>{
+ assert.match(sql11,/CREATE TABLE `notification_outbox`/);
+ assert.match(sql11,/`dedupe_key` text NOT NULL UNIQUE/);
+ assert.match(sql11,/CREATE INDEX `idx_notification_outbox_due`/);
+});
+
+test('schema migrations table records applied versions',()=>{
+ assert.match(sql12,/CREATE TABLE `schema_migrations`/);
+ assert.match(sql12,/`version` integer PRIMARY KEY/);
 });
 
 test('faq migration stores bilingual questions separately from client messages',()=>{

@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
 import {readFileSync} from 'node:fs';
-import {listDonorPhotos,readDonorPhoto,uploadDonorPhotos,deleteDonorPhoto,validatePhotos} from '../lib/donor-photos.ts';
+import {listDonorPhotos,readDonorPhoto,uploadDonorPhotos,deleteDonorPhoto,validatePhotos,classifyDonorMedia} from '../lib/donor-photos.ts';
 
 const owner={id:'owner',role:'admin',status:'approved'},client={id:'client',role:'client',status:'approved'};
 const png=new Uint8Array([137,80,78,71,13,10,26,10,0,0,0,0]);
@@ -16,17 +16,22 @@ function fixture(){
  const objects=new Map(),storage={put:async(key,bytes)=>{objects.set(key,bytes)},delete:async key=>{objects.delete(key)}};
  return {db,store,objects,storage};
 }
+test('donor media accepts PDF alongside images',()=>{
+ const pdf=new TextEncoder().encode('%PDF-1.4\n');
+ assert.equal(classifyDonorMedia('report.pdf','application/pdf',pdf)?.kind,'pdf');
+});
 test('photo validation rejects documents, mismatched types, oversized files and batches',()=>{
  assert.doesNotThrow(()=>validatePhotos([photo(),photo()]));
  for(const entries of [[],[{mime:'application/pdf',bytes:png}],[{mime:'image/jpeg',bytes:png}],[{mime:'image/png',bytes:new Uint8Array(5*1024*1024+1)}],Array.from({length:11},photo)])assert.throws(()=>validatePhotos(entries));
+ assert.doesNotThrow(()=>validatePhotos([{mime:'application/pdf',bytes:new TextEncoder().encode('%PDF-1.4\n')}]));
  const large={mime:'image/png',bytes:new Uint8Array(5*1024*1024)};large.bytes.set(png);
- assert.throws(()=>validatePhotos(Array(5).fill(large)));
+ assert.doesNotThrow(()=>validatePhotos(Array(5).fill(large)));
 });
 test('multiple photos persist in order without exposing storage keys or filenames',async()=>{
  const f=fixture();try{
   await uploadDonorPhotos(f.store,f.storage,owner,'donor',[photo(),photo()]);
   const rows=await listDonorPhotos(f.store,client,'donor');assert.equal(rows.length,2);assert.equal(f.objects.size,2);
-  assert.deepEqual(Object.keys(rows[0]).sort(),['created_at','id']);
+  assert.deepEqual(Object.keys(rows[0]).sort(),['created_at','id','mime']);
   const original=await readDonorPhoto(f.store,client,rows[0].id);assert.ok(f.objects.has(original.object_key));
   await assert.rejects(uploadDonorPhotos(f.store,f.storage,client,'donor',[photo()]),{code:'FORBIDDEN'});
   await assert.rejects(deleteDonorPhoto(f.store,f.storage,client,rows[0].id),{code:'FORBIDDEN'});

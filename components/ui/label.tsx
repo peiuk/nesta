@@ -1,3 +1,4 @@
+/* oxlint-disable jsx-a11y/label-has-associated-control -- this primitive forwards htmlFor from props; association is supplied by each caller. */
 'use client';
 
 import * as React from 'react';

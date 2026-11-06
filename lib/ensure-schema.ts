@@ -9,6 +9,9 @@ import migration6 from '../drizzle/0006_partners.sql?raw';
 import migration7 from '../drizzle/0007_case_documents.sql?raw';
 import migration8 from '../drizzle/0008_case_payments.sql?raw';
 import migration9 from '../drizzle/0009_faq_entries.sql?raw';
+import migration10 from '../drizzle/0010_otp_ip_limits.sql?raw';
+import migration11 from '../drizzle/0011_notification_outbox.sql?raw';
+import migration12 from '../drizzle/0012_schema_migrations.sql?raw';
 import {milestoneRewrites} from './case-plans';
 import {DOCUMENT_KINDS} from './documents';
 import {buildDefaultFaqSeedStatements} from './faq-sync';
@@ -75,12 +78,16 @@ export async function ensureSchema(){
   await applyIfMissing('case_documents',migration7);
   await applyIfMissing('case_payments',migration8);
   await applyIfMissing('faq_entries',migration9);
+   await applyIfMissing('otp_ip_limits',migration10);
+   await applyIfMissing('notification_outbox',migration11);
+  await applyIfMissing('schema_migrations',migration12);
   await applyColumnIfMissing('case_plans','currency',"ALTER TABLE `case_plans` ADD `currency` text DEFAULT 'USD' NOT NULL;");
   await applyColumnIfMissing('case_plans','package_version',"ALTER TABLE `case_plans` ADD `package_version` text DEFAULT 'legacy-2026-09' NOT NULL;");
   await applyColumnIfMissing('case_plans','pgs_scope',"ALTER TABLE `case_plans` ADD `pgs_scope` text DEFAULT 'count' NOT NULL;");
   await seedMissingCaseDocuments();
   await seedFaqIfEmpty();
-  await rewriteLegacyPaymentSchedules();
+  const legacy=await env.DB.prepare('SELECT version FROM schema_migrations WHERE version=1').first();
+  if(!legacy){await rewriteLegacyPaymentSchedules();await env.DB.prepare('INSERT INTO schema_migrations(version,applied_at) VALUES(1,?)').bind(new Date().toISOString()).run()}
  })().catch(error=>{ready=null;throw error});
  await ready;
 }

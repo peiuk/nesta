@@ -27,7 +27,7 @@ function isDay(s:string){
 
 export function normalizeStatusDate(value:unknown):string|null{
  if(value==null)return null;
- const s=String(value).trim();
+ const s=scalarText(value).trim();
  if(!s)return null;
  if(!isDay(s))throw new Error('INVALID_DATE');
  return s;
@@ -46,3 +46,4 @@ export function sortDocuments<T extends {kind:string}>(rows:T[]){
 export function documentSeedRows(caseId:string,ts:string){
  return DOCUMENT_KINDS.map(kind=>({case_id:caseId,kind,status:'not_started' as const,status_date:null,notes:'',updated_at:ts,updated_by:null}));
 }
+import {scalarText} from './text.ts';

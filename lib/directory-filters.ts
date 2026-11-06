@@ -11,16 +11,17 @@ export function filterDonors<T extends {status?:unknown;favorite?:unknown;blood_
  if(!validAgeRange(f.ageMin,f.ageMax))return [];
  const query=(f.query||'').trim().toLowerCase();
  const result=donors.filter(d=>{
-  if(query&&!`${String(d.code||'')} ${String(d.source||'')}`.toLowerCase().includes(query))return false;
+  if(query&&!`${scalarText(d.code)} ${scalarText(d.source)}`.toLowerCase().includes(query))return false;
   if(f.status!=='all'&&String(d.status)!==f.status)return false;
   if(f.favoriteOnly&&Number(d.favorite)!==1)return false;
-  if(f.blood!=='all'&&String(d.blood_group||'')!==f.blood)return false;
+  if(f.blood!=='all'&&scalarText(d.blood_group)!==f.blood)return false;
   const age=Number(d.age);
   if(f.ageMin!==''&&(!Number.isFinite(age)||age<Number(f.ageMin)))return false;
   if(f.ageMax!==''&&(!Number.isFinite(age)||age>Number(f.ageMax)))return false;
   return true;
  });
- if(f.sort==='verified')result.sort((a,b)=>String(b.verified_at||'').localeCompare(String(a.verified_at||''))||String(a.code||'').localeCompare(String(b.code||'')));
- if(f.sort==='code')result.sort((a,b)=>String(a.code||'').localeCompare(String(b.code||''),undefined,{numeric:true}));
+ if(f.sort==='verified')result.sort((a,b)=>scalarText(b.verified_at).localeCompare(scalarText(a.verified_at))||scalarText(a.code).localeCompare(scalarText(b.code)));
+ if(f.sort==='code')result.sort((a,b)=>scalarText(a.code).localeCompare(scalarText(b.code),undefined,{numeric:true}));
  return result;
 }
+import {scalarText} from './text.ts';

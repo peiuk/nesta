@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {canReadReport,canReviewReport,canPublishReport,canManageCase,canUseDirectory,hasDirectoryAccess,validateUpload,classifyUpload,canonicalUploadMime,validDate,validMutation,accountChangeEffects,grantIsActive,canPostQuestion} from '../lib/policy.ts';
+import {canReadReport,canReviewReport,canPublishReport,canManageCase,canUseDirectory,hasDirectoryAccess,validateUpload,classifyUpload,canonicalUploadMime,validateUploadRequestSize,validDate,validMutation,accountChangeEffects,grantIsActive,canPostQuestion} from '../lib/policy.ts';
 const client={id:'alice',role:'client',status:'approved'};
 const reviewer={id:'reviewer',role:'reviewer',status:'approved'};
 const manager={id:'manager',role:'coordinator',status:'approved'};
@@ -17,6 +17,11 @@ test('client and unassigned staff cannot manage a case',()=>{assert.equal(canMan
 test('directory grants require matching scope, approved account, valid expiry and no revocation',()=>{const g={scope:'egg',expires_at:'2026-10-01T00:00:00Z',revoked_at:null};const now='2026-09-06T00:00:00Z';assert.equal(canUseDirectory(client,g,'egg',now),true);assert.equal(canUseDirectory(client,g,'sperm',now),false);assert.equal(canUseDirectory(client,{...g,revoked_at:now},'egg',now),false);assert.equal(canUseDirectory(client,g,'egg','2026-10-02T00:00:00Z'),false);assert.equal(canUseDirectory({...client,status:'pending'},g,'egg',now),false)});
 test('uploads reject extension/MIME mismatches, empty and oversized files',()=>{const pdf=new TextEncoder().encode('%PDF-1.7\n');assert.equal(validateUpload('report.pdf','application/pdf',pdf),true);assert.equal(validateUpload('report.html','application/pdf',pdf),false);assert.equal(validateUpload('report.pdf','application/pdf',new TextEncoder().encode('<html>bad')),false);assert.equal(validateUpload('report.pdf','application/pdf',new Uint8Array()),false);assert.equal(validateUpload('report.pdf','application/pdf',new Uint8Array(8*1024*1024+1)),false)});
 test('uploads accept sniffed JPEG/PDF when the browser sends empty or generic MIME',()=>{const pdf=new TextEncoder().encode('%PDF-1.7\n');assert.equal(classifyUpload('scan.pdf','',pdf),'pdf');assert.equal(classifyUpload('scan.pdf','application/octet-stream',pdf),'pdf');const jpeg=new Uint8Array([255,216,255,224,0,16,74,70]);assert.equal(classifyUpload('photo.jpg','',jpeg),'jpeg');assert.equal(classifyUpload('photo.jpg','image/jpg',jpeg),'jpeg');assert.equal(canonicalUploadMime('jpeg'),'image/jpeg')});
+test('upload request size allows chunked bodies and rejects oversized declarations',()=>{
+ assert.equal(validateUploadRequestSize(null,17*1024*1024),null);
+ assert.throws(()=>validateUploadRequestSize(String(17*1024*1024+1),17*1024*1024),/TOO_LARGE/);
+ assert.doesNotThrow(()=>validateUploadRequestSize(String(1024),17*1024*1024));
+});
 test('date validation rejects rollover dates',()=>{assert.equal(validDate('2026-02-28'),true);assert.equal(validDate('2026-02-30'),false)});
 test('invalid calendar input is rejected without throwing',()=>{for(const date of ['2026-13-01','2026-00-01','2026-01-99','not-a-date'])assert.equal(validDate(date),false)});
 test('writes reject cross-origin and missing application request headers',()=>{assert.equal(validMutation('https://a.test','https://a.test','firstleaf','same-origin'),true);assert.equal(validMutation('https://b.test','https://a.test','firstleaf','cross-site'),false);assert.equal(validMutation(null,'https://a.test',null,null),false)});

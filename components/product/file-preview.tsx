@@ -1,5 +1,6 @@
 'use client';
 import {useEffect,useRef,useState} from 'react';
+import Image from 'next/image';
 import {ArrowLeft,Download,Eye} from 'lucide-react';
 import {useLocale} from './locale';
 
@@ -24,7 +25,7 @@ function FileStage({href,title,onClose}:{href:string;title:string;onClose:()=>vo
  const [kind,setKind]=useState('');
  const [error,setError]=useState('');
  const closeRef=useRef(onClose);
- closeRef.current=onClose;
+ useEffect(()=>{closeRef.current=onClose},[onClose]);
  useEffect(()=>{
   let objectUrl='';
   let gone=false;
@@ -48,7 +49,7 @@ function FileStage({href,title,onClose}:{href:string;title:string;onClose:()=>vo
   })().catch(()=>{if(!gone)setError('unavailable')});
   return ()=>{gone=true;document.removeEventListener('keydown',onKey);document.body.style.overflow=previous;if(objectUrl)URL.revokeObjectURL(objectUrl)};
  },[href]);
- return <div className="file-view" role="dialog" aria-modal="true" aria-label={title}>
+ return <dialog open className="file-view"  aria-modal="true" aria-label={title}>
   <header className="file-view-bar">
    <button type="button" className="quiet-link" autoFocus onClick={onClose}><ArrowLeft size={16}/>{t('返回','Back')}</button>
    <strong>{title}</strong>
@@ -57,9 +58,9 @@ function FileStage({href,title,onClose}:{href:string;title:string;onClose:()=>vo
   <div className="file-view-stage">
    {!url&&!error&&<p>{t('正在打开…','Opening…')}</p>}
    {error&&<p>{t('这份文件暂时无法在线打开。可以下载后查看。','This file cannot be opened here right now. You can download it instead.')}</p>}
-   {kind==='image'&&url&&<img src={url} alt={title}/>}
+   {kind==='image'&&url&&<Image unoptimized src={url} width={1200} height={900} alt={title}/>}
    {kind==='pdf'&&url&&<iframe src={url} title={title}/>}
    {kind==='other'&&url&&<p>{t('此格式请下载后查看。','Download this format to view it.')}</p>}
   </div>
- </div>;
+ </dialog>;
 }

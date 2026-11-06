@@ -1,3 +1,4 @@
+/* oxlint-disable jsx-a11y/prefer-tag-over-role, jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions -- addon remains a noninteractive group; pointer focus forwarding does not create a new control. */
 'use client';
 
 import * as React from 'react';

@@ -1,3 +1,4 @@
+/* oxlint-disable jsx-a11y/prefer-tag-over-role, react/react-compiler -- slides use named groups, and the Embla bridge synchronizes its external selected index to React state on initialization. */
 'use client';
 
 import * as React from 'react';
@@ -90,6 +91,7 @@ function Carousel({
 
   React.useEffect(() => {
     if (!api || !setApi) return;
+    // oxlint-disable-next-line react/react-compiler -- publish the imperative Embla API to its controlled parent after initialization.
     setApi(api);
   }, [api, setApi]);
 
@@ -118,16 +120,15 @@ function Carousel({
         canScrollNext,
       }}
     >
-      <div
+      <section
         onKeyDownCapture={handleKeyDown}
         className={cn('relative', className)}
-        role="region"
         aria-roledescription="carousel"
         data-slot="carousel"
         {...props}
       >
         {children}
-      </div>
+      </section>
     </CarouselContext.Provider>
   );
 }

@@ -1,4 +1,5 @@
 'use client';
+import Link from "next/link";
 import {ArrowRight,CalendarDays,FileCheck2,ClipboardList} from 'lucide-react';
 import {Button} from '@/components/ui/button';
 import {useLocale} from './locale';
@@ -12,7 +13,7 @@ export function ClientOverview({profile,data,open,go}:{profile:Data;data:Data;op
  const actor={id:String(profile.id),role:String(profile.role),status:String(profile.status)};
  const live=grants.filter(g=>canUseDirectory(actor,g,g.scope));const pending=Number(data.pending_selections||0);
  return <div className="client-overview">
-  <div className="page-title"><div><h1>{t('我的服务空间','My care space')}</h1><p>{String(profile.name)} · {t('查看下一步安排、申请与报告。','Your next steps, requests and reports.')}</p></div><a href="/#contact" className="quiet-link">{t('联系服务团队','Contact the team')}</a></div>
+  <div className="page-title"><div><h1>{t('我的服务空间','My care space')}</h1><p>{String(profile.name)} · {t('查看下一步安排、申请与报告。','Your next steps, requests and reports.')}</p></div><Link href="/#contact" className="quiet-link">{t('联系服务团队','Contact the team')}</Link></div>
   <div className="client-summary">
    <button onClick={()=>go('requests')}><ClipboardList size={21}/><div><span>{t('待审批选卵申请','Egg requests awaiting review')}</span><strong>{pending}</strong></div><ArrowRight size={17}/></button>
    <div><CalendarDays size={21}/><div><span>{t('下一次预约','Next appointment')}</span><strong>{appointments[0]?String(appointments[0].event_date):t('尚未安排','Not scheduled')}</strong></div></div>
@@ -21,7 +22,7 @@ export function ClientOverview({profile,data,open,go}:{profile:Data;data:Data;op
   <Panel title={t('下一步','Your next steps')}>
    <div className="client-next">
     <div><h3>{pending?t('等待选卵申请审批','Egg request under review'):live.length?t('查看获准访问的供者资料','Explore your approved directories'):t('确认资料库访问权限','Confirm directory access')}</h3><p>{pending?t('服务团队处理后，可在申请页面查看结果和回复。','Once reviewed, the result and reply appear on your requests page.'):live.length?t('先查看详情、收藏或对比，再提交选卵申请。','Review details, save or compare records, then submit an egg request.'):t('资料库按人授权。请联系服务团队确认本次服务的访问范围。','Directory access is individually granted. Ask the team to confirm your access.')}</p></div>
-    {pending?<Button onClick={()=>go('requests')}>{t('查看申请','View requests')}<ArrowRight size={16}/></Button>:live.length?<Button onClick={()=>go('directory')}>{t('进入资料库','Open directories')}<ArrowRight size={16}/></Button>:<a className="primary-link" href="/#contact">{t('联系团队','Contact team')}</a>}
+    {pending?<Button onClick={()=>go('requests')}>{t('查看申请','View requests')}<ArrowRight size={16}/></Button>:live.length?<Button onClick={()=>go('directory')}>{t('进入资料库','Open directories')}<ArrowRight size={16}/></Button>:<Link className="primary-link" href="/#contact">{t('联系团队','Contact team')}</Link>}
    </div>
   </Panel>
   <div className="split"><div>
