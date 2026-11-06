@@ -25,7 +25,7 @@ test('admin work queues count real records and exclude unsubmitted registrations
   const data=await readAdminOperations(actor,query,now);
   assert.equal(data.counts.pending_profiles,1);
   assert.equal(data.counts.active_cases,2);
-  assert.equal(data.counts.ready_reports,1);
+  assert.equal(data.counts.ready_reports,2);
   assert.equal(data.counts.draft_reports,1);
   assert.equal(data.counts.unanswered,1);
   assert.equal(data.counts.expiring_grants,1);
@@ -33,21 +33,21 @@ test('admin work queues count real records and exclude unsubmitted registrations
   assert.deepEqual(data.appointments.map(e=>e.id),['upcoming']);
  }finally{db.close()}
 });
-test('medical metadata and messages remain limited to assigned cases; storage keys never leave server',async()=>{
+test('report queues are global for admins; messages stay limited to assigned cases; storage keys never leave server',async()=>{
  const {db,query,run}=fixture();try{
   const data=await readAdminOperations(actor,query,now);
-  assert.deepEqual(data.reports.map(r=>r.id).sort((a,b)=>a.localeCompare(b)),['draft','ready']);
+  assert.deepEqual(data.reports.map(r=>r.id).sort((a,b)=>a.localeCompare(b)),['draft','ready','secret']);
   assert.deepEqual(data.questions.map(q=>q.id),['assigned']);
   assert.ok(!JSON.stringify(data).includes('PRIVATE_STORAGE_KEY'));
   assert.ok(!JSON.stringify(data).includes('PRIVATE_HASH'));
   run('DELETE FROM case_members WHERE user_id=?','owner');
   const revoked=await readAdminOperations(actor,query,now);
-  assert.equal(revoked.reports.length,0);
+  assert.equal(revoked.reports.length,3);
   assert.equal(revoked.questions.length,0);
   assert.equal(revoked.appointments.length,0);
-  assert.equal(revoked.counts.ready_reports,0);
+  assert.equal(revoked.counts.ready_reports,2);
   assert.equal(revoked.counts.my_open_cases,0);
-  assert.deepEqual(revoked.drafts_missing_reviewer,[]);
+  assert.deepEqual(revoked.drafts_missing_reviewer.map(r=>r.id),['draft']);
   assert.deepEqual(revoked.unassigned.map(c=>c.id),['assigned','private']);
  }finally{db.close()}
 });

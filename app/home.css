@@ -194,8 +194,7 @@
 .home-editorial .footer-links{display:flex;flex-wrap:wrap;gap:8px 18px}
 .home-editorial .package-terms a,.home-editorial .footer-links a{color:inherit;text-decoration:underline;text-underline-offset:3px}
 .home-editorial .cta-band p a{color:var(--hm-c49);text-decoration:underline;text-underline-offset:3px}
-.home-shell.home-editorial .site-header.faq-header.public-site-header{position:relative;top:auto;inset:auto;z-index:1;display:grid;background:var(--home-paper);color:var(--home-ink);width:100%;max-width:none;margin:0;border-bottom:1px solid var(--hm-c3);padding:24px max(5vw,calc((100% - 860px)/2));box-sizing:border-box}
-.home-editorial.public-shell-measure-wide .site-header.faq-header.public-site-header{padding-inline:max(5vw,calc((100% - 1120px)/2))}
+.home-shell.home-editorial .site-header.faq-header.public-site-header{position:relative;top:auto;inset:auto;z-index:1;display:grid;background:var(--home-paper);color:var(--home-ink);width:100%;max-width:1600px;margin:0 auto;border-bottom:1px solid var(--hm-c3);padding:24px 5vw;box-sizing:border-box}
 .home-editorial .faq-header .brand,.home-editorial .faq-header .public-header-nav .public-nav-link,.home-editorial .faq-header .language-switch,.home-editorial .faq-header button{color:var(--home-ink)}
 .home-editorial .faq-list .package-disclosure{margin-top:0}
 .home-editorial .faq-main{max-width:860px;margin:0 auto;padding:64px 5vw 88px}
@@ -241,6 +240,7 @@
 .home-editorial .quiet-link.on-dark:hover,.home-editorial .quiet-link.on-dark:focus-visible{background:var(--hm-c68);color:var(--hm-c5)}
 .home-editorial .fees-page .package-extra-list dd{font-variant-numeric:tabular-nums}
 @media(max-width:650px){.home-editorial .cta-band{align-items:stretch}.home-editorial .cta-band-actions{width:100%;margin-top:28px}.home-editorial .cta-band-actions .primary-link,.home-editorial .cta-band-actions .quiet-link{width:100%;justify-content:center}.home-editorial .partner-section-compact{padding:52px 22px}}
+@media(max-width:650px){.home-shell.home-editorial .site-header.faq-header.public-site-header{padding:20px 22px 16px}}
 .home-editorial .public-crumbs ol{display:flex;flex-wrap:wrap;gap:8px;list-style:none;padding:0;margin:0 0 18px;color:var(--hm-c11);font-size:.85rem}
 .home-editorial .public-crumbs li:not(:last-child)::after{content:"/";margin-left:8px;color:var(--hm-c69)}
 .home-editorial .public-crumbs a{color:inherit}

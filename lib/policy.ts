@@ -9,9 +9,9 @@ export function accountChangeEffects(current:{role:string;status:string},next:{r
  const dropMemberships=current.role!==next.role;
  return {dropMemberships,revokeGrants:dropMemberships||next.status!=='approved'};
 }
-export function canReadReport(a:ActorPolicy,m:string|null,r:ReportPolicy,recipient:boolean){if(a.status!=='approved'||!m)return false;if(ACTIVE_STAFF.includes(a.role)&&['coordinator','reviewer'].includes(m))return true;return a.role==='client'&&m==='client'&&recipient&&r.status==='published'}
-export function canReviewReport(a:ActorPolicy,m:string|null,r:ReportPolicy){return a.status==='approved'&&a.role==='reviewer'&&m==='reviewer'&&r.status==='draft'&&r.uploaded_by!==a.id}
-export function canPublishReport(a:ActorPolicy,m:string|null,r:ReportPolicy){return canManageCase(a,m)&&r.status==='reviewed'&&!!r.reviewed_by&&r.reviewed_by!==r.uploaded_by}
+export function canReadReport(a:ActorPolicy,m:string|null,r:ReportPolicy,recipient:boolean){if(a.status!=='approved')return false;if(a.role==='admin')return true;if(!m)return false;if(ACTIVE_STAFF.includes(a.role)&&['coordinator','reviewer'].includes(m))return true;return a.role==='client'&&m==='client'&&recipient&&r.status==='published'}
+export function canReviewReport(a:ActorPolicy,m:string|null,r:ReportPolicy){return a.status==='approved'&&r.status==='draft'&&r.uploaded_by!==a.id&&(a.role==='admin'||(a.role==='reviewer'&&m==='reviewer'))}
+export function canPublishReport(a:ActorPolicy,m:string|null,r:ReportPolicy){return r.status==='reviewed'&&!!r.reviewed_by&&r.reviewed_by!==r.uploaded_by&&((a.status==='approved'&&a.role==='admin')||canManageCase(a,m))}
 export function canUseDirectory(a:ActorPolicy,g:{scope:string;expires_at:string;revoked_at:string|null}|null,scope:string,now=new Date().toISOString()){return a.status==='approved'&&!!g&&!g.revoked_at&&g.scope===scope&&Number.isFinite(Date.parse(g.expires_at))&&Date.parse(g.expires_at)>Date.parse(now)}
 export function grantIsActive(grant:{revoked_at:string|null;expires_at:string},now=Date.now()){return !grant.revoked_at&&Date.parse(grant.expires_at)>now}
 export function canPostQuestion(actor:{role:string;status:string},membership:string|null){return actor.status==='approved'&&actor.role==='client'&&membership==='client'}
