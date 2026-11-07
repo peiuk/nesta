@@ -41,3 +41,6 @@ tsconfig.tsbuildinfo
 
 # agent scratch
 /.superpowers/
+
+# local agent workspace data (do not publish)
+/.workbuddy/

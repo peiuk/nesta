@@ -12,7 +12,7 @@ colors:
   background: "#f6f6f0"
   foreground: "#263e35"
   secondary: "#eaf0e7"
-  muted-foreground: "#617167"
+  muted-foreground: "#4a5a50"
   border: "#dbe2d8"
   ring: "#62886d"
   destructive: "#a33130"
@@ -24,7 +24,7 @@ typography:
     letterSpacing: "-0.02em"
   headline:
     fontFamily: "'Fraunces', 'Source Serif 4', Georgia, serif"
-    fontSize: "clamp(1.65rem, 2.4vw, 2.5rem)"
+    fontSize: "clamp(1.9rem, 1.2rem + 2.2vw, 3.25rem)"
     fontWeight: 500
     lineHeight: 1.45
   body:
@@ -120,7 +120,7 @@ The palette is muted botanical green with warm paper neutrals and restrained gol
 
 - **Warm Paper** (`#f8f7f2` / `#f6f6f0`): Page backgrounds (`--home-paper`, `--background`).
 - **Ledger Cream** (`#fffdf8`): Cards, partner tiles, package tiles on tinted sections.
-- **Garden Text Muted** (`#617167` / `#5d6b60`): Body secondary, disclaimers, metadata (`--muted-foreground` and editorial copy colors).
+- **Garden Text Muted** (`#4a5a50` / `#5d6b60`): Body secondary, disclaimers, metadata (`--muted-foreground` and editorial copy colors). The darker `#4a5a50` is the Hallmark contrast polish; `#617167` was the earlier value.
 - **Hairline Sage** (`#dbe2d8` / `#dce1d5`): Borders and dividers (`--border`, editorial card borders).
 - **Focus Sage** (`#62886d`): Focus outlines on product surfaces (`--ring`).
 
@@ -160,7 +160,7 @@ Public editorial pages use horizontal **5vw gutters** (22px on small breakpoints
 
 Grids: 3-column options/packages on desktop; 2-column journey; partner blocks collapse to single column ≤900px. Portal workspace content lives in **max-width 1350px** centered `workspace-main` with **24–32px** padding.
 
-Breakpoints align with existing CSS: **1000px**, **900px**, **650px** (nav desktop links hidden `.nav-desk` on small phones).
+Canonical breakpoints: **1000px**, **900px**, **650px** (nav desktop links hidden `.nav-desk` on small phones). Current CSS also contains 480 / 540 / 1100 / 1350 / 1600 with overlapping ranges; see the drift list below.
 
 ## Elevation & Depth
 
@@ -223,7 +223,7 @@ Chips on partner services use **pill (999px)** with 1px sage border. Featured pa
 ### Signature Components
 
 - **Hero care note:** White/cream floating strip with FileHeart-style icon capsule and documentary copy—only on homepage hero.
-- **Journey grid markers:** 9px sage dots on timeline borders; large Fraunces step numerals in `#8b9c7e`.
+- **Journey grid markers:** 9px sage dots on timeline borders; large Fraunces step numerals in `--home-muted` (`#4a5a50`, contrast polish).
 - **Stage banner:** Full-width `--primary` panel in portal for case stage emphasis.
 
 ## Do's and Don'ts
@@ -241,3 +241,18 @@ Chips on partner services use **pill (999px)** with 1px sage border. Featured pa
 - **Don't** use saturated medical blue, gradient hero clichés, or stock “happy doctor” tropes on public surfaces.
 - **Don't** round editorial primary buttons to pill shapes—the 4px corner is part of the ledger identity.
 - **Don't** add heavy box-shadow stacks to static content blocks; use tonal bands instead.
+
+## 已知实现偏差（待收敛）
+
+以下差异属于待办事项，不是已接受的设计决策。规范仍以本文为准，实现应逐步对齐。
+
+| 项 | 规范 | 当前实现 |
+|---|---|---|
+| 分区小标题 | 禁止 eyebrow，标题本身承载语义 | `home.css` 的 `.eyebrow` 仍在 CTA band 等处使用 |
+| 断点 | 1000 / 900 / 650 | 另有 480 / 540 / 1100 / 1350 / 1600，区间交叠、顺序敏感 |
+| 颜色变量 | 语义化 token | `--hm-c1…69` / `--pc-c1…50` 共 119 个匿名变量 |
+| 样式来源 | 单一真源 | `globals.css` → `product.css` → `home.css` 靠加载顺序覆盖；旧版 hero 未删 |
+| 暗色模式 | `:root` 与 `.dark` 成对 | 无 `prefers-color-scheme` / 切换入口，公开站硬编码暖纸色 |
+| 字体加载 | Fraunces + Source Sans 3 | `product.css` 用 `@import` 拉 Google Fonts，无自托管 / preconnect |
+| 图片 | 可访问、按需加载 | 原生 `<img>` 无 `loading="lazy"` / `srcSet`；`hero-canopy.jpg` 走 CSS 背景 |
+| 横向溢出 | 内容自适应 | `home.css` 用 `html,body{overflow-x:clip}` 掩盖，未定位根因 |
