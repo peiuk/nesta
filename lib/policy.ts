@@ -1,4 +1,5 @@
 import {normalizeSiteOrigin} from './site-origin.ts';
+import {REPORT_FILE_MAX_BYTES} from './limits.ts';
 
 export type ActorPolicy={id:string;role:string;status:string};
 export type ReportPolicy={status:string;uploaded_by:string;reviewed_by:string|null};
@@ -34,7 +35,7 @@ function extensionForKind(kind:UploadMediaKind){switch(kind){case 'pdf':return [
 function mimeAliasesForKind(kind:UploadMediaKind){switch(kind){case 'pdf':return ['application/pdf'];case 'jpeg':return ['image/jpeg','image/jpg','image/pjpeg'];case 'png':return ['image/png'];default:{const missing:never=kind;return missing}}}
 export function canonicalUploadMime(kind:UploadMediaKind){switch(kind){case 'pdf':return 'application/pdf';case 'jpeg':return 'image/jpeg';case 'png':return 'image/png';default:{const missing:never=kind;return missing}}}
 export function classifyUpload(name:string,mime:string,bytes:Uint8Array):UploadMediaKind|null{
- if(bytes.length<8||bytes.length>8*1024*1024)return null;
+ if(bytes.length<8||bytes.length>REPORT_FILE_MAX_BYTES)return null;
  const kind=sniffUploadKind(bytes);if(!kind)return null;
  const ext=name.split('.').pop()?.toLowerCase()??'';
  if(!extensionForKind(kind).includes(ext))return null;

@@ -1,4 +1,5 @@
 import {canonicalUploadMime,classifyUpload} from './policy.ts';
+import {DONOR_MEDIA_MAX_ITEMS,DONOR_MEDIA_BATCH_MAX_BYTES,DONOR_IMAGE_MAX_BYTES,DONOR_PDF_MAX_BYTES,DONOR_VIDEO_MAX_BYTES} from './limits.ts';
 
 type Actor={id:string;role:string;status:string};
 type Row=Record<string,string|number|null>;
@@ -6,16 +7,15 @@ type Store={first:(sql:string,...params:string[])=>Promise<Row|null>;all:(sql:st
 type Storage={put:(key:string,bytes:Uint8Array,mime:string)=>Promise<unknown>;delete:(key:string)=>Promise<unknown>};
 export type DonorMediaKind='image'|'pdf'|'video';
 export type PhotoInput={mime:string;bytes:Uint8Array};
-export const DONOR_MEDIA_MAX_ITEMS=10;
-export const DONOR_MEDIA_BATCH_MAX_BYTES=100*1024*1024;
+export {DONOR_MEDIA_MAX_ITEMS,DONOR_MEDIA_BATCH_MAX_BYTES} from './limits.ts';
 const VIDEO_MP4_EXTENSIONS=['mp4','m4v','mov'];
 const VIDEO_WEBM_EXTENSIONS=['webm'];
 
 function maxBytesForKind(kind:DonorMediaKind){
  switch(kind){
-  case 'image':return 5*1024*1024;
-  case 'pdf':return 8*1024*1024;
-  case 'video':return 50*1024*1024;
+  case 'image':return DONOR_IMAGE_MAX_BYTES;
+  case 'pdf':return DONOR_PDF_MAX_BYTES;
+  case 'video':return DONOR_VIDEO_MAX_BYTES;
   default:{const missing:never=kind;return missing}
  }
 }
@@ -104,7 +104,7 @@ export async function uploadDonorPhotos(store:Store,storage:Storage,actor:Actor,
  });
  validateDonorMedia(files);
  const existing=await store.first('SELECT COUNT(*) AS count,MAX(created_at) AS latest FROM donor_photos WHERE donor_id=?',donorId);
- if(Number(existing?.count)+photos.length>10)fail(409,'PHOTO_LIMIT');
+ if(Number(existing?.count)+photos.length>DONOR_MEDIA_MAX_ITEMS)fail(409,'PHOTO_LIMIT');
  const firstTime=Math.max(Date.now(),(Date.parse(String(existing?.latest))||0)+1);
  const entries=files.map((file,i)=>{
   const classified=classifyDonorMedia(file.name,file.mime,file.bytes)!;

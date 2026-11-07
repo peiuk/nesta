@@ -32,7 +32,7 @@ Before changing the live process, determine whether the site should move to Clou
 
 ## Email incident handling
 
-Client updates are stored in the D1 outbox and retried with exponential backoff, capped at 24 hours between attempts. Process due items through the authenticated `POST /api/notification-outbox/process` endpoint (maximum 50 per call); review its `sent`, `failed`, and `remaining` counts and provider error logs. Avoid repeating the business mutation to retry a message.
+Client updates are stored in the D1 outbox and delivery is attempted immediately after the update is saved. Failures stay in the outbox with exponential backoff, capped at 24 hours between attempts; the queue does not wake itself when the app is idle. Process due items through the authenticated `POST /api/notification-outbox/process` endpoint (maximum 50 per call); review its `sent`, `failed`, and `remaining` counts and provider error logs. Avoid repeating the business mutation to retry a message.
 
 ## Rollback
 

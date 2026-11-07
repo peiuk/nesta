@@ -31,7 +31,7 @@
 
 邮件复用登录验证码的 Gmail／Resend 配置，无需单独开关。Gmail 需要 `GOOGLE_CLIENT_ID`、`GOOGLE_CLIENT_SECRET`、`GMAIL_REFRESH_TOKEN` 和 `GMAIL_USER`（或 `EMAIL_FROM`）；Resend 需要 `RESEND_API_KEY` 和 `EMAIL_FROM`。配置 `SITE_ORIGIN` 为客户访问的网站地址，邮件链接指向 `/portal`。本地未配置发送服务时仅输出开发日志，不投递真实邮件。
 
-通知在数据保存成功后进入 D1 邮件队列，再由发送器投递。邮件发送失败不会撤销已保存的更新；系统保留失败记录并按退避时间重试。可由管理员定时调用 `POST /api/notification-outbox/process`（JSON 可传 `{"limit":20}`，上限 50）处理到期邮件，并检查返回的 `sent`、`failed`、`remaining` 计数及应用日志。此接口应仅由受信任的管理员会话调用，不要公开成无认证的 cron URL。
+通知在数据保存成功后进入 D1 邮件队列，并在同一请求中立即尝试投递。邮件发送失败不会撤销已保存的更新；系统保留失败记录并按退避时间标记重试。系统不会在没有新请求时自行唤醒队列；管理员可调用 `POST /api/notification-outbox/process`（JSON 可传 `{"limit":20}`，上限 50）处理到期邮件，并检查返回的 `sent`、`failed`、`remaining` 计数及应用日志。此接口应仅由受信任的管理员会话调用，不要公开成无认证的 cron URL。
 
 ## 验证与界限
 

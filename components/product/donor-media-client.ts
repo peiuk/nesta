@@ -1,12 +1,12 @@
-import {DONOR_MEDIA_BATCH_MAX_BYTES,DONOR_MEDIA_MAX_ITEMS} from '@/lib/donor-photos';
+import {DONOR_MEDIA_BATCH_MAX_BYTES,DONOR_MEDIA_MAX_ITEMS,DONOR_IMAGE_MAX_BYTES,DONOR_PDF_MAX_BYTES,DONOR_VIDEO_MAX_BYTES} from '@/lib/limits';
 
 export const DONOR_MEDIA_ACCEPT='image/jpeg,image/png,application/pdf,video/mp4,video/webm,video/quicktime,.jpg,.jpeg,.png,.pdf,.mp4,.webm,.mov';
 
 function fileSizeLimit(file:File){
  const name=file.name.toLowerCase();
- if(file.type==='application/pdf'||name.endsWith('.pdf'))return 8*1024*1024;
- if(file.type.startsWith('video/')||/\.(mp4|m4v|webm|mov)$/.test(name))return 50*1024*1024;
- return 5*1024*1024;
+ if(file.type==='application/pdf'||name.endsWith('.pdf'))return DONOR_PDF_MAX_BYTES;
+ if(file.type.startsWith('video/')||/\.(mp4|m4v|webm|mov)$/.test(name))return DONOR_VIDEO_MAX_BYTES;
+ return DONOR_IMAGE_MAX_BYTES;
 }
 
 function looksLikeDonorMedia(file:File){

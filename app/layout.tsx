@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
-import { headers } from 'next/headers';
+import { cookies, headers } from 'next/headers';
 import { LocaleProvider } from '@/components/product/locale';
+import { Toaster } from '@/components/ui/toast';
 import { HOME_DESCRIPTION, HOME_TITLE, publicOrigin } from '@/lib/seo';
 import './globals.css';
 import './product.css';
@@ -19,11 +20,20 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const [cookieStore, headerList] = await Promise.all([cookies(), headers()]);
+  const savedLanguage = cookieStore.get('firstleaf-language')?.value;
+  const acceptedLanguages = (headerList.get('accept-language') || '').split(',').map((language) => language.trim().toLowerCase());
+  const initialLang = savedLanguage === 'zh' || savedLanguage === 'en'
+    ? savedLanguage
+    : acceptedLanguages.some((language) => language.startsWith('zh')) ? 'zh' : 'en';
+
   return (
-    <html lang="zh-CN">
+    <html lang={initialLang === 'zh' ? 'zh-CN' : 'en'}>
       <body>
-        <LocaleProvider>{children}</LocaleProvider>
+        <LocaleProvider initialLang={initialLang}>
+          <Toaster>{children}</Toaster>
+        </LocaleProvider>
       </body>
     </html>
   );

@@ -19,6 +19,7 @@ import {DonorCover,DonorPhotoManager} from './donor-photos';
 import {DONOR_MEDIA_ACCEPT,validateDonorMediaSelection} from './donor-media-client';
 import {groupReports} from '@/lib/report-groups';
 import {scalarText} from '@/lib/text';
+import {REPORT_FILE_MAX_BYTES,DONOR_MEDIA_MAX_ITEMS,DONOR_IMAGE_MAX_BYTES,DONOR_PDF_MAX_BYTES,DONOR_VIDEO_MAX_BYTES,DONOR_MEDIA_BATCH_MAX_BYTES,limitMB} from '@/lib/limits';
 import {FilePreview} from './file-preview';
 import {ClientPlanFees,CasePlanPanel} from './plan-fees';
 
@@ -67,23 +68,56 @@ export function Portal(){
  return <Workspace profile={profile}/>;
 }
 
+type View='overview'|'directory'|'requests'|'plan';
+const VIEWS:readonly View[]=['overview','directory','requests','plan'];
+type Route={view:View;caseId:string|null};
+const CASE_ID_PATTERN=/^[A-Za-z0-9_%.-]{1,128}$/;
+function decodeCaseId(raw:string|undefined):string|null{
+ if(!raw||!CASE_ID_PATTERN.test(raw))return null;
+ try{return decodeURIComponent(raw)}catch{return null}
+}
+function readRoute():Route{
+ if(typeof window==='undefined')return {view:'overview',caseId:null};
+ const [rawView,rawCase]=window.location.hash.slice(1).split('/');
+ const view=VIEWS.includes(rawView as View)?rawView as View:'overview';
+ return {view,caseId:decodeCaseId(rawCase)};
+}
+function writeHash(route:Route){
+ window.location.hash=route.caseId?`${route.view}/${encodeURIComponent(route.caseId)}`:route.view;
+ window.history.replaceState({nestaPortal:true},'',window.location.href);
+}
+
 function Workspace({profile}:{profile:Data}){
- const {t}=useLocale();const [view,setView]=useState<'overview'|'directory'|'requests'|'plan'>('overview');const [caseId,setCaseId]=useState<string|null>(null);const [version,setVersion]=useState(0);
+ const {t}=useLocale();const [route,setRoute]=useState<Route>(readRoute);const [version,setVersion]=useState(0);
+ const view=route.view;const caseId=route.caseId;
  const refresh=()=>setVersion(v=>v+1);
  useEffect(()=>{const c=new AbortController();registerFirstleafReadTools(c.signal).catch(()=>{});return()=>c.abort()},[]);
+ useEffect(()=>{
+  const sync=()=>{setRoute(readRoute());setVersion(v=>v+1)};
+  window.addEventListener('hashchange',sync);return()=>window.removeEventListener('hashchange',sync);
+ },[]);
+ const go=(next:View)=>{writeHash({view:next,caseId:null});setRoute({view:next,caseId:null})};
+ const openCase=(id:string)=>{writeHash({view:'overview',caseId:id});setRoute({view:'overview',caseId:id})};
+ const back=()=>{
+  if(window.history.state?.nestaPortal&&window.history.length>1){window.history.back();return}
+  go('overview');
+ };
  const overview=useResource('overview',version);
  const grants=(overview.data?.grants||[]) as Array<{scope:string;expires_at:string;revoked_at:string|null}>;
  const showDirectory=profile.role==='admin'||(profile.role==='client'&&hasDirectoryAccess({id:String(profile.id),role:String(profile.role),status:String(profile.status)},grants));
  const activeView=view==='directory'&&!showDirectory?'overview':view;
- const go=(next:'overview'|'directory'|'requests'|'plan')=>{setCaseId(null);setView(next)};
- const item=(key:'overview'|'directory'|'requests'|'plan',label:string)=><Button key={key} variant={activeView===key?'secondary':'ghost'} size="sm" onClick={()=>go(key)}>{label}</Button>;
+ useEffect(()=>{
+  if(view!=='directory'||showDirectory||overview.loading||overview.error)return;
+  window.history.replaceState(window.history.state,'','#overview');
+ },[view,showDirectory,overview.loading,overview.error]);
+ const item=(key:View,label:string)=><Button key={key} variant={activeView===key?'secondary':'ghost'} size="sm" onClick={()=>go(key)}>{label}</Button>;
  const nav=<>{item('overview',t('概览','Overview'))}{profile.role==='client'&&item('plan',t('我的方案/费用','My plan / fees'))}{showDirectory&&item('directory',t('资料库','Directory'))}{profile.role==='client'&&item('requests',t('我的选卵申请','My egg requests'))}{profile.role==='admin'&&<Link className="quiet-link" href="/admin">{t('管理后台','Administration')}</Link>}</>;
  return <Shell nav={nav}>
   {activeView==='overview'&&(caseId
-   ?<CaseDetail caseId={caseId} profile={profile} back={()=>setCaseId(null)}/>
+   ?<CaseDetail key={caseId} caseId={caseId} profile={profile} back={back}/>
    :overview.loading?<div className="loading">{t('正在载入…','Loading…')}</div>
    :overview.error?<ErrorNotice code={overview.error}/>
-   :profile.role==='client'?<ClientOverview profile={profile} data={overview.data||{}} open={setCaseId} go={go}/>:<Overview profile={profile} data={overview.data||{}} open={setCaseId} refresh={refresh}/>)}
+   :profile.role==='client'?<ClientOverview profile={profile} data={overview.data||{}} open={openCase} go={go}/>:<Overview profile={profile} data={overview.data||{}} open={openCase} refresh={refresh}/>)}
   {activeView==='directory'&&<Directory profile={profile} openRequests={()=>go('requests')}/>}
   {activeView==='plan'&&profile.role==='client'&&<ClientPlanFees/>}
   {activeView==='requests'&&profile.role==='client'&&<EggRequests/>}
@@ -358,7 +392,7 @@ function DonorEdit({donor,refresh}:{donor:Data;refresh:()=>void}){
  return <>
   <Button variant="ghost" size="sm" onClick={()=>setOpen(true)}>{t('编辑','Edit')}</Button>
   {open&&<Modal title={`${t('编辑档案','Edit record')} · ${String(donor.code)}`} description={t('更新匿名摘要与来源信息，变更记入审计。','Update anonymous summaries and source details. Changes are audited.')} onClose={()=>setOpen(false)}>
-   <ActionForm submitLabel={t('保存','Save')} onSubmit={f=>api('donors/'+String(donor.id),{...formObject(f),age:Number(f.get('age')),height:f.get('height')?Number(f.get('height')):null})} onDone={()=>{setOpen(false);refresh()}}>
+   <ActionForm successMessage={null} submitLabel={t('保存','Save')} onSubmit={f=>api('donors/'+String(donor.id),{...formObject(f),age:Number(f.get('age')),height:f.get('height')?Number(f.get('height')):null})} onDone={()=>{setOpen(false);refresh()}}>
     <div className="form-grid">
      <Field name="age" type="number" label={t('年龄 (18-65)','Age (18-65)')} value={Number(donor.age)}/>
      <Field name="height" type="number" label={t('身高 cm（可选）','Height cm (optional)')} value={donor.height?Number(donor.height):undefined} required={false}/>
@@ -380,7 +414,7 @@ function DonorStatus({donor,refresh}:{donor:Data;refresh:()=>void}){
  return <>
   <Button variant="ghost" size="sm" onClick={()=>setOpen(true)}>{t('更改状态','Change status')}</Button>
   {open&&<Modal title={t('更改档案状态','Change record status')} description={t('状态变更会记入审计。不可用或归档时的理由会显示在卡片上。','Status changes are recorded in the audit log. Reasons for unavailable or archived records appear on the card.')} onClose={()=>setOpen(false)}>
-   <ActionForm submitLabel={t('保存','Save')} onSubmit={f=>api('donors/'+String(donor.id),formObject(f))} onDone={()=>{setOpen(false);refresh()}}>
+   <ActionForm successMessage={null} submitLabel={t('保存','Save')} onSubmit={f=>api('donors/'+String(donor.id),formObject(f))} onDone={()=>{setOpen(false);refresh()}}>
     <Choice name="status" label={t('状态','Status')} value={String(donor.status)} options={['available','matching','unavailable','archived'].map(s=>[s,label(s)] as [string,string])}/>
     <Field name="reason" type="textarea" label={t('理由（对客可见，并记入审计）','Reason (shown to clients; recorded in audit)')} max={500}/>
    </ActionForm>
@@ -403,7 +437,7 @@ function NewDonor({refresh,kind='egg',onCreated}:{refresh:()=>void;kind?:'egg'|'
  return <>
   <Button onClick={()=>setOpen(true)}>{t('新增档案','Add record')}</Button>
   {open&&<Modal title={t('新增供者档案','Add donor record')} description={t('录入已核实、已取得同意的匿名摘要；可同时上传图片、PDF 或视频（可选）。','Record verified anonymous summaries; you may attach images, PDF or video (optional).')} onClose={closeModal}>
-   <ActionForm submitLabel={t('保存档案','Save record')} onSubmit={saveDonor} onDone={()=>{closeModal();if(onCreated)onCreated(createdKind.current);else refresh()}}>
+   <ActionForm successMessage={null} submitLabel={t('保存档案','Save record')} onSubmit={saveDonor} onDone={()=>{closeModal();if(onCreated)onCreated(createdKind.current);else refresh()}}>
     <div className="form-grid">
      <Field name="code" label={t('档案编号','Record code')} max={40}/>
      <Choice name="kind" label={t('类别','Type')} value={kind} options={[['egg',label('egg')],['sperm',label('sperm')]]}/>
@@ -416,7 +450,8 @@ function NewDonor({refresh,kind='egg',onCreated}:{refresh:()=>void;kind?:'egg'|'
     <Field name="summary_zh" type="textarea" label={t('中文摘要','Chinese summary')} max={1500}/>
     <Field name="summary_en" type="textarea" label={t('英文摘要','English summary')} max={1500}/>
     <Field name="consent_ref" label={t('同意书编号','Consent reference')} max={250}/>
-    <div className="field full"><span>{t('附件（可选）','Attachments (optional)')}</span><Input ref={fileInput} type="file" multiple accept={DONOR_MEDIA_ACCEPT} onChange={e=>pickFiles(Array.from(e.target.files||[]))}/><p className="metadata">{t('最多 10 个：JPG/PNG 5 MB、PDF 8 MB、视频 50 MB，每批不超过 100 MB。','Up to 10: JPG/PNG 5 MB, PDF 8 MB, video 50 MB, 100 MB per batch.')}</p>{attachmentError&&<ErrorNotice code={attachmentError}/>}{attachments.length>0&&<ul className="metadata">{attachments.map((file,i)=><li key={`${file.name}-${i}`}>{file.name} ({Math.max(1,Math.round(file.size/1024))} KB)</li>)}</ul>}</div>
+    <div className="field full"><span>{t('附件（可选）','Attachments (optional)')}</span><Input ref={fileInput} type="file" multiple accept={DONOR_MEDIA_ACCEPT} onChange={e=>pickFiles(Array.from(e.target.files||[]))}/><p className="metadata">{t(`最多 ${DONOR_MEDIA_MAX_ITEMS} 个：JPG/PNG ${limitMB(DONOR_IMAGE_MAX_BYTES)} MB、PDF ${limitMB(DONOR_PDF_MAX_BYTES)} MB、视频 ${limitMB(DONOR_VIDEO_MAX_BYTES)} MB，每批不超过 ${limitMB(DONOR_MEDIA_BATCH_MAX_BYTES)} MB。`,
+   `Up to ${DONOR_MEDIA_MAX_ITEMS}: JPG/PNG ${limitMB(DONOR_IMAGE_MAX_BYTES)} MB, PDF ${limitMB(DONOR_PDF_MAX_BYTES)} MB, video ${limitMB(DONOR_VIDEO_MAX_BYTES)} MB, ${limitMB(DONOR_MEDIA_BATCH_MAX_BYTES)} MB per batch.`)}</p>{attachmentError&&<ErrorNotice code={attachmentError}/>}{attachments.length>0&&<ul className="metadata">{attachments.map((file,i)=><li key={`${file.name}-${i}`}>{file.name} ({Math.max(1,Math.round(file.size/1024))} KB)</li>)}</ul>}</div>
    </ActionForm>
   </Modal>}
  </>;
@@ -639,7 +674,7 @@ function ReportAction({report,action,refresh}:{report:Data;action:'review'|'publ
  </>;
 }
 
-const MAX_UPLOAD=8*1024*1024;
+const MAX_UPLOAD=REPORT_FILE_MAX_BYTES;
 const ACCEPT='application/pdf,image/jpeg,image/png';
 
 function UploadForm({caseId,members,reports,refresh}:{caseId:string;members:Data[];reports:Data[];refresh:()=>void}){
@@ -655,9 +690,10 @@ function UploadForm({caseId,members,reports,refresh}:{caseId:string;members:Data
  }
  return <>
   <Button size="sm" onClick={()=>setOpen(true)}><Upload size={16}/>{t('上传报告','Upload report')}</Button>
-  {open&&<Modal title={t('上传报告或文件','Upload report or document')} description={t('仅 PDF、JPEG、PNG，单文件不超过 8 MB。上传后需由独立审核员复核，再由协调员发布。','PDF, JPEG or PNG up to 8 MB per file. An independent reviewer must review it before a coordinator publishes it.')} onClose={()=>setOpen(false)}>
+  {open&&<Modal title={t('上传报告或文件','Upload report or document')} description={t(`仅 PDF、JPEG、PNG，单文件不超过 ${limitMB(REPORT_FILE_MAX_BYTES)} MB。上传后需由独立审核员复核，再由协调员发布。`,
+  `PDF, JPEG or PNG up to ${limitMB(REPORT_FILE_MAX_BYTES)} MB per file. An independent reviewer must review it before a coordinator publishes it.`)} onClose={()=>setOpen(false)}>
    {clients.length===0?<Empty title={t('案件内没有已批准的客户成员','No approved client member in this case')}>{t('请先分配客户成员，报告必须至少有一位接收人。','Assign a client member first; every report needs at least one recipient.')}</Empty>
-    :<ActionForm submitLabel={t('上传','Upload')} onSubmit={submit} onDone={()=>{setOpen(false);setRecipients([]);refresh()}}>
+    :<ActionForm successMessage={t('文件已上传，等待独立复核。','File uploaded. Awaiting independent review.')} submitLabel={t('上传','Upload')} onSubmit={submit} onDone={()=>{setOpen(false);setRecipients([]);refresh()}}>
      <Field name="title" label={t('标题','Title')} max={150}/>
      <div className="form-grid">
       <Choice name="kind" label={t('类型','Type')} options={[['report',label('report')],['document',label('document')]]}/>

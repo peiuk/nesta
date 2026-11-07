@@ -17,6 +17,7 @@ import {notifyClientUpdate,type ClientUpdate} from './client-notifications';
 import {assertPartnerKind,canBindPartner,normalizePartnerId} from './partners';
 import {DOCUMENT_KINDS,assertDocumentKind,assertDocumentStatus,normalizeStatusDate,projectDocument,sortDocuments,documentSeedRows,type DocumentRow} from './documents';
 import {scalarText} from './text.ts';
+import {REPORT_REQUEST_MAX_BYTES,DONOR_MEDIA_REQUEST_MAX_BYTES} from './limits.ts';
 import {normalizeEmail,emailProfileId,generateOtpCode,hashSecret,verifySecret,parseSessionCookie,sessionCookieValue,clearSessionCookie,OTP_TTL_MS,SESSION_TTL_MS,OTP_MAX_ATTEMPTS,OTP_RESEND_MS,OTP_IP_WINDOW_MS,OTP_IP_MAX_REQUESTS} from './email-auth';
 import {sendMail,MailError} from './mail';
 export type Profile={id:string;email:string;name:string;role:string;status:string;language:string;jurisdiction:string;interest:string;registered_at:string|null;created_at:string};
@@ -60,6 +61,7 @@ async function notifyClients(update:ClientUpdate,request:Request){
   const dedupeKey=`${key}:${now()}:${mail.to.toLowerCase()}`;
   await statement('INSERT OR IGNORE INTO notification_outbox(id,dedupe_key,recipient,subject,body,status,attempts,available_at,created_at) VALUES(?,?,?,?,?,\'pending\',0,?,?)',id(),dedupeKey,mail.to,mail.subject,mail.text,now(),now()).run();
  }},update,resolveExpectedOrigin(request,env.SITE_ORIGIN));
+ try{await processNotificationOutbox(20)}catch(error){console.error('[firstleaf-client-alert] Outbox processing failed',error instanceof Error?error.message:error)}
 }
 export async function processNotificationOutbox(limit=20){
  const due=await all<{id:string;recipient:string;subject:string;body:string;attempts:number}>('SELECT id,recipient,subject,body,attempts FROM notification_outbox WHERE status=\'pending\' AND available_at<=? AND (locked_at IS NULL OR locked_at<?) ORDER BY created_at LIMIT ?',now(),new Date(Date.now()-5*60_000).toISOString(),Math.max(1,Math.min(50,limit)));
@@ -294,7 +296,7 @@ export async function write(path:string[],a:Profile,request:Request){
  mutateRequest(request);
  if(path[0]==='notification-outbox'&&path[1]==='process'){admin(a);const body=await json(request);return response(await processNotificationOutbox(number(body.limit??20,1,50)))}
  if(path[0]==='donors'&&path.length===3&&path[2]==='photos'){
-  admin(a);const limit=105*1024*1024;
+  admin(a);const limit=DONOR_MEDIA_REQUEST_MAX_BYTES;
    try{validateUploadRequestSize(request.headers.get('content-length'),limit)}catch{fail(413,'PHOTO_BATCH_TOO_LARGE')}
   const reader=request.body?.getReader();if(!reader)fail(400,'PHOTO_REQUIRED');
   const chunks:Uint8Array[]=[];let size=0;
@@ -522,12 +524,12 @@ export async function write(path:string[],a:Profile,request:Request){
 }
 
 async function uploadReport(caseId:string,a:Profile,request:Request){
- await manager(a,caseId);try{validateUploadRequestSize(request.headers.get('content-length'),17*1024*1024)}catch{fail(413,'TOO_LARGE')}const f=await request.formData();const original=f.get('original');if(!(original instanceof File))fail(400,'FILE_REQUIRED');const title=text(f.get('title'),150),kind=choice(f.get('kind'),['report','document']),source=text(f.get('source'),150),reportDate=date(f.get('report_date')),language=choice(f.get('language'),['ka','en','zh']),cycle=number(f.get('cycle'),1,99);let recipientIds:string[]=[];try{const encoded=scalarText(f.get('recipients'));if(!encoded)fail(400,'RECIPIENT_REQUIRED');const value=JSON.parse(encoded);if(!Array.isArray(value)||!value.length||value.length>10||value.some(x=>typeof x!=='string'))fail(400,'RECIPIENT_REQUIRED');recipientIds=[...new Set(value as string[])]}catch{fail(400,'RECIPIENT_REQUIRED')}
+ await manager(a,caseId);try{validateUploadRequestSize(request.headers.get('content-length'),REPORT_REQUEST_MAX_BYTES)}catch{fail(413,'TOO_LARGE')}const f=await request.formData();const original=f.get('original');if(!(original instanceof File))fail(400,'FILE_REQUIRED');const title=text(f.get('title'),150),kind=choice(f.get('kind'),['report','document']),source=text(f.get('source'),150),reportDate=date(f.get('report_date')),language=choice(f.get('language'),['ka','en','zh']),cycle=number(f.get('cycle'),1,99);let recipientIds:string[]=[];try{const encoded=scalarText(f.get('recipients'));if(!encoded)fail(400,'RECIPIENT_REQUIRED');const value=JSON.parse(encoded);if(!Array.isArray(value)||!value.length||value.length>10||value.some(x=>typeof x!=='string'))fail(400,'RECIPIENT_REQUIRED');recipientIds=[...new Set(value as string[])]}catch{fail(400,'RECIPIENT_REQUIRED')}
  const members=await all("SELECT m.user_id FROM case_members m JOIN profiles p ON p.id=m.user_id WHERE m.case_id=? AND m.role='client' AND p.role='client' AND p.status='approved'",caseId);if(recipientIds.some(x=>!members.some(m=>m.user_id===x)))fail(400,'RECIPIENT_REQUIRED');
  const bytes=new Uint8Array(await original.arrayBuffer());const originalKind=classifyUpload(original.name,original.type,bytes);if(!originalKind)fail(400,'INVALID_FILE');const originalMime=canonicalUploadMime(originalKind);
  const translation=f.get('translation');let translationBytes:Uint8Array|null=null;let translationMime:string|null=null;
  if(translation instanceof File&&translation.size){translationBytes=new Uint8Array(await translation.arrayBuffer());const translationKind=classifyUpload(translation.name,translation.type,translationBytes);if(!translationKind)fail(400,'INVALID_FILE');translationMime=canonicalUploadMime(translationKind)}
-  if(original.size+(translation instanceof File?translation.size:0)>17*1024*1024)fail(413,'TOO_LARGE');
+  if(original.size+(translation instanceof File?translation.size:0)>REPORT_REQUEST_MAX_BYTES)fail(413,'TOO_LARGE');
  let version=1;const supersedes=scalarText(f.get('supersedes_id')).trim()||null;if(supersedes){const old=await one('SELECT * FROM reports WHERE id=? AND case_id=?',supersedes,caseId);if(!old||old.cycle!==cycle)fail(400,'INVALID_INPUT');version=old.version+1}
  const reportId=id(),objectKey=`private/${caseId}/${reportId}/original`,translationKey=translationBytes?`private/${caseId}/${reportId}/translation`:null;const hash=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes))).map(b=>b.toString(16).padStart(2,'0')).join('');
  try{

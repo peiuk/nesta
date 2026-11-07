@@ -9,6 +9,7 @@ import {useLocale} from './locale';
 import {api,useResource,ErrorNotice,Modal,type Data} from './common';
 import {DONOR_MEDIA_ACCEPT,donorMediaKind,validateDonorMediaSelection} from './donor-media-client';
 import {FilePreview} from './file-preview';
+import {DONOR_MEDIA_MAX_ITEMS,DONOR_IMAGE_MAX_BYTES,DONOR_PDF_MAX_BYTES,DONOR_VIDEO_MAX_BYTES,DONOR_MEDIA_BATCH_MAX_BYTES,limitMB} from '@/lib/limits';
 
 const photoUrl=(id:string)=>'/api/donor-photos/'+encodeURIComponent(id);
 function PrivateImage({src,alt,className}:{src:string;alt:string;className?:string}){
@@ -57,7 +58,8 @@ function PhotoEditor({donor,onClose}:{donor:Data;onClose:(changed:boolean)=>void
   if(busy||!deleting)return;setBusy(true);setError('');setSuccess('');
   try{await api('donor-photos/'+deleting+'/delete',{});changed.current=true;setDeleting('');setVersion(v=>v+1);setSuccess(t('照片已删除。','Photo deleted.'))}catch(e){setError(e instanceof Error?e.message:'SERVICE_UNAVAILABLE')}finally{setBusy(false)}
  }
- return <Modal title={t('管理档案附件 · ','Manage attachments · ')+donor.code} description={t('最多 10 个：图片 JPG/PNG（单张 5 MB）、PDF（8 MB）、视频 MP4/WebM/MOV（50 MB），每批合计不超过 100 MB。列表首张图片作为封面。','Up to 10 items: JPG/PNG (5 MB each), PDF (8 MB), video MP4/WebM/MOV (50 MB), 100 MB per batch. The first image is the cover.')} onClose={()=>{if(!busy)onClose(changed.current)}}>
+ return <Modal title={t('管理档案附件 · ','Manage attachments · ')+donor.code} description={t(`最多 ${DONOR_MEDIA_MAX_ITEMS} 个：图片 JPG/PNG（单张 ${limitMB(DONOR_IMAGE_MAX_BYTES)} MB）、PDF（${limitMB(DONOR_PDF_MAX_BYTES)} MB）、视频 MP4/WebM/MOV（${limitMB(DONOR_VIDEO_MAX_BYTES)} MB），每批合计不超过 ${limitMB(DONOR_MEDIA_BATCH_MAX_BYTES)} MB。列表首张图片作为封面。`,
+  `Up to ${DONOR_MEDIA_MAX_ITEMS} items: JPG/PNG (${limitMB(DONOR_IMAGE_MAX_BYTES)} MB each), PDF (${limitMB(DONOR_PDF_MAX_BYTES)} MB), video MP4/WebM/MOV (${limitMB(DONOR_VIDEO_MAX_BYTES)} MB), ${limitMB(DONOR_MEDIA_BATCH_MAX_BYTES)} MB per batch. The first image is the cover.`)} onClose={()=>{if(!busy)onClose(changed.current)}}>
   <ErrorNotice code={loadError||error}/>{success&&<output className="success-banner">{success}</output>}
   {loading?<output>{t('正在读取照片…','Loading photos…')}</output>:loadError?<Button variant="outline" onClick={()=>setVersion(v=>v+1)}>{t('重新加载','Retry')}</Button>:<>
    <p className="photo-section-label">{t(`已上传 ${photos.length} / 10 张`,`Uploaded ${photos.length} / 10`)}</p>
