@@ -74,10 +74,11 @@ test('publishing queues only approved assigned report recipients after commit',a
  assert.equal(f.db.prepare("SELECT status FROM reports WHERE id='report'").get().status,'published');
  const queued=f.db.prepare("SELECT recipient,subject,body,status FROM notification_outbox ORDER BY recipient").all();
  assert.deepEqual(queued.map(row=>row.recipient),['alice@example.invalid']);
- assert.equal(queued[0].status,'pending');
+ // Publish drains the outbox right after commit; the row stays as the retry record.
+ assert.equal(queued[0].status,'sent');
  assert.match(queued[0].body,/报告与文件/);
  assert.match(queued[0].body,/https:\/\/portal\.example\.invalid\/portal/);
- assert.equal(f.sent.length,0);
+ assert.deepEqual(f.addresses(),['alice@example.invalid']);
  await assert.rejects(f.post('reports/report/publish',{reason:'repeat'}));
  assert.equal(f.db.prepare('SELECT COUNT(*) AS n FROM notification_outbox').get().n,1);
 });
