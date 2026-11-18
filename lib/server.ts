@@ -148,7 +148,7 @@ export async function handleAuth(path:string[],request:Request){
   const existing=await one<{created_at:string}>('SELECT created_at FROM email_otps WHERE email=?',email);
   if(existing&&Date.now()-Date.parse(existing.created_at)<OTP_RESEND_MS)fail(429,'TOO_MANY_REQUESTS');
   const secret=pepper();const code=generateOtpCode();const {salt,hash}=await hashSecret(code,secret);
-  await statement('INSERT INTO email_otps (email,code_hash,salt,expires_at,attempts,created_at,request_ip) VALUES (?,?,?,?,0,?,?) ON CONFLICT(email) DO UPDATE SET code_hash=excluded.code_hash,salt=excluded.salt,expires_at=excluded.expires_at,attempts=0,created_at=excluded.created_at,request_ip=excluded.request_ip',email,hash,salt,new Date(Date.now()+OTP_TTL_MS).toISOString(),now(),ip).run();
+  await statement('INSERT INTO email_otps (email,code_hash,salt,expires_at,attempts,created_at,request_ip) VALUES (?,?,?,?,0,?,?) ON CONFLICT(email) DO UPDATE SET code_hash=excluded.code_hash,salt=excluded.salt,attempts=CASE WHEN email_otps.expires_at>? THEN email_otps.attempts ELSE 0 END,expires_at=excluded.expires_at,created_at=excluded.created_at,request_ip=excluded.request_ip',email,hash,salt,new Date(Date.now()+OTP_TTL_MS).toISOString(),now(),ip,now()).run();
   await sendOtpEmail(email,code);
   await statement('INSERT INTO audit (id,actor_id,action,target,reason,created_at) VALUES (?,?,?,?,?,?)',id(),'system','auth.email.request',email,'OTP issued',now()).run();
   return response({ok:true});
@@ -156,15 +156,19 @@ export async function handleAuth(path:string[],request:Request){
  if(path[0]==='email'&&path[1]==='verify'){
   const body=await json(request);const email=normalizeEmail(String(body.email||''));if(!email)fail(400,'INVALID_EMAIL');
   const code=text(body.code,6);if(!/^\d{6}$/.test(code))fail(400,'OTP_INVALID');
-  const row=await one<{code_hash:string;salt:string;expires_at:string;attempts:number}>('SELECT * FROM email_otps WHERE email=?',email);
-  if(!row)fail(400,'OTP_INVALID');
-  if(Date.parse(row.expires_at)<=Date.now()||row.attempts>=OTP_MAX_ATTEMPTS){await statement('DELETE FROM email_otps WHERE email=?',email).run();fail(400,'OTP_EXPIRED')}
-  const secret=pepper();
-  if(!(await verifySecret(code,secret,row.salt,row.code_hash))){
-   await statement('UPDATE email_otps SET attempts=attempts+1 WHERE email=?',email).run();
-   fail(400,'OTP_INVALID');
+  // Spend the attempt before checking, so parallel guesses cannot all read the same count.
+  const row=await one<{code_hash:string;salt:string}>('UPDATE email_otps SET attempts=attempts+1 WHERE email=? AND attempts<? AND expires_at>? RETURNING code_hash,salt',email,OTP_MAX_ATTEMPTS,now());
+  if(!row){
+   const stale=await one<{expires_at:string}>('SELECT expires_at FROM email_otps WHERE email=?',email);
+   if(!stale)fail(400,'OTP_INVALID');
+   // A locked code stays until it expires; deleting it would hand out a fresh attempt budget.
+   if(Date.parse(stale.expires_at)<=Date.now())await statement('DELETE FROM email_otps WHERE email=? AND expires_at=?',email,stale.expires_at).run();
+   fail(400,'OTP_EXPIRED');
   }
-  await statement('DELETE FROM email_otps WHERE email=?',email).run();
+  const secret=pepper();
+  if(!(await verifySecret(code,secret,row.salt,row.code_hash)))fail(400,'OTP_INVALID');
+  const consumed=await statement('DELETE FROM email_otps WHERE email=? AND code_hash=?',email,row.code_hash).run();
+  if(!consumed.meta.changes)fail(400,'OTP_INVALID');
   let profile=await one<Profile>('SELECT * FROM profiles WHERE email=?',email);
   if(!profile){
    const profileId=await emailProfileId(email);const role=isOwnerEmail(email)?'admin':'client';const status=isOwnerEmail(email)?'approved':'pending';
@@ -461,7 +465,9 @@ export async function write(path:string[],a:Profile,request:Request){
   await manager(a,path[1]);
   const b=await json(request);
   const amount=number(b.amount,1,2000000);
-  const currency=choice(b.currency,['CNY','USD']);
+  // Collected/outstanding only sum the plan's currency, so a receipt must match it.
+  const plan=await one<{currency:string}>('SELECT currency FROM case_plans WHERE case_id=?',path[1]);if(!plan)fail(400,'INVALID_INPUT');
+  const currency=choice(b.currency,[plan.currency]);
   const paidOn=date(b.paid_on);
   const voucher=text(b.voucher,120);
   const paymentNote=text(b.note||'',300,false);

@@ -148,7 +148,7 @@ function ReceiptForm({caseId,currency,onDone}:{caseId:string;currency:string;onD
    await api(`cases/${caseId}/payments`,{amount:Number(body.amount),currency:body.currency,paid_on:body.paid_on,voucher:body.voucher,note:body.note||'',reason:body.reason});
   }} onDone={()=>{setOpen(false);onDone()}}>
    <Field name="amount" type="number" label={t('金额','Amount')}/>
-   <Choice name="currency" label={t('币种','Currency')} value={currency==='USD'?'USD':'CNY'} options={[['CNY','CNY'],['USD','USD']]}/>
+   <Choice name="currency" label={t('币种','Currency')} value={currency==='USD'?'USD':'CNY'} options={currency==='USD'?[['USD','USD']]:[['CNY','CNY']]}/>
    <Field name="paid_on" type="date" label={t('收款日期','Date paid')}/>
    <Field name="voucher" label={t('凭证号','Voucher')} max={120}/>
    <Field name="note" type="textarea" label={t('备注','Note')} required={false} max={300}/>

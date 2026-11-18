@@ -88,7 +88,8 @@ async function sendViaResend(env:MailEnv,mail:{to:string;subject:string;text:str
 export async function sendMail(env:MailEnv,mail:{to:string;subject:string;text:string}){
  if(gmailConfigured(env)){await sendViaGmail(env,mail);return}
  if(resendConfigured(env)){await sendViaResend(env,mail);return}
- const origin=env.SITE_ORIGIN||'';
- if(origin&&!/localhost|127\.0\.0\.1/.test(origin))failMail(503,'SERVICE_UNAVAILABLE');
+ // Log-only delivery is for local dev; a missing or public SITE_ORIGIN must never print codes.
+ const origins=(env.SITE_ORIGIN||'').split(',').map(s=>s.trim());
+ if(!origins.every(o=>/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?\/?$/.test(o)))failMail(503,'SERVICE_UNAVAILABLE');
  console.info('[firstleaf-otp]',mail.to,mail.text);
 }
